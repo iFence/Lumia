@@ -1,0 +1,10 @@
+{
+  "id": "lumia.sample",
+  "name": "Lumia Sample Plugin",
+  "version": "0.1.0",
+  "entry": "lumia-plugin-sample",
+  "capabilities": ["probe"],
+  "permissions": ["read_input_path", "write_temporary_output"],
+  "supported_inputs": ["image/png", "image/jpeg"],
+  "supported_outputs": ["image/png"]
+}

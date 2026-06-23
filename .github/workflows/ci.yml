@@ -1,0 +1,41 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+jobs:
+  rust:
+    name: rust-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Install Linux GPUI dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libfontconfig-dev \
+            libwayland-dev \
+            libxkbcommon-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev \
+            libxkbcommon-x11-dev \
+            libxcb-randr0-dev \
+            libxcb1-dev \
+            libxrandr-dev
+
+      - run: cargo fmt --check
+      - run: cargo check --workspace --all-targets
+      - run: cargo test --workspace
