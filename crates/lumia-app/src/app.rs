@@ -1,4 +1,4 @@
-use gpui::{App, Context, FocusHandle, Focusable, Subscription, Window};
+use gpui::{App, Context, FocusHandle, Focusable, MouseMoveEvent, Subscription, Window};
 use lumia_core::{
     supported_image_extensions, AppSettings, ImageDocument, ImageSource, Language, SettingsGroup,
     ThemeMode, ViewportState,
@@ -8,14 +8,15 @@ use std::path::{Path, PathBuf};
 use crate::persistence::{load_settings, save_settings};
 use crate::util::format_load_error;
 use crate::{
-    ExitFullscreen, OpenFile, ToggleFullscreen, ToggleImageInfo, ZoomFit, ZoomIn, ZoomOut,
-    TOOLBAR_HEIGHT,
+    ExitFullscreen, NextImage, OpenFile, PreviousImage, ToggleFullscreen, ToggleImageInfo,
+    ZoomFit, ZoomIn, ZoomOut, TOOLBAR_HEIGHT,
 };
 
 pub(crate) struct LumiaApp {
     pub(crate) focus_handle: FocusHandle,
     pub(crate) viewport: ViewportState,
     pub(crate) current_image: Option<ImageDocument>,
+    pub(crate) image_list: Vec<PathBuf>,
     pub(crate) error_message: Option<String>,
     pub(crate) pending_drop_paths: Vec<PathBuf>,
     pub(crate) is_panning: bool,
@@ -27,6 +28,8 @@ pub(crate) struct LumiaApp {
     pub(crate) active_settings_group: SettingsGroup,
     pub(crate) settings: AppSettings,
     pub(crate) appearance_subscription: Option<Subscription>,
+    pub(crate) toolbar_locked: bool,
+    pub(crate) root_mouse_y: f32,
 }
 
 impl LumiaApp {
@@ -39,6 +42,7 @@ impl LumiaApp {
             focus_handle,
             viewport: ViewportState::default(),
             current_image: None,
+            image_list: Vec::new(),
             error_message: None,
             pending_drop_paths: Vec::new(),
             is_panning: false,
@@ -50,10 +54,14 @@ impl LumiaApp {
             active_settings_group: SettingsGroup::General,
             settings,
             appearance_subscription: None,
+            toolbar_locked: false,
+            root_mouse_y: 0.0,
         };
         app.appearance_subscription = Some(cx.observe_window_appearance(window, |_, _, cx| {
             cx.notify();
         }));
+        window.toggle_fullscreen();
+        app.is_fullscreen = true;
         app
     }
 
@@ -166,6 +174,7 @@ impl LumiaApp {
                 self.is_panning = false;
                 self.context_menu_position = None;
                 self.last_mouse_position = None;
+                self.scan_sibling_images();
                 if let Some(window) = window {
                     window.set_window_title(&self.image_name());
                 }
@@ -177,6 +186,77 @@ impl LumiaApp {
                 self.last_mouse_position = None;
             }
         }
+    }
+
+    fn scan_sibling_images(&mut self) {
+        self.image_list.clear();
+        let Some(current_path) = self.image_path() else {
+            return;
+        };
+        let Some(parent_dir) = current_path.parent() else {
+            return;
+        };
+        let mut entries: Vec<PathBuf> = match std::fs::read_dir(parent_dir) {
+            Ok(entries) => entries
+                .filter_map(|entry| entry.ok().map(|e| e.path()))
+                .filter(|path| {
+                    path.extension()
+                        .and_then(|ext| ext.to_str())
+                        .is_some_and(lumia_core::is_supported_image_extension)
+                })
+                .collect(),
+            Err(_) => return,
+        };
+        entries.sort_by(|a, b| {
+            a.file_name()
+                .and_then(|n| n.to_str())
+                .cmp(&b.file_name().and_then(|n| n.to_str()))
+        });
+        self.image_list = entries;
+    }
+
+    pub(crate) fn current_image_index(&self) -> Option<usize> {
+        let current_path = self.image_path()?;
+        self.image_list.iter().position(|p| p == current_path)
+    }
+
+    pub(crate) fn sibling_count(&self) -> usize {
+        self.image_list.len()
+    }
+
+    pub(crate) fn navigate_image(&mut self, step: i32, window: &mut Window) {
+        let Some(current_idx) = self.current_image_index() else {
+            return;
+        };
+        let new_idx = if step < 0 {
+            current_idx.saturating_sub(step.unsigned_abs() as usize)
+        } else {
+            let next = current_idx + step as usize;
+            if next >= self.image_list.len() {
+                self.image_list.len().saturating_sub(1)
+            } else {
+                next
+            }
+        };
+        if new_idx != current_idx && new_idx < self.image_list.len() {
+            let path = self.image_list[new_idx].clone();
+            self.load_image(path, Some(window));
+        }
+    }
+
+    pub(crate) fn next_image(&mut self, _: &NextImage, window: &mut Window, cx: &mut Context<Self>) {
+        self.navigate_image(1, window);
+        cx.notify();
+    }
+
+    pub(crate) fn previous_image(
+        &mut self,
+        _: &PreviousImage,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.navigate_image(-1, window);
+        cx.notify();
     }
 
     pub(crate) fn load_first_supported_drop(&mut self, window: &mut Window) {
@@ -232,6 +312,32 @@ impl LumiaApp {
         let scale = fit_scale * self.viewport.zoom;
 
         Some((image_width * scale, image_height * scale))
+    }
+
+    const HOVER_ZONE_HEIGHT: f32 = 60.0;
+
+    pub(crate) fn should_show_toolbar(&self) -> bool {
+        !self.is_fullscreen || self.toolbar_locked || self.root_mouse_y <= Self::HOVER_ZONE_HEIGHT
+    }
+
+    pub(crate) fn toggle_toolbar_lock(&mut self, cx: &mut Context<Self>) {
+        self.toolbar_locked = !self.toolbar_locked;
+        cx.notify();
+    }
+
+    pub(crate) fn handle_root_mouse_move(
+        &mut self,
+        event: &MouseMoveEvent,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let new_y = f32::from(event.position.y);
+        let was_in_zone = self.root_mouse_y <= Self::HOVER_ZONE_HEIGHT;
+        let is_in_zone = new_y <= Self::HOVER_ZONE_HEIGHT;
+        self.root_mouse_y = new_y;
+        if was_in_zone != is_in_zone {
+            cx.notify();
+        }
     }
 }
 

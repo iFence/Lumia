@@ -13,3 +13,6 @@ lumia-core.workspace = true
 lumia-plugin-host.workspace = true
 rfd.workspace = true
 serde_json.workspace = true
+
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1"

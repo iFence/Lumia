@@ -27,13 +27,19 @@ impl Render for LumiaApp {
             .on_action(cx.listener(Self::toggle_fullscreen))
             .on_action(cx.listener(Self::exit_fullscreen))
             .on_action(cx.listener(Self::toggle_image_info))
+            .on_action(cx.listener(Self::next_image))
+            .on_action(cx.listener(Self::previous_image))
             .on_action(|_: &Quit, _: &mut Window, cx: &mut App| cx.quit())
+            .on_mouse_move(cx.listener(Self::handle_root_mouse_move))
             .size_full()
             .flex()
             .flex_col()
             .bg(rgb(palette.viewer_bg))
             .text_color(rgb(palette.text))
-            .children((!self.is_fullscreen).then(|| self.render_toolbar(palette, cx)))
+            .children(
+                self.should_show_toolbar()
+                    .then(|| self.render_toolbar(palette, cx)),
+            )
             .child(self.render_viewer(window, palette, cx))
             .children(self.render_settings_panel(window, palette, cx))
     }
@@ -88,7 +94,21 @@ impl LumiaApp {
                     .text_color(rgb(palette.muted_text))
                     .child(format!("{:.0}%", self.viewport.zoom * 100.0)),
             )
+            .children(self.render_position_indicator(palette))
             .child(div().flex_1())
+            .child(toolbar_button(
+                "lock-button",
+                if self.toolbar_locked {
+                    tr(language, TextKey::Unlock)
+                } else {
+                    tr(language, TextKey::Lock)
+                },
+                palette,
+                cx,
+                |this, _, _, cx| {
+                    this.toggle_toolbar_lock(cx);
+                },
+            ))
             .child(toolbar_button(
                 "settings-button",
                 tr(language, TextKey::Settings),
@@ -98,6 +118,21 @@ impl LumiaApp {
                     this.open_settings_panel(cx);
                 },
             ))
+    }
+
+    fn render_position_indicator(&self, palette: Palette) -> Option<impl IntoElement> {
+        let count = self.sibling_count();
+        if count <= 1 {
+            return None;
+        }
+        let current = self.current_image_index().map(|i| i + 1).unwrap_or(0);
+        Some(
+            div()
+                .px_2()
+                .text_sm()
+                .text_color(rgb(palette.muted_text))
+                .child(format!("{current} / {count}")),
+        )
     }
 
     fn render_viewer(

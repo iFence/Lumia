@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 mod app;
 mod i18n;
 mod image_info;
@@ -20,6 +22,8 @@ actions!(
     lumia,
     [
         OpenFile,
+        NextImage,
+        PreviousImage,
         ZoomIn,
         ZoomOut,
         ZoomFit,
@@ -33,6 +37,8 @@ actions!(
 fn main() -> anyhow::Result<()> {
     Application::new().run(|cx: &mut App| {
         cx.bind_keys([
+            KeyBinding::new("left", PreviousImage, None),
+            KeyBinding::new("right", NextImage, None),
             KeyBinding::new("cmd-o", OpenFile, None),
             KeyBinding::new("ctrl-o", OpenFile, None),
             KeyBinding::new("cmd-plus", ZoomIn, None),

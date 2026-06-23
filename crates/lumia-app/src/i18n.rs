@@ -33,6 +33,8 @@ pub(crate) enum TextKey {
     ShortcutFullscreen,
     ShortcutImageInfo,
     ShortcutQuit,
+    Lock,
+    Unlock,
 }
 
 pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
@@ -69,6 +71,8 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::ShortcutFullscreen => "Toggle fullscreen",
             TextKey::ShortcutImageInfo => "Toggle image info",
             TextKey::ShortcutQuit => "Quit",
+            TextKey::Lock => "Lock",
+            TextKey::Unlock => "Unlock",
         },
         Language::Chinese => match key {
             TextKey::Open => "打开",
@@ -102,6 +106,8 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::ShortcutFullscreen => "切换全屏",
             TextKey::ShortcutImageInfo => "切换图片信息",
             TextKey::ShortcutQuit => "退出",
+            TextKey::Lock => "锁定",
+            TextKey::Unlock => "解锁",
         },
     }
 }
