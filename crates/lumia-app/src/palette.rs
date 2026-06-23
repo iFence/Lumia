@@ -17,6 +17,8 @@ pub(crate) struct Palette {
     pub(crate) text: u32,
     pub(crate) muted_text: u32,
     pub(crate) error_text: u32,
+    pub(crate) accent: u32,
+    pub(crate) accent_bg: u32,
 }
 
 impl Palette {
@@ -42,6 +44,8 @@ impl Palette {
             text: 0xf2f2f2,
             muted_text: 0xbdbdbd,
             error_text: 0xffb3b3,
+            accent: 0x4a9eff,
+            accent_bg: 0x1a2a3d,
         }
     }
 
@@ -59,6 +63,8 @@ impl Palette {
             text: 0x202020,
             muted_text: 0x5f6368,
             error_text: 0x9b1c1c,
+            accent: 0x2563eb,
+            accent_bg: 0xe6f0ff,
         }
     }
 }

@@ -2,13 +2,14 @@ use gpui::{
     div, px, rgb, Context, InteractiveElement, IntoElement, ParentElement,
     StatefulInteractiveElement, Styled, Window,
 };
-use lumia_core::{Language, SettingsGroup, ThemeMode};
+use lumia_core::{Language, SettingsGroup, ShortcutId, ThemeMode};
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
 use crate::palette::Palette;
 use crate::widgets::{
-    settings_group_button, settings_label, settings_option_button,
+    settings_group_button, settings_label, settings_option_button, shortcut_record_button,
+    shortcut_reset_button,
 };
 
 impl LumiaApp {
@@ -28,7 +29,9 @@ impl LumiaApp {
                 .max(360.0)
                 .min(520.0);
 
-            div()
+            let is_recording = self.recording_shortcut.is_some();
+
+            let overlay = div()
                 .id("settings-overlay")
                 .absolute()
                 .left(px(0.0))
@@ -38,8 +41,15 @@ impl LumiaApp {
                 .flex()
                 .items_center()
                 .justify_center()
-                .bg(gpui::black().opacity(0.48))
-                .child(
+                .bg(gpui::black().opacity(0.48));
+
+            let overlay = if is_recording {
+                overlay.capture_key_down(cx.listener(Self::handle_shortcut_recording))
+            } else {
+                overlay
+            };
+
+            overlay.child(
                     div()
                         .id("settings-panel")
                         .w(px(panel_width))
@@ -150,7 +160,9 @@ impl LumiaApp {
             SettingsGroup::General => self
                 .render_general_settings(window, palette, cx)
                 .into_any_element(),
-            SettingsGroup::Shortcuts => self.render_shortcuts_settings(palette).into_any_element(),
+            SettingsGroup::Shortcuts => self
+                .render_shortcuts_settings(palette, cx)
+                .into_any_element(),
         }
     }
 
@@ -255,16 +267,24 @@ impl LumiaApp {
             )
     }
 
-    pub(crate) fn render_shortcuts_settings(&self, palette: Palette) -> impl IntoElement {
+    pub(crate) fn render_shortcuts_settings(
+        &self,
+        palette: Palette,
+        cx: &mut Context<LumiaApp>,
+    ) -> impl IntoElement {
         let language = self.settings.language;
-        let shortcuts = [
-            (TextKey::ShortcutOpenFile, "Ctrl+O / Cmd+O"),
-            (TextKey::ShortcutZoomIn, "Ctrl++ / Cmd++"),
-            (TextKey::ShortcutZoomOut, "Ctrl+- / Cmd+-"),
-            (TextKey::ShortcutZoomFit, "Ctrl+0 / Cmd+0"),
-            (TextKey::ShortcutFullscreen, "F11 / Ctrl+Enter / Cmd+Enter"),
-            (TextKey::ShortcutImageInfo, "Tab"),
-            (TextKey::ShortcutQuit, "Ctrl+Q / Cmd+Q"),
+
+        let shortcut_rows: Vec<(ShortcutId, TextKey)> = vec![
+            (ShortcutId::OpenFile, TextKey::ShortcutOpenFileLabel),
+            (ShortcutId::ZoomIn, TextKey::ShortcutZoomInLabel),
+            (ShortcutId::ZoomOut, TextKey::ShortcutZoomOutLabel),
+            (ShortcutId::ZoomFit, TextKey::ShortcutZoomFitLabel),
+            (ShortcutId::ToggleFullscreen, TextKey::ShortcutToggleFullscreenLabel),
+            (ShortcutId::ExitFullscreen, TextKey::ShortcutExitFullscreenLabel),
+            (ShortcutId::ToggleImageInfo, TextKey::ShortcutToggleImageInfoLabel),
+            (ShortcutId::NextImage, TextKey::ShortcutNextImageLabel),
+            (ShortcutId::PreviousImage, TextKey::ShortcutPreviousImageLabel),
+            (ShortcutId::Quit, TextKey::ShortcutQuitLabel),
         ];
 
         div()
@@ -272,25 +292,90 @@ impl LumiaApp {
             .flex_1()
             .flex()
             .flex_col()
-            .gap_4()
+            .gap_1()
             .p_5()
-            .children(shortcuts.into_iter().map(|(label, binding)| {
+            .child(
                 div()
                     .flex()
-                    .items_center()
-                    .justify_between()
-                    .gap_4()
-                    .px_3()
-                    .py_2()
-                    .rounded_md()
-                    .bg(rgb(palette.subtle_bg))
-                    .child(div().text_sm().child(tr(language, label)))
+                    .flex_col()
+                    .gap_1()
+                    .children(shortcut_rows.into_iter().map(|(shortcut_id, label)| {
+                        let is_recording =
+                            self.recording_shortcut == Some(shortcut_id);
+                        let current_binding =
+                            self.get_shortcut_binding(shortcut_id);
+                        let label_text = tr(language, label);
+
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .gap_3()
+                            .px_3()
+                            .py_2()
+                            .rounded_md()
+                            .bg(rgb(palette.subtle_bg))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .text_sm()
+                                    .child(label_text),
+                            )
+                            .child(
+                                shortcut_record_button(
+                                    "shortcut-record-button",
+                                    current_binding,
+                                    is_recording,
+                                    palette,
+                                    cx,
+                                    move |this, _, _, cx| {
+                                        if this.recording_shortcut == Some(shortcut_id) {
+                                            this.stop_recording_shortcut(cx);
+                                        } else {
+                                            this.start_recording_shortcut(shortcut_id, cx);
+                                        }
+                                    },
+                                ),
+                            )
+                            .child(
+                                shortcut_reset_button(
+                                    "shortcut-reset-button",
+                                    tr(language, TextKey::ShortcutResetToDefault),
+                                    palette,
+                                    cx,
+                                    move |this, _, _, cx| {
+                                        this.reset_shortcut(shortcut_id, cx);
+                                    },
+                                ),
+                            )
+                    })),
+            )
+            .child(div().h(px(16.0)))
+            .child(
+                div()
+                    .flex()
+                    .justify_end()
                     .child(
                         div()
-                            .text_xs()
+                            .id("shortcuts-reset-all")
+                            .px_3()
+                            .py_1()
+                            .rounded_md()
+                            .border_1()
+                            .border_color(rgb(palette.border))
+                            .text_sm()
+                            .cursor_pointer()
                             .text_color(rgb(palette.muted_text))
-                            .child(binding),
-                    )
-            }))
+                            .hover(|style| {
+                                style
+                                    .bg(rgb(palette.button_hover))
+                                    .text_color(rgb(palette.text))
+                            })
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.reset_all_shortcuts(cx);
+                            }))
+                            .child(tr(language, TextKey::ShortcutResetAll)),
+                    ),
+            )
     }
 }

@@ -1,7 +1,7 @@
 use gpui::{
-    div, img, px, rgb, App, Context, ExternalPaths, InteractiveElement, IntoElement, MouseButton,
-    MouseDownEvent, MouseMoveEvent, ObjectFit, ParentElement, Render, ScrollDelta,
-    ScrollWheelEvent, Styled, StyledImage, Window,
+    div, img, px, rgb, App, Context, ExternalPaths, FontWeight, InteractiveElement, IntoElement,
+    MouseButton, MouseDownEvent, MouseMoveEvent, ObjectFit, ParentElement, Render, ScrollDelta,
+    ScrollWheelEvent, StatefulInteractiveElement, Styled, StyledImage, Window,
 };
 
 use crate::app::LumiaApp;
@@ -61,15 +61,6 @@ impl LumiaApp {
             .border_color(rgb(palette.border))
             .bg(rgb(palette.toolbar_bg))
             .child(toolbar_button(
-                "open-button",
-                tr(language, TextKey::Open),
-                palette,
-                cx,
-                |this, _, window, cx| {
-                    this.open_file_dialog(cx, Some(window));
-                },
-            ))
-            .child(toolbar_button(
                 "fit-button",
                 tr(language, TextKey::Fit),
                 palette,
@@ -109,15 +100,6 @@ impl LumiaApp {
                     this.toggle_toolbar_lock(cx);
                 },
             ))
-            .child(toolbar_button(
-                "settings-button",
-                tr(language, TextKey::Settings),
-                palette,
-                cx,
-                |this, _, _, cx| {
-                    this.open_settings_panel(cx);
-                },
-            ))
     }
 
     fn render_position_indicator(&self, palette: Palette) -> Option<impl IntoElement> {
@@ -133,6 +115,51 @@ impl LumiaApp {
                 .text_color(rgb(palette.muted_text))
                 .child(format!("{current} / {count}")),
         )
+    }
+
+    fn render_empty_state(
+        &self,
+        palette: Palette,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let language = self.settings.language;
+
+        div()
+            .id("empty-state")
+            .flex()
+            .flex_col()
+            .items_center()
+            .justify_center()
+            .gap_3()
+            .child(
+                div()
+                    .text_lg()
+                    .font_weight(FontWeight::BOLD)
+                    .text_color(rgb(palette.text))
+                    .child("Lumia"),
+            )
+            .child(
+                div()
+                    .text_sm()
+                    .text_color(rgb(palette.muted_text))
+                    .child(tr(language, TextKey::EmptyState)),
+            )
+            .child(
+                div()
+                    .id("empty-state-open-button")
+                    .px_4()
+                    .py_2()
+                    .rounded_md()
+                    .bg(rgb(palette.button_bg))
+                    .text_color(rgb(palette.text))
+                    .text_sm()
+                    .cursor_pointer()
+                    .hover(|style| style.bg(rgb(palette.button_hover)))
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.open_file_dialog(cx, Some(window));
+                    }))
+                    .child(tr(language, TextKey::EmptyStateOpenButton)),
+            )
     }
 
     fn render_viewer(
@@ -279,11 +306,7 @@ impl LumiaApp {
                 .children(self.render_context_menu(palette, cx))
         } else {
             viewer
-                .child(status_message(
-                    "empty-state",
-                    tr(self.settings.language, TextKey::EmptyState),
-                    palette.muted_text,
-                ))
+                .child(self.render_empty_state(palette, cx))
                 .children(self.render_image_info_overlay())
                 .children(self.render_context_menu(palette, cx))
         }

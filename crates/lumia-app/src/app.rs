@@ -1,14 +1,16 @@
-use gpui::{App, Context, FocusHandle, Focusable, MouseMoveEvent, Subscription, Window};
+use gpui::{
+    App, Context, FocusHandle, Focusable, KeyBinding, MouseMoveEvent, Subscription, Window,
+};
 use lumia_core::{
-    supported_image_extensions, AppSettings, ImageDocument, ImageSource, Language, SettingsGroup,
-    ThemeMode, ViewportState,
+    default_shortcuts, supported_image_extensions, AppSettings, ImageDocument, ImageSource,
+    Language, SettingsGroup, ShortcutId, ThemeMode, ViewportState,
 };
 use std::path::{Path, PathBuf};
 
 use crate::persistence::{load_settings, save_settings};
 use crate::util::format_load_error;
 use crate::{
-    ExitFullscreen, NextImage, OpenFile, PreviousImage, ToggleFullscreen, ToggleImageInfo,
+    ExitFullscreen, NextImage, OpenFile, PreviousImage, Quit, ToggleFullscreen, ToggleImageInfo,
     ZoomFit, ZoomIn, ZoomOut, TOOLBAR_HEIGHT,
 };
 
@@ -30,6 +32,7 @@ pub(crate) struct LumiaApp {
     pub(crate) appearance_subscription: Option<Subscription>,
     pub(crate) toolbar_locked: bool,
     pub(crate) root_mouse_y: f32,
+    pub(crate) recording_shortcut: Option<ShortcutId>,
 }
 
 impl LumiaApp {
@@ -56,10 +59,12 @@ impl LumiaApp {
             appearance_subscription: None,
             toolbar_locked: false,
             root_mouse_y: 0.0,
+            recording_shortcut: None,
         };
         app.appearance_subscription = Some(cx.observe_window_appearance(window, |_, _, cx| {
             cx.notify();
         }));
+        app.rebuild_keybindings(cx);
         window.toggle_fullscreen();
         app.is_fullscreen = true;
         app
@@ -171,6 +176,7 @@ impl LumiaApp {
 
     pub(crate) fn close_settings_panel(&mut self, cx: &mut Context<Self>) {
         self.show_settings_panel = false;
+        self.recording_shortcut = None;
         cx.notify();
     }
 
@@ -189,6 +195,129 @@ impl LumiaApp {
         self.settings.theme = theme;
         let _ = save_settings(&self.settings);
         cx.notify();
+    }
+
+    /// Rebuild all keybindings from settings (or defaults).
+    pub(crate) fn rebuild_keybindings(&self, cx: &mut Context<Self>) {
+        cx.clear_key_bindings();
+        let shortcuts = &self.settings.shortcuts;
+
+        let mut bindings: Vec<KeyBinding> = Vec::new();
+
+        if let Some(ks) = shortcuts.get(&ShortcutId::OpenFile) {
+            bindings.push(KeyBinding::new(ks.as_str(), OpenFile, None));
+        }
+        if let Some(ks) = shortcuts.get(&ShortcutId::ZoomIn) {
+            bindings.push(KeyBinding::new(ks.as_str(), ZoomIn, None));
+        }
+        if let Some(ks) = shortcuts.get(&ShortcutId::ZoomOut) {
+            bindings.push(KeyBinding::new(ks.as_str(), ZoomOut, None));
+        }
+        if let Some(ks) = shortcuts.get(&ShortcutId::ZoomFit) {
+            bindings.push(KeyBinding::new(ks.as_str(), ZoomFit, None));
+        }
+        if let Some(ks) = shortcuts.get(&ShortcutId::ToggleFullscreen) {
+            bindings.push(KeyBinding::new(ks.as_str(), ToggleFullscreen, None));
+        }
+        if let Some(ks) = shortcuts.get(&ShortcutId::ExitFullscreen) {
+            bindings.push(KeyBinding::new(ks.as_str(), ExitFullscreen, None));
+        }
+        if let Some(ks) = shortcuts.get(&ShortcutId::ToggleImageInfo) {
+            bindings.push(KeyBinding::new(ks.as_str(), ToggleImageInfo, None));
+        }
+        if let Some(ks) = shortcuts.get(&ShortcutId::NextImage) {
+            bindings.push(KeyBinding::new(ks.as_str(), NextImage, None));
+        }
+        if let Some(ks) = shortcuts.get(&ShortcutId::PreviousImage) {
+            bindings.push(KeyBinding::new(ks.as_str(), PreviousImage, None));
+        }
+        if let Some(ks) = shortcuts.get(&ShortcutId::Quit) {
+            bindings.push(KeyBinding::new(ks.as_str(), Quit, None));
+        }
+
+        cx.bind_keys(bindings);
+    }
+
+    pub(crate) fn start_recording_shortcut(
+        &mut self,
+        shortcut_id: ShortcutId,
+        cx: &mut Context<Self>,
+    ) {
+        self.recording_shortcut = Some(shortcut_id);
+        cx.notify();
+    }
+
+    pub(crate) fn stop_recording_shortcut(&mut self, cx: &mut Context<Self>) {
+        self.recording_shortcut = None;
+        cx.notify();
+    }
+
+    pub(crate) fn handle_shortcut_recording(
+        &mut self,
+        event: &gpui::KeyDownEvent,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(shortcut_id) = self.recording_shortcut else {
+            return;
+        };
+
+        // Escape cancels recording without changing the binding
+        if event.keystroke.key == "escape" {
+            self.stop_recording_shortcut(cx);
+            return;
+        }
+
+        let binding_string = event.keystroke.unparse();
+
+        // Ignore standalone modifier keypresses
+        if binding_string.is_empty()
+            || binding_string == "shift"
+            || binding_string == "ctrl"
+            || binding_string == "alt"
+            || binding_string == "cmd"
+        {
+            return;
+        }
+
+        // Stop propagation so the keystroke doesn't also fire its action
+        cx.stop_propagation();
+
+        self.settings
+            .shortcuts
+            .insert(shortcut_id, binding_string);
+        let _ = save_settings(&self.settings);
+        self.rebuild_keybindings(cx);
+        self.stop_recording_shortcut(cx);
+    }
+
+    pub(crate) fn reset_shortcut(&mut self, shortcut_id: ShortcutId, cx: &mut Context<Self>) {
+        let defaults = default_shortcuts();
+        if let Some(default_binding) = defaults.get(&shortcut_id) {
+            self.settings
+                .shortcuts
+                .insert(shortcut_id, default_binding.clone());
+        } else {
+            self.settings.shortcuts.remove(&shortcut_id);
+        }
+        let _ = save_settings(&self.settings);
+        self.rebuild_keybindings(cx);
+        cx.notify();
+    }
+
+    pub(crate) fn reset_all_shortcuts(&mut self, cx: &mut Context<Self>) {
+        self.settings.shortcuts = default_shortcuts();
+        let _ = save_settings(&self.settings);
+        self.rebuild_keybindings(cx);
+        cx.notify();
+    }
+
+    pub(crate) fn get_shortcut_binding(&self, shortcut_id: ShortcutId) -> String {
+        self.settings
+            .shortcuts
+            .get(&shortcut_id)
+            .cloned()
+            .unwrap_or_default()
     }
 
     pub(crate) fn load_image(&mut self, path: PathBuf, window: Option<&mut Window>) {

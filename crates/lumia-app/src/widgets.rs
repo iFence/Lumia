@@ -1,7 +1,7 @@
 use gpui::{
-    div, prelude::FluentBuilder, rgb, AnyElement, ClickEvent, Context, InteractiveElement,
-    IntoElement, MouseButton, MouseDownEvent, ParentElement, StatefulInteractiveElement, Styled,
-    Window,
+    div, prelude::FluentBuilder, px, rgb, AnyElement, ClickEvent, Context, InteractiveElement,
+    IntoElement, MouseButton, MouseDownEvent, ParentElement, SharedString,
+    StatefulInteractiveElement, Styled, Window,
 };
 
 use crate::app::LumiaApp;
@@ -134,4 +134,70 @@ pub(crate) fn settings_label(
                 .text_color(rgb(palette.muted_text))
                 .child(description),
         )
+}
+
+pub(crate) fn shortcut_record_button(
+    id: &'static str,
+    current_binding: String,
+    is_recording: bool,
+    palette: Palette,
+    cx: &mut Context<LumiaApp>,
+    on_click: impl Fn(&mut LumiaApp, &ClickEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
+) -> AnyElement {
+    let text: SharedString = if is_recording {
+        "...".into()
+    } else {
+        current_binding.into()
+    };
+
+    div()
+        .id(id)
+        .min_w(px(120.0))
+        .px_3()
+        .py_1()
+        .rounded_md()
+        .border_1()
+        .text_sm()
+        .cursor_pointer()
+        .when(is_recording, move |style| {
+            style
+                .border_color(rgb(palette.accent))
+                .bg(rgb(palette.accent_bg))
+                .text_color(rgb(palette.text))
+        })
+        .when(!is_recording, move |style| {
+            style
+                .border_color(rgb(palette.border))
+                .bg(rgb(palette.subtle_bg))
+                .text_color(rgb(palette.muted_text))
+        })
+        .hover(move |style| style.bg(rgb(palette.button_hover)))
+        .on_click(cx.listener(on_click))
+        .child(text)
+        .into_any_element()
+}
+
+pub(crate) fn shortcut_reset_button(
+    id: &'static str,
+    label: &'static str,
+    palette: Palette,
+    cx: &mut Context<LumiaApp>,
+    on_click: impl Fn(&mut LumiaApp, &ClickEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
+) -> AnyElement {
+    div()
+        .id(id)
+        .px_2()
+        .py_1()
+        .rounded_md()
+        .text_xs()
+        .cursor_pointer()
+        .text_color(rgb(palette.muted_text))
+        .hover(move |style| {
+            style
+                .bg(rgb(palette.button_hover))
+                .text_color(rgb(palette.text))
+        })
+        .on_click(cx.listener(on_click))
+        .child(label)
+        .into_any_element()
 }
