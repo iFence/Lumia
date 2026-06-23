@@ -30,6 +30,14 @@ pub(crate) enum TextKey {
     ShortcutQuit,
     Lock,
     Unlock,
+    ImageInfoName,
+    ImageInfoDimensions,
+    ImageInfoFormat,
+    ImageInfoFileSize,
+    ImageInfoModified,
+    ImageInfoZoom,
+    ImageInfoPath,
+    ImageInfoUnknown,
 }
 
 pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
@@ -63,6 +71,14 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::ShortcutQuit => "Quit",
             TextKey::Lock => "Lock",
             TextKey::Unlock => "Unlock",
+            TextKey::ImageInfoName => "Name",
+            TextKey::ImageInfoDimensions => "Dimensions",
+            TextKey::ImageInfoFormat => "Format",
+            TextKey::ImageInfoFileSize => "File size",
+            TextKey::ImageInfoModified => "Modified",
+            TextKey::ImageInfoZoom => "Zoom",
+            TextKey::ImageInfoPath => "Path",
+            TextKey::ImageInfoUnknown => "Unknown",
         },
         Language::Chinese => match key {
             TextKey::Open => "打开",
@@ -93,6 +109,14 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::ShortcutQuit => "退出",
             TextKey::Lock => "锁定",
             TextKey::Unlock => "解锁",
+            TextKey::ImageInfoName => "名称",
+            TextKey::ImageInfoDimensions => "尺寸",
+            TextKey::ImageInfoFormat => "格式",
+            TextKey::ImageInfoFileSize => "文件大小",
+            TextKey::ImageInfoModified => "修改时间",
+            TextKey::ImageInfoZoom => "缩放",
+            TextKey::ImageInfoPath => "路径",
+            TextKey::ImageInfoUnknown => "未知",
         },
     }
 }

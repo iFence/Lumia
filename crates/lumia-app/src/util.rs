@@ -1,3 +1,4 @@
+use chrono::{DateTime, Local};
 use gpui::{div, rgb, InteractiveElement, IntoElement, ParentElement, Styled};
 use lumia_core::ImageLoadError;
 use std::time::UNIX_EPOCH;
@@ -35,7 +36,17 @@ pub(crate) fn format_file_size(bytes: u64) -> String {
 
 pub(crate) fn format_modified_time(modified: std::time::SystemTime) -> String {
     match modified.duration_since(UNIX_EPOCH) {
-        Ok(duration) => format!("{} unix seconds", duration.as_secs()),
+        Ok(duration) => {
+            let secs = duration.as_secs() as i64;
+            let nsecs = duration.subsec_nanos();
+            match DateTime::from_timestamp(secs, nsecs) {
+                Some(utc) => {
+                    let local: DateTime<Local> = DateTime::from(utc);
+                    local.format("%Y-%m-%d %H:%M:%S").to_string()
+                }
+                None => "invalid timestamp".to_string(),
+            }
+        }
         Err(_) => "before unix epoch".to_string(),
     }
 }

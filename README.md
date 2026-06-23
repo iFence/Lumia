@@ -22,3 +22,26 @@ cargo run -p lumia-app
 ```
 
 GPUI is pinned to `=0.2.2`. Upgrades should be documented in `docs/adr/` because GPUI is still pre-1.0 and may change APIs.
+
+## Supported Image Formats
+
+| Category | Extensions |
+|---|---|
+| AVIF | `.avif` |
+| BMP | `.bmp` |
+| DDS | `.dds` |
+| EXR | `.exr` |
+| Farbfeld | `.ff` `.farbfeld` |
+| GIF | `.gif` |
+| HDR / Radiance | `.hdr` |
+| ICO | `.ico` |
+| JPEG | `.jpg` `.jpeg` |
+| Netpbm | `.pbm` `.pam` `.ppm` `.pgm` |
+| PNG | `.png` |
+| QOI | `.qoi` |
+| SVG | `.svg` |
+| TGA | `.tga` |
+| TIFF | `.tif` `.tiff` |
+| WebP | `.webp` |
+
+**22** extensions across **16** format families.

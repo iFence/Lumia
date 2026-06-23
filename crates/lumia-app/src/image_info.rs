@@ -2,11 +2,14 @@ use gpui::{div, px, rgb, InteractiveElement, IntoElement, ParentElement, Styled}
 use std::fs;
 
 use crate::app::LumiaApp;
+use crate::i18n::{tr, TextKey};
 use crate::util::{format_file_size, format_modified_time};
+use lumia_core::Language;
 
 impl LumiaApp {
     pub(crate) fn render_image_info_overlay(&self) -> Option<impl IntoElement> {
         (self.show_image_info && self.image_path().is_some()).then(|| {
+            let language = self.settings.language;
             div()
                 .id("image-info-overlay")
                 .absolute()
@@ -21,20 +24,26 @@ impl LumiaApp {
                 .text_xs()
                 .shadow_md()
                 .children(
-                    self.image_info_lines()
+                    self.image_info_lines(language)
                         .into_iter()
                         .map(|line| div().child(line)),
                 )
         })
     }
 
-    pub(crate) fn image_info_lines(&self) -> Vec<String> {
+    pub(crate) fn image_info_lines(&self, language: Language) -> Vec<String> {
         let Some(path) = self.image_path() else {
             return Vec::new();
         };
 
+        let unknown = tr(language, TextKey::ImageInfoUnknown);
         let mut lines = Vec::new();
-        lines.push(format!("Name: {}", self.image_name()));
+
+        lines.push(format!(
+            "{}: {}",
+            tr(language, TextKey::ImageInfoName),
+            self.image_name()
+        ));
 
         if let Some(metadata) = self
             .current_image
@@ -42,28 +51,49 @@ impl LumiaApp {
             .and_then(|image| image.metadata.as_ref())
         {
             lines.push(format!(
-                "Dimensions: {} x {}",
-                metadata.width, metadata.height
+                "{}: {} × {}",
+                tr(language, TextKey::ImageInfoDimensions),
+                metadata.width,
+                metadata.height
             ));
             if let Some(format_name) = metadata.format_name.as_deref() {
-                lines.push(format!("Format: {format_name}"));
+                lines.push(format!(
+                    "{}: {format_name}",
+                    tr(language, TextKey::ImageInfoFormat),
+                ));
             }
         } else {
-            lines.push("Dimensions: unknown".to_string());
+            lines.push(format!(
+                "{}: {unknown}",
+                tr(language, TextKey::ImageInfoDimensions),
+            ));
         }
 
         if let Ok(file_metadata) = fs::metadata(path) {
             lines.push(format!(
-                "File size: {}",
+                "{}: {}",
+                tr(language, TextKey::ImageInfoFileSize),
                 format_file_size(file_metadata.len())
             ));
             if let Ok(modified) = file_metadata.modified() {
-                lines.push(format!("Modified: {}", format_modified_time(modified)));
+                lines.push(format!(
+                    "{}: {}",
+                    tr(language, TextKey::ImageInfoModified),
+                    format_modified_time(modified)
+                ));
             }
         }
 
-        lines.push(format!("Zoom: {:.0}%", self.viewport.zoom * 100.0));
-        lines.push(format!("Path: {}", path.display()));
+        lines.push(format!(
+            "{}: {:.0}%",
+            tr(language, TextKey::ImageInfoZoom),
+            self.viewport.zoom * 100.0
+        ));
+        lines.push(format!(
+            "{}: {}",
+            tr(language, TextKey::ImageInfoPath),
+            path.display()
+        ));
         lines
     }
 }

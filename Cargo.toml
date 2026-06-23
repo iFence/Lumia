@@ -16,6 +16,7 @@ rust-version = "1.82"
 
 [workspace.dependencies]
 anyhow = "1.0.95"
+chrono = "0.4"
 gpui = "=0.2.2"
 image = "0.25"
 lumia-core = { path = "crates/lumia-core" }
