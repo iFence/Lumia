@@ -17,9 +17,11 @@ rust-version = "1.82"
 [workspace.dependencies]
 anyhow = "1.0.95"
 gpui = "=0.2.2"
+image = "0.25"
 lumia-core = { path = "crates/lumia-core" }
 lumia-plugin-api = { path = "crates/lumia-plugin-api" }
 lumia-plugin-host = { path = "crates/lumia-plugin-host" }
+rfd = "0.15"
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.135"
 thiserror = "2.0.11"

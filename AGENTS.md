@@ -39,5 +39,9 @@ cargo run -p lumia-app
 ## Git
 
 - Keep commits focused.
+- Use the Angular/Conventional Commits format for all future commit messages: `<type>(<scope>): <subject>`.
+- Allowed commit types are `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, and `revert`.
+- Use an imperative, lower-case subject without a trailing period, for example `feat(plugin): add stdio handshake`.
+- Use `!` before the colon for breaking changes, and include a `BREAKING CHANGE:` footer when needed.
 - Do not commit generated build artifacts.
 - Do not rewrite or discard user changes unless explicitly asked.

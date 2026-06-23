@@ -7,5 +7,10 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+image.workspace = true
 serde.workspace = true
+thiserror.workspace = true
 uuid.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
