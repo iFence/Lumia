@@ -65,7 +65,15 @@ impl LumiaApp {
         app
     }
 
+    /// When the settings panel is visible, block actions that operate on the viewer.
+    fn is_viewer_blocked(&self) -> bool {
+        self.show_settings_panel
+    }
+
     pub(crate) fn open_file(&mut self, _: &OpenFile, window: &mut Window, cx: &mut Context<Self>) {
+        if self.is_viewer_blocked() {
+            return;
+        }
         self.open_file_dialog(cx, Some(window));
     }
 
@@ -80,16 +88,25 @@ impl LumiaApp {
     }
 
     pub(crate) fn zoom_in(&mut self, _: &ZoomIn, _: &mut Window, cx: &mut Context<Self>) {
+        if self.is_viewer_blocked() {
+            return;
+        }
         self.viewport.zoom_in();
         cx.notify();
     }
 
     pub(crate) fn zoom_out(&mut self, _: &ZoomOut, _: &mut Window, cx: &mut Context<Self>) {
+        if self.is_viewer_blocked() {
+            return;
+        }
         self.viewport.zoom_out();
         cx.notify();
     }
 
     pub(crate) fn zoom_fit(&mut self, _: &ZoomFit, _: &mut Window, cx: &mut Context<Self>) {
+        if self.is_viewer_blocked() {
+            return;
+        }
         self.reset_fit(cx);
     }
 
@@ -104,6 +121,9 @@ impl LumiaApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.is_viewer_blocked() {
+            return;
+        }
         self.toggle_window_fullscreen(window, cx);
     }
 
@@ -119,6 +139,9 @@ impl LumiaApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.is_viewer_blocked() {
+            return;
+        }
         if self.is_fullscreen || window.is_fullscreen() {
             window.toggle_fullscreen();
             self.is_fullscreen = false;
@@ -132,6 +155,9 @@ impl LumiaApp {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.is_viewer_blocked() {
+            return;
+        }
         self.show_image_info = !self.show_image_info;
         cx.notify();
     }
@@ -245,6 +271,9 @@ impl LumiaApp {
     }
 
     pub(crate) fn next_image(&mut self, _: &NextImage, window: &mut Window, cx: &mut Context<Self>) {
+        if self.is_viewer_blocked() {
+            return;
+        }
         self.navigate_image(1, window);
         cx.notify();
     }
@@ -255,6 +284,9 @@ impl LumiaApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.is_viewer_blocked() {
+            return;
+        }
         self.navigate_image(-1, window);
         cx.notify();
     }

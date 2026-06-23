@@ -1,12 +1,14 @@
-use gpui::{div, px, rgb, Context, InteractiveElement, IntoElement, ParentElement, Styled, Window};
+use gpui::{
+    div, px, rgb, Context, InteractiveElement, IntoElement, ParentElement,
+    StatefulInteractiveElement, Styled, Window,
+};
 use lumia_core::{Language, SettingsGroup, ThemeMode};
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
-use crate::palette::{theme_resolves_to_dark, Palette};
+use crate::palette::Palette;
 use crate::widgets::{
-    settings_group_button, settings_label, settings_option_button, settings_section_title,
-    toolbar_button,
+    settings_group_button, settings_label, settings_option_button,
 };
 
 impl LumiaApp {
@@ -64,29 +66,27 @@ impl LumiaApp {
                                 .child(
                                     div()
                                         .flex_1()
-                                        .flex()
-                                        .flex_col()
-                                        .child(
-                                            div()
-                                                .text_sm()
-                                                .child(tr(language, TextKey::SettingsTitle)),
-                                        )
-                                        .child(
-                                            div()
-                                                .text_xs()
-                                                .text_color(rgb(palette.muted_text))
-                                                .child(tr(language, TextKey::SettingsDescription)),
-                                        ),
+                                        .text_sm()
+                                        .child(tr(language, TextKey::SettingsTitle)),
                                 )
-                                .child(toolbar_button(
-                                    "settings-close-button",
-                                    tr(language, TextKey::Close),
-                                    palette,
-                                    cx,
-                                    |this, _, _, cx| {
-                                        this.close_settings_panel(cx);
-                                    },
-                                )),
+                                .child(
+                                    div()
+                                        .id("settings-close-button")
+                                        .w(px(28.0))
+                                        .h(px(28.0))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .rounded_sm()
+                                        .cursor_pointer()
+                                        .hover(|style| style.bg(rgb(palette.button_hover)))
+                                        .text_color(rgb(palette.text))
+                                        .text_lg()
+                                        .child("\u{2715}")
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.close_settings_panel(cx);
+                                        })),
+                                ),
                         )
                         .child(
                             div()
@@ -156,16 +156,11 @@ impl LumiaApp {
 
     pub(crate) fn render_general_settings(
         &self,
-        window: &Window,
+        _window: &Window,
         palette: Palette,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let language = self.settings.language;
-        let resolved_theme = if theme_resolves_to_dark(self.settings.theme, window.appearance()) {
-            tr(language, TextKey::Dark)
-        } else {
-            tr(language, TextKey::Light)
-        };
 
         div()
             .id("settings-general")
@@ -174,11 +169,6 @@ impl LumiaApp {
             .flex_col()
             .gap_5()
             .p_5()
-            .child(settings_section_title(
-                tr(language, TextKey::General),
-                tr(language, TextKey::GeneralDescription),
-                palette,
-            ))
             .child(
                 div()
                     .flex()
@@ -263,15 +253,6 @@ impl LumiaApp {
                             )),
                     ),
             )
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(rgb(palette.muted_text))
-                    .child(format!(
-                        "{}: {resolved_theme}",
-                        tr(language, TextKey::ResolvedTheme)
-                    )),
-            )
     }
 
     pub(crate) fn render_shortcuts_settings(&self, palette: Palette) -> impl IntoElement {
@@ -293,11 +274,6 @@ impl LumiaApp {
             .flex_col()
             .gap_4()
             .p_5()
-            .child(settings_section_title(
-                tr(language, TextKey::Shortcuts),
-                tr(language, TextKey::ShortcutsDescription),
-                palette,
-            ))
             .children(shortcuts.into_iter().map(|(label, binding)| {
                 div()
                     .flex()

@@ -117,24 +117,6 @@ pub(crate) fn settings_option_button(
         .into_any_element()
 }
 
-pub(crate) fn settings_section_title(
-    title: &'static str,
-    description: &'static str,
-    palette: Palette,
-) -> impl IntoElement {
-    div()
-        .flex()
-        .flex_col()
-        .gap_1()
-        .child(div().text_sm().child(title))
-        .child(
-            div()
-                .text_xs()
-                .text_color(rgb(palette.muted_text))
-                .child(description),
-        )
-}
-
 pub(crate) fn settings_label(
     title: &'static str,
     description: &'static str,

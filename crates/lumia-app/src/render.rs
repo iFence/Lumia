@@ -151,11 +151,17 @@ impl LumiaApp {
             .relative()
             .bg(rgb(palette.viewer_bg))
             .on_drop(cx.listener(|this, paths: &ExternalPaths, window, cx| {
+                if this.show_settings_panel {
+                    return;
+                }
                 this.pending_drop_paths = paths.paths().to_vec();
                 this.load_first_supported_drop(window);
                 cx.notify();
             }))
             .on_scroll_wheel(cx.listener(|this, event: &ScrollWheelEvent, _, cx| {
+                if this.show_settings_panel {
+                    return;
+                }
                 let delta = match event.delta {
                     ScrollDelta::Pixels(delta) => f32::from(delta.y),
                     ScrollDelta::Lines(delta) => delta.y,
@@ -170,6 +176,9 @@ impl LumiaApp {
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(|this, event: &MouseDownEvent, _, cx| {
+                    if this.show_settings_panel {
+                        return;
+                    }
                     if this.context_menu_position.take().is_some() {
                         cx.notify();
                         return;
@@ -184,6 +193,9 @@ impl LumiaApp {
             .on_mouse_up(
                 MouseButton::Left,
                 cx.listener(|this, _, _, cx| {
+                    if this.show_settings_panel {
+                        return;
+                    }
                     this.is_panning = false;
                     this.last_mouse_position = None;
                     cx.notify();
@@ -192,6 +204,9 @@ impl LumiaApp {
             .on_mouse_down(
                 MouseButton::Right,
                 cx.listener(|this, event: &MouseDownEvent, _, cx| {
+                    if this.show_settings_panel {
+                        return;
+                    }
                     let chrome_height = if this.is_fullscreen {
                         0.0
                     } else {
@@ -209,12 +224,18 @@ impl LumiaApp {
             .on_mouse_up_out(
                 MouseButton::Left,
                 cx.listener(|this, _, _, cx| {
+                    if this.show_settings_panel {
+                        return;
+                    }
                     this.is_panning = false;
                     this.last_mouse_position = None;
                     cx.notify();
                 }),
             )
             .on_mouse_move(cx.listener(|this, event: &MouseMoveEvent, _, cx| {
+                if this.show_settings_panel {
+                    return;
+                }
                 if this.is_panning && event.dragging() {
                     if let Some(last_position) = this.last_mouse_position {
                         this.viewport.pan_by(
