@@ -34,6 +34,11 @@ pub(crate) struct LumiaApp {
     pub(crate) root_mouse_y: f32,
     pub(crate) recording_shortcut: Option<ShortcutId>,
     pub(crate) window_title: String,
+    /// Whether a background decode is in progress for a HEIC/HEIF image.
+    pub(crate) is_decoding: bool,
+    /// Receiver for the background HEIC→PNG decode result.
+    /// Polled non-blockingly in `render_viewer`.
+    pub(crate) pending_decode: Option<std::sync::mpsc::Receiver<Option<lumia_core::CachedImage>>>,
 }
 
 impl LumiaApp {
@@ -66,6 +71,8 @@ impl LumiaApp {
             root_mouse_y: 0.0,
             recording_shortcut: None,
             window_title: APP_TITLE.to_string(),
+            is_decoding: false,
+            pending_decode: None,
         };
         app.appearance_subscription = Some(cx.observe_window_appearance(window, |_, _, cx| {
             cx.notify();
@@ -76,7 +83,7 @@ impl LumiaApp {
 
         // Load the image if the app was launched via OS file-open or CLI argument.
         if let Some(path) = initial_path {
-            app.load_image(path, Some(window));
+            app.load_image(path, Some(window), cx);
         }
 
         app
@@ -99,7 +106,7 @@ impl LumiaApp {
             .add_filter("Images", supported_image_extensions())
             .pick_file()
         {
-            self.load_image(path, window);
+            self.load_image(path, window, cx);
             cx.notify();
         }
     }
@@ -332,9 +339,21 @@ impl LumiaApp {
             .unwrap_or_default()
     }
 
-    pub(crate) fn load_image(&mut self, path: PathBuf, window: Option<&mut Window>) {
+    pub(crate) fn load_image(
+        &mut self,
+        path: PathBuf,
+        window: Option<&mut Window>,
+        _cx: &mut Context<Self>,
+    ) {
         match ImageDocument::load_from_path(&path) {
             Ok(document) => {
+                let needs_async_decode = path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .is_some_and(|ext| {
+                        ext.eq_ignore_ascii_case("heic") || ext.eq_ignore_ascii_case("heif")
+                    });
+
                 self.current_image = Some(document);
                 self.error_message = None;
                 self.viewport.reset_fit();
@@ -346,12 +365,30 @@ impl LumiaApp {
                 if let Some(window) = window {
                     window.set_window_title(&self.window_title);
                 }
+
+                if needs_async_decode {
+                    self.is_decoding = true;
+
+                    // Decode HEIC → PNG on a background thread so the UI
+                    // stays responsive. `render_viewer` polls the receiver
+                    // non-blockingly to pick up the result when ready.
+                    let file_path = path.clone();
+                    let (tx, rx) = std::sync::mpsc::channel();
+                    self.pending_decode = Some(rx);
+                    std::thread::spawn(move || {
+                        let cached = std::fs::read(&file_path)
+                            .ok()
+                            .and_then(|bytes| lumia_core::decode_heic_to_png(&bytes).ok());
+                        let _ = tx.send(cached);
+                    });
+                }
             }
             Err(error) => {
                 self.error_message = Some(format_load_error(&error));
                 self.is_panning = false;
                 self.context_menu_position = None;
                 self.last_mouse_position = None;
+                self.is_decoding = false;
             }
         }
     }
@@ -392,7 +429,12 @@ impl LumiaApp {
         self.image_list.len()
     }
 
-    pub(crate) fn navigate_image(&mut self, step: i32, window: &mut Window) {
+    pub(crate) fn navigate_image(
+        &mut self,
+        step: i32,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let Some(current_idx) = self.current_image_index() else {
             return;
         };
@@ -408,7 +450,7 @@ impl LumiaApp {
         };
         if new_idx != current_idx && new_idx < self.image_list.len() {
             let path = self.image_list[new_idx].clone();
-            self.load_image(path, Some(window));
+            self.load_image(path, Some(window), cx);
         }
     }
 
@@ -416,7 +458,7 @@ impl LumiaApp {
         if self.is_viewer_blocked() {
             return;
         }
-        self.navigate_image(1, window);
+        self.navigate_image(1, window, cx);
         cx.notify();
     }
 
@@ -429,11 +471,15 @@ impl LumiaApp {
         if self.is_viewer_blocked() {
             return;
         }
-        self.navigate_image(-1, window);
+        self.navigate_image(-1, window, cx);
         cx.notify();
     }
 
-    pub(crate) fn load_first_supported_drop(&mut self, window: &mut Window) {
+    pub(crate) fn load_first_supported_drop(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let path = self
             .pending_drop_paths
             .iter()
@@ -445,7 +491,7 @@ impl LumiaApp {
             .cloned();
 
         match path {
-            Some(path) => self.load_image(path, Some(window)),
+            Some(path) => self.load_image(path, Some(window), cx),
             None => {
                 self.error_message = Some("No supported image found in dropped files".to_string());
             }

@@ -19,6 +19,39 @@ pub fn is_supported_image_extension(extension: &str) -> bool {
         .any(|candidate| candidate.eq_ignore_ascii_case(extension))
 }
 
+/// Decode a HEIC/HEIF file to PNG bytes for rendering via GPUI.
+///
+/// This is the slow path (decode + PNG encode) and should be run on a
+/// background thread. Call [`Self::load_from_path`] first for fast metadata.
+pub fn decode_heic_to_png(file_bytes: &[u8]) -> Result<CachedImage, ImageLoadError> {
+    let decoded = heic::DecoderConfig::default()
+        .decode(file_bytes, heic::PixelLayout::Rgba8)
+        .map_err(|e| ImageLoadError::HeifMetadata {
+            path: "(memory)".into(),
+            message: e.to_string(),
+        })?;
+
+    let mut png_data = Vec::new();
+    image::write_buffer_with_format(
+        &mut std::io::Cursor::new(&mut png_data),
+        &decoded.data,
+        decoded.width,
+        decoded.height,
+        image::ColorType::Rgba8,
+        image::ImageFormat::Png,
+    )
+    .map_err(|e| ImageLoadError::Io {
+        path: "(memory)".into(),
+        source: std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
+    })?;
+
+    Ok(CachedImage {
+        png_data,
+        width: decoded.width,
+        height: decoded.height,
+    })
+}
+
 #[derive(Debug, Error)]
 pub enum ImageLoadError {
     #[error("file does not exist: {0}")]
@@ -111,36 +144,8 @@ impl ImageDocument {
                 }
             })?;
 
-            // Decode HEIC to RGBA, then encode as PNG for GPUI (GPUI's img()
-            // cannot natively decode HEIC). Encoding happens once at load time,
-            // not every frame.
-            let decoded_rgba = heic::DecoderConfig::default()
-                .decode(&file_bytes, heic::PixelLayout::Rgba8)
-                .map_err(|err| ImageLoadError::HeifMetadata {
-                    path: path.to_path_buf(),
-                    message: err.to_string(),
-                })?;
-
-            let mut png_data = Vec::new();
-            image::write_buffer_with_format(
-                &mut std::io::Cursor::new(&mut png_data),
-                &decoded_rgba.data,
-                decoded_rgba.width,
-                decoded_rgba.height,
-                image::ColorType::Rgba8,
-                image::ImageFormat::Png,
-            )
-            .map_err(|e| ImageLoadError::Io {
-                path: path.to_path_buf(),
-                source: std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
-            })?;
-
-            let cached_image = Some(CachedImage {
-                png_data,
-                width: decoded_rgba.width,
-                height: decoded_rgba.height,
-            });
-
+            // Metadata is fast; pixels are decoded asynchronously in the
+            // caller via decode_heic_to_png() to avoid blocking the UI.
             let metadata = Some(ImageMetadata {
                 width: info.width,
                 height: info.height,
@@ -151,13 +156,12 @@ impl ImageDocument {
                 },
                 format_name: Some("HEIF".into()),
             });
-            let source = ImageSource::LocalPath(path.to_path_buf());
 
             return Ok(Self {
                 id: Uuid::now_v7(),
-                source,
+                source: ImageSource::LocalPath(path.to_path_buf()),
                 metadata,
-                cached_image,
+                cached_image: None,
             });
         } else {
             let reader = image::ImageReader::open(path).map_err(|source| ImageLoadError::Io {

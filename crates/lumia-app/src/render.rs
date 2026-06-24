@@ -13,6 +13,10 @@ use crate::{Quit, TOOLBAR_HEIGHT, TITLE_BAR_HEIGHT};
 
 impl Render for LumiaApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // Non-blocking poll: if a background HEIC→PNG decode completed, apply
+        // the result now so this frame renders with the decoded image.
+        self.poll_decode(cx);
+
         let palette = self.palette(window);
 
         div()
@@ -229,6 +233,28 @@ impl LumiaApp {
             )
     }
 
+    fn poll_decode(&mut self, cx: &mut Context<Self>) {
+        if let Some(ref rx) = self.pending_decode {
+            match rx.try_recv() {
+                Ok(cached) => {
+                    if let Some(ref mut doc) = self.current_image {
+                        doc.cached_image = cached;
+                    }
+                    self.is_decoding = false;
+                    self.pending_decode = None;
+                    cx.notify();
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    self.is_decoding = false;
+                    self.pending_decode = None;
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => {
+                    // Still decoding — check again next frame.
+                }
+            }
+        }
+    }
+
     fn render_viewer(
         &self,
         window: &Window,
@@ -249,8 +275,7 @@ impl LumiaApp {
                     return;
                 }
                 this.pending_drop_paths = paths.paths().to_vec();
-                this.load_first_supported_drop(window);
-                cx.notify();
+                this.load_first_supported_drop(window, cx);
             }))
             .on_scroll_wheel(cx.listener(|this, event: &ScrollWheelEvent, _, cx| {
                 if this.show_settings_panel {
@@ -394,6 +419,7 @@ impl LumiaApp {
                         .mt(px(self.viewport.pan_y))
                         .child(image),
                 )
+                .children(self.render_decoding_overlay(palette))
                 .children(self.render_image_info_overlay())
                 .children(self.render_context_menu(palette, cx))
         } else {
@@ -402,6 +428,25 @@ impl LumiaApp {
                 .children(self.render_image_info_overlay())
                 .children(self.render_context_menu(palette, cx))
         }
+    }
+
+    fn render_decoding_overlay(&self, palette: Palette) -> Option<impl IntoElement> {
+        if !self.is_decoding {
+            return None;
+        }
+        Some(
+            div()
+                .absolute()
+                .bottom_4()
+                .right_4()
+                .px_3()
+                .py_1()
+                .rounded_md()
+                .bg(rgb(palette.button_bg))
+                .text_color(rgb(palette.muted_text))
+                .text_sm()
+                .child("Decoding…"),
+        )
     }
 
     fn render_context_menu(
