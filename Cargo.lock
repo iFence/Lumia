@@ -3034,7 +3034,6 @@ dependencies = [
  "anyhow",
  "chrono",
  "gpui",
- "image",
  "lumia-core",
  "lumia-plugin-host",
  "rfd",

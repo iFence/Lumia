@@ -352,45 +352,27 @@ impl LumiaApp {
                 .children(self.render_image_info_overlay())
                 .children(self.render_context_menu(palette, cx))
         } else if let Some(path) = self.image_path() {
-            // Formats like HEIC are pre-decoded into RGBA because GPUI's
-            // img() cannot natively render them.
-            let decoded = self
+            // Formats like HEIC are pre-decoded and cached as PNG at load
+            // time (see ImageDocument::load_from_path) because GPUI's img()
+            // cannot natively render them.
+            let cached = self
                 .current_image
                 .as_ref()
-                .and_then(|doc| doc.decoded_rgba.as_ref());
+                .and_then(|doc| doc.cached_image.as_ref());
 
-            let image = if let Some(rgba) = decoded {
-                let mut png_bytes = Vec::new();
-                let encode_ok = image::write_buffer_with_format(
-                    &mut std::io::Cursor::new(&mut png_bytes),
-                    &rgba.data,
-                    rgba.width,
-                    rgba.height,
-                    image::ColorType::Rgba8,
-                    image::ImageFormat::Png,
-                )
-                .is_ok();
-
-                if encode_ok {
-                    let (display_w, display_h) = self
-                        .scaled_image_size(window)
-                        .unwrap_or((rgba.width as f32, rgba.height as f32));
-                    let gpui_image =
-                        gpui::Image::from_bytes(gpui::ImageFormat::Png, png_bytes);
-                    img(std::sync::Arc::new(gpui_image))
-                        .w(px(display_w))
-                        .h(px(display_h))
-                        .object_fit(ObjectFit::Contain)
-                        .into_any_element()
-                } else {
-                    // PNG encoding failed — fall back to file path (won't
-                    // render, but won't crash either).
-                    img(path.to_path_buf())
-                        .max_w_full()
-                        .max_h_full()
-                        .object_fit(ObjectFit::Contain)
-                        .into_any_element()
-                }
+            let image = if let Some(cached) = cached {
+                let (display_w, display_h) = self
+                    .scaled_image_size(window)
+                    .unwrap_or((cached.width as f32, cached.height as f32));
+                let gpui_image = gpui::Image::from_bytes(
+                    gpui::ImageFormat::Png,
+                    cached.png_data.clone(),
+                );
+                img(std::sync::Arc::new(gpui_image))
+                    .w(px(display_w))
+                    .h(px(display_h))
+                    .object_fit(ObjectFit::Contain)
+                    .into_any_element()
             } else if let Some((width, height)) = self.scaled_image_size(window) {
                 img(path.to_path_buf())
                     .w(px(width))

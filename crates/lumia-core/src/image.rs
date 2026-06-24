@@ -45,13 +45,14 @@ pub enum ImageLoadError {
     },
 }
 
-/// Pre-decoded RGBA pixel data for formats that GPUI cannot natively decode
-/// (e.g. HEIC). GPUI's `img()` element only supports the formats listed in its
-/// own `extensions()` set, so we decode these formats ourselves at load time.
+/// Pre-encoded PNG image data for formats that GPUI cannot natively decode
+/// (e.g. HEIC). The image is decoded at load time and stored as PNG bytes so
+/// that GPUI's `img()` element can render it. Encoding happens once during
+/// `load_from_path()`, not every frame.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DecodedRgba {
-    /// Raw RGBA8 pixel bytes (width × height × 4).
-    pub data: Vec<u8>,
+pub struct CachedImage {
+    /// Pre-encoded PNG bytes (ready to pass to `gpui::Image::from_bytes`).
+    pub png_data: Vec<u8>,
     pub width: u32,
     pub height: u32,
 }
@@ -61,9 +62,9 @@ pub struct ImageDocument {
     pub id: Uuid,
     pub source: ImageSource,
     pub metadata: Option<ImageMetadata>,
-    /// Pre-decoded RGBA pixel data for formats GPUI cannot natively render.
+    /// Cached PNG data for formats GPUI cannot natively render.
     #[serde(skip)]
-    pub decoded_rgba: Option<DecodedRgba>,
+    pub cached_image: Option<CachedImage>,
 }
 
 impl ImageDocument {
@@ -72,7 +73,7 @@ impl ImageDocument {
             id: Uuid::now_v7(),
             source: ImageSource::LocalPath(path.into()),
             metadata: None,
-            decoded_rgba: None,
+            cached_image: None,
         }
     }
 
@@ -110,16 +111,35 @@ impl ImageDocument {
                 }
             })?;
 
-            // Decode pixels: GPUI's img() cannot natively render HEIC, so we
-            // decode to RGBA here and will re-encode as PNG at render time.
+            // Decode HEIC to RGBA, then encode as PNG for GPUI (GPUI's img()
+            // cannot natively decode HEIC). Encoding happens once at load time,
+            // not every frame.
             let decoded_rgba = heic::DecoderConfig::default()
                 .decode(&file_bytes, heic::PixelLayout::Rgba8)
-                .ok()
-                .map(|output| DecodedRgba {
-                    data: output.data,
-                    width: output.width,
-                    height: output.height,
-                });
+                .map_err(|err| ImageLoadError::HeifMetadata {
+                    path: path.to_path_buf(),
+                    message: err.to_string(),
+                })?;
+
+            let mut png_data = Vec::new();
+            image::write_buffer_with_format(
+                &mut std::io::Cursor::new(&mut png_data),
+                &decoded_rgba.data,
+                decoded_rgba.width,
+                decoded_rgba.height,
+                image::ColorType::Rgba8,
+                image::ImageFormat::Png,
+            )
+            .map_err(|e| ImageLoadError::Io {
+                path: path.to_path_buf(),
+                source: std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
+            })?;
+
+            let cached_image = Some(CachedImage {
+                png_data,
+                width: decoded_rgba.width,
+                height: decoded_rgba.height,
+            });
 
             let metadata = Some(ImageMetadata {
                 width: info.width,
@@ -137,7 +157,7 @@ impl ImageDocument {
                 id: Uuid::now_v7(),
                 source,
                 metadata,
-                decoded_rgba,
+                cached_image,
             });
         } else {
             let reader = image::ImageReader::open(path).map_err(|source| ImageLoadError::Io {
@@ -175,7 +195,7 @@ impl ImageDocument {
             id: Uuid::now_v7(),
             source: ImageSource::LocalPath(path.to_path_buf()),
             metadata,
-            decoded_rgba: None,
+            cached_image: None,
         })
     }
 }
