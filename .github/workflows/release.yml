@@ -1,0 +1,107 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  windows-release:
+    name: Windows installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-wix
+        run: cargo install cargo-wix --version 0.3.9
+
+      - name: Install WiX Toolset v3
+        run: choco install wixtoolset -y --no-progress
+
+      - name: Build release binary
+        run: cargo build --release -p lumia-app
+
+      - name: Build MSI installer
+        run: cargo wix -p lumia-app --output target/wix/
+
+      - name: Create portable zip
+        run: |
+          Compress-Archive `
+            -Path target/release/lumia-app.exe `
+            -DestinationPath target/lumia-portable-windows-x64.zip
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            target/wix/lumia-app-*.msi
+            target/lumia-portable-windows-x64.zip
+          fail_on_unmatched: true
+
+  macos-release:
+    name: macOS .dmg
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build release binary
+        run: cargo build --release -p lumia-app
+      - name: Create .app bundle
+        run: |
+          APP_DIR="target/Lumia.app/Contents"
+          mkdir -p "$APP_DIR/MacOS"
+          mkdir -p "$APP_DIR/Resources"
+          cp target/release/lumia-app "$APP_DIR/MacOS/"
+          cp crates/lumia-app/resources/Info.plist "$APP_DIR/"
+          # Copy icon as .icns placeholder (macOS prefers .icns; a proper
+          # conversion from .png or .ico should be done in a future step)
+          cp crates/lumia-app/resources/icon.png "$APP_DIR/Resources/"
+      - name: Create .dmg
+        run: |
+          hdiutil create -volname Lumia \
+            -srcfolder target/Lumia.app \
+            -ov -format UDZO \
+            target/Lumia-macos-arm64.dmg
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/Lumia-macos-arm64.dmg
+          fail_on_unmatched: true
+
+  linux-release:
+    name: Linux tarball
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libfontconfig-dev \
+            libwayland-dev \
+            libxkbcommon-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev \
+            libxkbcommon-x11-dev \
+            libxcb-randr0-dev \
+            libxcb1-dev \
+            libxrandr-dev
+      - name: Build release binary
+        run: cargo build --release -p lumia-app
+      - name: Create release archive
+        run: |
+          mkdir -p lumia-release
+          cp target/release/lumia-app lumia-release/
+          cp crates/lumia-app/resources/lumia.desktop lumia-release/
+          cp crates/lumia-app/resources/icon.png lumia-release/
+          cp crates/lumia-app/resources/install.sh lumia-release/
+          chmod +x lumia-release/install.sh
+          tar -czf target/lumia-linux-x64.tar.gz -C lumia-release .
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/lumia-linux-x64.tar.gz
+          fail_on_unmatched: true

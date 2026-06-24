@@ -11,7 +11,7 @@ use crate::persistence::{load_settings, save_settings};
 use crate::util::format_load_error;
 use crate::{
     ExitFullscreen, NextImage, OpenFile, PreviousImage, Quit, ToggleFullscreen, ToggleImageInfo,
-    ZoomFit, ZoomIn, ZoomOut, TOOLBAR_HEIGHT,
+    ZoomFit, ZoomIn, ZoomOut, APP_TITLE, TOOLBAR_HEIGHT, TITLE_BAR_HEIGHT,
 };
 
 pub(crate) struct LumiaApp {
@@ -33,10 +33,15 @@ pub(crate) struct LumiaApp {
     pub(crate) toolbar_locked: bool,
     pub(crate) root_mouse_y: f32,
     pub(crate) recording_shortcut: Option<ShortcutId>,
+    pub(crate) window_title: String,
 }
 
 impl LumiaApp {
-    pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub(crate) fn new(
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        initial_path: Option<PathBuf>,
+    ) -> Self {
         let focus_handle = cx.focus_handle();
         window.focus(&focus_handle);
         let settings = load_settings();
@@ -60,6 +65,7 @@ impl LumiaApp {
             toolbar_locked: false,
             root_mouse_y: 0.0,
             recording_shortcut: None,
+            window_title: APP_TITLE.to_string(),
         };
         app.appearance_subscription = Some(cx.observe_window_appearance(window, |_, _, cx| {
             cx.notify();
@@ -67,6 +73,12 @@ impl LumiaApp {
         app.rebuild_keybindings(cx);
         window.toggle_fullscreen();
         app.is_fullscreen = true;
+
+        // Load the image if the app was launched via OS file-open or CLI argument.
+        if let Some(path) = initial_path {
+            app.load_image(path, Some(window));
+        }
+
         app
     }
 
@@ -330,8 +342,9 @@ impl LumiaApp {
                 self.context_menu_position = None;
                 self.last_mouse_position = None;
                 self.scan_sibling_images();
+                self.window_title = self.image_name();
                 if let Some(window) = window {
-                    window.set_window_title(&self.image_name());
+                    window.set_window_title(&self.window_title);
                 }
             }
             Err(error) => {
@@ -460,7 +473,11 @@ impl LumiaApp {
         let viewport_size = window.viewport_size();
         let available_width = f32::from(viewport_size.width).max(1.0);
         let chrome_height = if self.is_fullscreen {
-            0.0
+            if self.should_show_toolbar() {
+                TITLE_BAR_HEIGHT + TOOLBAR_HEIGHT
+            } else {
+                0.0
+            }
         } else {
             TOOLBAR_HEIGHT
         };
@@ -475,10 +492,14 @@ impl LumiaApp {
         Some((image_width * scale, image_height * scale))
     }
 
-    const HOVER_ZONE_HEIGHT: f32 = 60.0;
+    const HOVER_ZONE_HEIGHT: f32 = 72.0;
 
     pub(crate) fn should_show_toolbar(&self) -> bool {
         !self.is_fullscreen || self.toolbar_locked || self.root_mouse_y <= Self::HOVER_ZONE_HEIGHT
+    }
+
+    pub(crate) fn should_show_titlebar(&self) -> bool {
+        self.is_fullscreen && self.should_show_toolbar()
     }
 
     pub(crate) fn toggle_toolbar_lock(&mut self, cx: &mut Context<Self>) {

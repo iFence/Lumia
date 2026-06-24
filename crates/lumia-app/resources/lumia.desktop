@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Lumia
+Comment=Fast and lightweight image viewer
+Exec=lumia-app %f
+Icon=lumia
+Terminal=false
+Categories=Graphics;Viewer;
+MimeType=image/avif;image/bmp;image/x-dds;image/x-exr;image/x-farbfeld;image/gif;image/heic;image/heif;image/jpeg;image/png;image/x-qoi;image/svg+xml;image/x-tga;image/tiff;image/vnd.radiance;image/vnd.microsoft.icon;image/webp;image/x-portable-anymap;image/x-portable-bitmap;image/x-portable-graymap;image/x-portable-pixmap;
+NoDisplay=false
+StartupNotify=false
