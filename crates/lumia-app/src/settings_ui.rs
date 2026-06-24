@@ -294,6 +294,7 @@ impl LumiaApp {
             .flex_col()
             .gap_1()
             .p_5()
+            .overflow_y_scroll()
             .child(
                 div()
                     .flex()

@@ -6,6 +6,7 @@ use gpui::{
 
 use crate::app::LumiaApp;
 use crate::palette::Palette;
+use crate::TITLE_BAR_HEIGHT;
 
 pub(crate) fn toolbar_button(
     id: &'static str,
@@ -199,5 +200,53 @@ pub(crate) fn shortcut_reset_button(
         })
         .on_click(cx.listener(on_click))
         .child(label)
+        .into_any_element()
+}
+
+pub(crate) fn titlebar_button(
+    id: &'static str,
+    symbol: &'static str,
+    palette: Palette,
+    cx: &mut Context<LumiaApp>,
+    on_click: impl Fn(&mut LumiaApp, &ClickEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
+) -> AnyElement {
+    div()
+        .id(id)
+        .w(px(36.0))
+        .h(px(TITLE_BAR_HEIGHT))
+        .flex()
+        .items_center()
+        .justify_center()
+        .rounded_none()
+        .cursor_pointer()
+        .text_color(rgb(palette.muted_text))
+        .text_sm()
+        .hover(move |style| style.bg(rgb(palette.button_hover)).text_color(rgb(palette.text)))
+        .on_click(cx.listener(on_click))
+        .child(symbol)
+        .into_any_element()
+}
+
+pub(crate) fn titlebar_close_button(
+    id: &'static str,
+    symbol: &'static str,
+    palette: Palette,
+    cx: &mut Context<LumiaApp>,
+    on_click: impl Fn(&mut LumiaApp, &ClickEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
+) -> AnyElement {
+    div()
+        .id(id)
+        .w(px(36.0))
+        .h(px(TITLE_BAR_HEIGHT))
+        .flex()
+        .items_center()
+        .justify_center()
+        .rounded_none()
+        .cursor_pointer()
+        .text_color(rgb(palette.muted_text))
+        .text_sm()
+        .hover(move |style| style.bg(rgb(0xe81123)).text_color(rgb(0xffffff)))
+        .on_click(cx.listener(on_click))
+        .child(symbol)
         .into_any_element()
 }

@@ -8,8 +8,8 @@ use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
 use crate::palette::Palette;
 use crate::util::status_message;
-use crate::widgets::{context_menu_item, toolbar_button};
-use crate::{Quit, TOOLBAR_HEIGHT};
+use crate::widgets::{context_menu_item, titlebar_button, titlebar_close_button, toolbar_button};
+use crate::{Quit, TOOLBAR_HEIGHT, TITLE_BAR_HEIGHT};
 
 impl Render for LumiaApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -36,6 +36,10 @@ impl Render for LumiaApp {
             .flex_col()
             .bg(rgb(palette.viewer_bg))
             .text_color(rgb(palette.text))
+            .children(
+                self.should_show_titlebar()
+                    .then(|| self.render_titlebar(palette, cx)),
+            )
             .children(
                 self.should_show_toolbar()
                     .then(|| self.render_toolbar(palette, cx)),
@@ -102,6 +106,68 @@ impl LumiaApp {
             ))
     }
 
+    fn render_titlebar(&self, palette: Palette, cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .id("titlebar")
+            .h(px(TITLE_BAR_HEIGHT))
+            .w_full()
+            .flex()
+            .items_center()
+            .border_b_1()
+            .border_color(rgb(palette.border))
+            .bg(rgb(palette.selection_bg))
+            .child(
+                div()
+                    .id("titlebar-drag-region")
+                    .flex_1()
+                    .h_full()
+                    .flex()
+                    .items_center()
+                    .pl_3()
+                    .on_mouse_down(MouseButton::Left, cx.listener(|_, _, window, _| {
+                        window.start_window_move();
+                    }))
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(rgb(palette.muted_text))
+                            .child(self.window_title.clone()),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .child(titlebar_button(
+                        "titlebar-minimize",
+                        "\u{2014}",
+                        palette,
+                        cx,
+                        |_, _, window, _| {
+                            window.minimize_window();
+                        },
+                    ))
+                    .child(titlebar_button(
+                        "titlebar-maximize",
+                        if self.is_fullscreen { "\u{29C9}" } else { "\u{25A1}" },
+                        palette,
+                        cx,
+                        |this, _, window, cx| {
+                            this.toggle_window_fullscreen(window, cx);
+                        },
+                    ))
+                    .child(titlebar_close_button(
+                        "titlebar-close",
+                        "\u{2715}",
+                        palette,
+                        cx,
+                        |_, _, _, cx| {
+                            cx.quit();
+                        },
+                    )),
+            )
+    }
+
     fn render_position_indicator(&self, palette: Palette) -> Option<impl IntoElement> {
         let count = self.sibling_count();
         if count <= 1 {
@@ -150,11 +216,12 @@ impl LumiaApp {
                     .px_4()
                     .py_2()
                     .rounded_md()
-                    .bg(rgb(palette.button_bg))
-                    .text_color(rgb(palette.text))
+                    .bg(rgb(palette.accent))
+                    .text_color(rgb(0xffffff))
                     .text_sm()
+                    .font_weight(FontWeight::MEDIUM)
                     .cursor_pointer()
-                    .hover(|style| style.bg(rgb(palette.button_hover)))
+                    .hover(|style| style.bg(rgb(palette.accent_bg)))
                     .on_click(cx.listener(|this, _, window, cx| {
                         this.open_file_dialog(cx, Some(window));
                     }))
@@ -235,7 +302,11 @@ impl LumiaApp {
                         return;
                     }
                     let chrome_height = if this.is_fullscreen {
-                        0.0
+                        if this.should_show_toolbar() {
+                            TITLE_BAR_HEIGHT + TOOLBAR_HEIGHT
+                        } else {
+                            0.0
+                        }
                     } else {
                         TOOLBAR_HEIGHT
                     };
