@@ -45,11 +45,25 @@ pub enum ImageLoadError {
     },
 }
 
+/// Pre-decoded RGBA pixel data for formats that GPUI cannot natively decode
+/// (e.g. HEIC). GPUI's `img()` element only supports the formats listed in its
+/// own `extensions()` set, so we decode these formats ourselves at load time.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecodedRgba {
+    /// Raw RGBA8 pixel bytes (width × height × 4).
+    pub data: Vec<u8>,
+    pub width: u32,
+    pub height: u32,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImageDocument {
     pub id: Uuid,
     pub source: ImageSource,
     pub metadata: Option<ImageMetadata>,
+    /// Pre-decoded RGBA pixel data for formats GPUI cannot natively render.
+    #[serde(skip)]
+    pub decoded_rgba: Option<DecodedRgba>,
 }
 
 impl ImageDocument {
@@ -58,6 +72,7 @@ impl ImageDocument {
             id: Uuid::now_v7(),
             source: ImageSource::LocalPath(path.into()),
             metadata: None,
+            decoded_rgba: None,
         }
     }
 
@@ -94,16 +109,36 @@ impl ImageDocument {
                     message: err.to_string(),
                 }
             })?;
-            Some(ImageMetadata {
+
+            // Decode pixels: GPUI's img() cannot natively render HEIC, so we
+            // decode to RGBA here and will re-encode as PNG at render time.
+            let decoded_rgba = heic::DecoderConfig::default()
+                .decode(&file_bytes, heic::PixelLayout::Rgba8)
+                .ok()
+                .map(|output| DecodedRgba {
+                    data: output.data,
+                    width: output.width,
+                    height: output.height,
+                });
+
+            let metadata = Some(ImageMetadata {
                 width: info.width,
                 height: info.height,
                 color: ColorDescription {
                     pixel_format: PixelFormat::Unknown,
                     transfer: TransferFunction::Unknown,
-                    has_alpha: false,
+                    has_alpha: info.has_alpha,
                 },
                 format_name: Some("HEIF".into()),
-            })
+            });
+            let source = ImageSource::LocalPath(path.to_path_buf());
+
+            return Ok(Self {
+                id: Uuid::now_v7(),
+                source,
+                metadata,
+                decoded_rgba,
+            });
         } else {
             let reader = image::ImageReader::open(path).map_err(|source| ImageLoadError::Io {
                 path: path.to_path_buf(),
@@ -140,6 +175,7 @@ impl ImageDocument {
             id: Uuid::now_v7(),
             source: ImageSource::LocalPath(path.to_path_buf()),
             metadata,
+            decoded_rgba: None,
         })
     }
 }
