@@ -59,7 +59,9 @@ pub(crate) fn format_load_error(error: &ImageLoadError) -> String {
         ImageLoadError::MissingExtension(_) => "The selected file has no extension".to_string(),
         ImageLoadError::NotFound(_) => "The selected file no longer exists".to_string(),
         ImageLoadError::NotAFile(_) => "The selected path is not a file".to_string(),
-        ImageLoadError::Metadata { .. } | ImageLoadError::Io { .. } => {
+        ImageLoadError::Metadata { .. }
+        | ImageLoadError::HeifMetadata { .. }
+        | ImageLoadError::Io { .. } => {
             "Could not read image metadata".to_string()
         }
     }

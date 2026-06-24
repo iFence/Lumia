@@ -6,6 +6,7 @@ use uuid::Uuid;
 pub const SUPPORTED_IMAGE_EXTENSIONS: &[&str] = &[
     "avif", "jpg", "jpeg", "png", "gif", "webp", "tif", "tiff", "tga", "dds", "bmp", "ico", "hdr",
     "exr", "pbm", "pam", "ppm", "pgm", "ff", "farbfeld", "qoi", "svg",
+    "heic", "heif",
 ];
 
 pub fn supported_image_extensions() -> &'static [&'static str] {
@@ -28,6 +29,8 @@ pub enum ImageLoadError {
     UnsupportedExtension(String),
     #[error("image path has no file extension: {0}")]
     MissingExtension(PathBuf),
+    #[error("failed to read HEIF metadata from {path}: {message}")]
+    HeifMetadata { path: PathBuf, message: String },
     #[error("failed to read image metadata from {path}: {source}")]
     Metadata {
         path: PathBuf,
@@ -77,6 +80,30 @@ impl ImageDocument {
 
         let metadata = if extension.eq_ignore_ascii_case("svg") {
             None
+        } else if extension.eq_ignore_ascii_case("heic")
+            || extension.eq_ignore_ascii_case("heif")
+        {
+            let file_bytes =
+                std::fs::read(path).map_err(|source| ImageLoadError::Io {
+                    path: path.to_path_buf(),
+                    source,
+                })?;
+            let info = heic::ImageInfo::from_bytes(&file_bytes).map_err(|err| {
+                ImageLoadError::HeifMetadata {
+                    path: path.to_path_buf(),
+                    message: err.to_string(),
+                }
+            })?;
+            Some(ImageMetadata {
+                width: info.width,
+                height: info.height,
+                color: ColorDescription {
+                    pixel_format: PixelFormat::Unknown,
+                    transfer: TransferFunction::Unknown,
+                    has_alpha: false,
+                },
+                format_name: Some("HEIF".into()),
+            })
         } else {
             let reader = image::ImageReader::open(path).map_err(|source| ImageLoadError::Io {
                 path: path.to_path_buf(),
