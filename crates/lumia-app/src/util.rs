@@ -61,8 +61,6 @@ pub(crate) fn format_load_error(error: &ImageLoadError) -> String {
         ImageLoadError::NotAFile(_) => "The selected path is not a file".to_string(),
         ImageLoadError::Metadata { .. }
         | ImageLoadError::HeifMetadata { .. }
-        | ImageLoadError::Io { .. } => {
-            "Could not read image metadata".to_string()
-        }
+        | ImageLoadError::Io { .. } => "Could not read image metadata".to_string(),
     }
 }

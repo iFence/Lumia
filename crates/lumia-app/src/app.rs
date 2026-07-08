@@ -1,20 +1,26 @@
 use gpui::{
-    App, Context, FocusHandle, Focusable, KeyBinding, MouseMoveEvent, Subscription, Window,
+    App, Context, FocusHandle, Focusable, KeyBinding, MouseMoveEvent, Subscription, WeakEntity,
+    Window,
 };
 use lumia_core::{
-    default_shortcuts, supported_image_extensions, AppSettings, ImageDocument, ImageSource,
-    Language, SettingsGroup, ShortcutId, ThemeMode, ViewportState,
+    default_shortcuts, load_cached_image_from_path, rotate_cached_image,
+    supported_image_extensions, AppSettings, CachedImage, FitMode, ImageDocument, ImageSource,
+    Language, SettingsGroup, ShortcutId, ThemeAccent, ThemeMode, ViewportState,
 };
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::persistence::{load_settings, save_settings};
 use crate::util::format_load_error;
 use crate::{
-    ExitFullscreen, NextImage, OpenFile, PreviousImage, Quit, ToggleFullscreen, ToggleImageInfo,
-    ZoomFit, ZoomIn, ZoomOut, APP_TITLE, TOOLBAR_HEIGHT, TITLE_BAR_HEIGHT,
+    ExitFullscreen, NextImage, OpenFile, PreviousImage, Quit, RotateClockwise,
+    RotateCounterClockwise, SelectLanguage, SelectThemeAccent, SelectThemeMode, ToggleFullscreen,
+    ToggleImageInfo, ZoomFit, ZoomIn, ZoomOut, APP_TITLE, STATUS_BAR_HEIGHT, ZOOM_MENU_BOTTOM_GAP,
+    ZOOM_MENU_HEIGHT, ZOOM_MENU_HOVER_MARGIN, ZOOM_MENU_RIGHT, ZOOM_MENU_WIDTH,
 };
 
 pub(crate) struct LumiaApp {
+    pub(crate) self_handle: WeakEntity<LumiaApp>,
     pub(crate) focus_handle: FocusHandle,
     pub(crate) viewport: ViewportState,
     pub(crate) current_image: Option<ImageDocument>,
@@ -30,8 +36,6 @@ pub(crate) struct LumiaApp {
     pub(crate) active_settings_group: SettingsGroup,
     pub(crate) settings: AppSettings,
     pub(crate) appearance_subscription: Option<Subscription>,
-    pub(crate) toolbar_locked: bool,
-    pub(crate) root_mouse_y: f32,
     pub(crate) recording_shortcut: Option<ShortcutId>,
     pub(crate) window_title: String,
     /// Whether a background decode is in progress for a HEIC/HEIF image.
@@ -39,6 +43,14 @@ pub(crate) struct LumiaApp {
     /// Receiver for the background HEIC→PNG decode result.
     /// Polled non-blockingly in `render_viewer`.
     pub(crate) pending_decode: Option<std::sync::mpsc::Receiver<Option<lumia_core::CachedImage>>>,
+    /// Pre-decoded adjacent images for instant navigation.
+    pub(crate) preload_cache: HashMap<PathBuf, CachedImage>,
+    /// Receivers for in-flight preload decode tasks.
+    pub(crate) pending_preloads: Vec<std::sync::mpsc::Receiver<Option<(PathBuf, CachedImage)>>>,
+    pub(crate) rotation_quarter_turns: u8,
+    pub(crate) rotated_image: Option<CachedImage>,
+    pub(crate) show_zoom_menu: bool,
+    pub(crate) show_status_bar: bool,
 }
 
 impl LumiaApp {
@@ -48,10 +60,11 @@ impl LumiaApp {
         initial_path: Option<PathBuf>,
     ) -> Self {
         let focus_handle = cx.focus_handle();
-        window.focus(&focus_handle);
+        window.focus(&focus_handle, cx);
         let settings = load_settings();
 
         let mut app = Self {
+            self_handle: WeakEntity::new_invalid(),
             focus_handle,
             viewport: ViewportState::default(),
             current_image: None,
@@ -67,12 +80,16 @@ impl LumiaApp {
             active_settings_group: SettingsGroup::General,
             settings,
             appearance_subscription: None,
-            toolbar_locked: false,
-            root_mouse_y: 0.0,
             recording_shortcut: None,
             window_title: APP_TITLE.to_string(),
             is_decoding: false,
             pending_decode: None,
+            preload_cache: HashMap::new(),
+            pending_preloads: Vec::new(),
+            rotation_quarter_turns: 0,
+            rotated_image: None,
+            show_zoom_menu: false,
+            show_status_bar: false,
         };
         app.appearance_subscription = Some(cx.observe_window_appearance(window, |_, _, cx| {
             cx.notify();
@@ -87,6 +104,15 @@ impl LumiaApp {
         }
 
         app
+    }
+
+    pub(crate) fn set_self_handle(
+        &mut self,
+        self_handle: WeakEntity<LumiaApp>,
+        cx: &mut Context<Self>,
+    ) {
+        self.self_handle = self_handle;
+        cx.notify();
     }
 
     /// When the settings panel is visible, block actions that operate on the viewer.
@@ -116,6 +142,7 @@ impl LumiaApp {
             return;
         }
         self.viewport.zoom_in();
+        self.show_zoom_menu = false;
         cx.notify();
     }
 
@@ -124,6 +151,7 @@ impl LumiaApp {
             return;
         }
         self.viewport.zoom_out();
+        self.show_zoom_menu = false;
         cx.notify();
     }
 
@@ -136,7 +164,87 @@ impl LumiaApp {
 
     pub(crate) fn reset_fit(&mut self, cx: &mut Context<Self>) {
         self.viewport.reset_fit();
+        self.show_zoom_menu = false;
         cx.notify();
+    }
+
+    pub(crate) fn set_zoom(&mut self, zoom: f32, cx: &mut Context<Self>) {
+        if self.is_viewer_blocked() || self.current_image.is_none() {
+            return;
+        }
+        self.viewport.set_zoom(zoom);
+        self.show_zoom_menu = false;
+        cx.notify();
+    }
+
+    pub(crate) fn toggle_fit_or_actual_size(&mut self, cx: &mut Context<Self>) {
+        if self.is_viewer_blocked() || self.current_image.is_none() {
+            return;
+        }
+        if self.viewport.fit_mode == FitMode::FitToWindow {
+            self.viewport.set_zoom(1.0);
+        } else {
+            self.viewport.reset_fit();
+        }
+        self.show_zoom_menu = false;
+        cx.notify();
+    }
+
+    pub(crate) fn toggle_zoom_menu(&mut self, cx: &mut Context<Self>) {
+        if self.is_viewer_blocked() || self.current_image.is_none() {
+            return;
+        }
+        self.show_zoom_menu = !self.show_zoom_menu;
+        cx.notify();
+    }
+
+    pub(crate) fn rotate_clockwise(
+        &mut self,
+        _: &RotateClockwise,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.rotate_display(1, cx);
+    }
+
+    pub(crate) fn rotate_counter_clockwise(
+        &mut self,
+        _: &RotateCounterClockwise,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.rotate_display(3, cx);
+    }
+
+    pub(crate) fn rotate_display(&mut self, quarter_turns: u8, cx: &mut Context<Self>) {
+        if self.is_viewer_blocked() || self.current_image.is_none() {
+            return;
+        }
+        self.rotation_quarter_turns = (self.rotation_quarter_turns + quarter_turns) % 4;
+        self.viewport.reset_fit();
+        self.show_zoom_menu = false;
+        self.rebuild_rotated_image();
+        cx.notify();
+    }
+
+    pub(crate) fn rebuild_rotated_image(&mut self) {
+        self.rotated_image = None;
+        let turns = self.rotation_quarter_turns % 4;
+        if turns == 0 {
+            return;
+        }
+
+        let cached = self
+            .current_image
+            .as_ref()
+            .and_then(|document| document.cached_image.clone())
+            .or_else(|| {
+                self.image_path()
+                    .and_then(|path| load_cached_image_from_path(path).ok())
+            });
+        self.rotated_image = cached
+            .as_ref()
+            .and_then(|image| rotate_cached_image(image, turns).ok());
     }
 
     pub(crate) fn toggle_fullscreen(
@@ -214,6 +322,39 @@ impl LumiaApp {
         self.settings.theme = theme;
         let _ = save_settings(&self.settings);
         cx.notify();
+    }
+
+    pub(crate) fn set_theme_accent(&mut self, theme_accent: ThemeAccent, cx: &mut Context<Self>) {
+        self.settings.theme_accent = theme_accent;
+        let _ = save_settings(&self.settings);
+        cx.notify();
+    }
+
+    pub(crate) fn apply_selected_language(
+        &mut self,
+        action: &SelectLanguage,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_language(action.0, cx);
+    }
+
+    pub(crate) fn apply_selected_theme_mode(
+        &mut self,
+        action: &SelectThemeMode,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_theme(action.0, cx);
+    }
+
+    pub(crate) fn apply_selected_theme_accent(
+        &mut self,
+        action: &SelectThemeAccent,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_theme_accent(action.0, cx);
     }
 
     /// Rebuild all keybindings from settings (or defaults).
@@ -302,9 +443,7 @@ impl LumiaApp {
         // Stop propagation so the keystroke doesn't also fire its action
         cx.stop_propagation();
 
-        self.settings
-            .shortcuts
-            .insert(shortcut_id, binding_string);
+        self.settings.shortcuts.insert(shortcut_id, binding_string);
         let _ = save_settings(&self.settings);
         self.rebuild_keybindings(cx);
         self.stop_recording_shortcut(cx);
@@ -347,16 +486,24 @@ impl LumiaApp {
     ) {
         match ImageDocument::load_from_path(&path) {
             Ok(document) => {
-                let needs_async_decode = path
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .is_some_and(|ext| {
-                        ext.eq_ignore_ascii_case("heic") || ext.eq_ignore_ascii_case("heif")
-                    });
+                let needs_async_decode =
+                    path.extension()
+                        .and_then(|e| e.to_str())
+                        .is_some_and(|ext| {
+                            ext.eq_ignore_ascii_case("heic") || ext.eq_ignore_ascii_case("heif")
+                        });
+
+                // Always discard any in-flight decode from the previously
+                // displayed image — a new image is taking over.
+                self.is_decoding = false;
+                self.pending_decode = None;
 
                 self.current_image = Some(document);
                 self.error_message = None;
                 self.viewport.reset_fit();
+                self.rotation_quarter_turns = 0;
+                self.rotated_image = None;
+                self.show_zoom_menu = false;
                 self.is_panning = false;
                 self.context_menu_position = None;
                 self.last_mouse_position = None;
@@ -366,28 +513,54 @@ impl LumiaApp {
                     window.set_window_title(&self.window_title);
                 }
 
-                if needs_async_decode {
+                // If this image was preloaded in the background, apply the
+                // cached image now so rendering is instant.
+                if let Some(cached) = self.preload_cache.remove(&path) {
+                    if let Some(ref mut doc) = self.current_image {
+                        doc.cached_image = Some(cached);
+                    }
+                }
+
+                if needs_async_decode
+                    && self
+                        .current_image
+                        .as_ref()
+                        .and_then(|doc| doc.cached_image.as_ref())
+                        .is_none()
+                {
                     self.is_decoding = true;
 
-                    // Decode HEIC → PNG on a background thread so the UI
-                    // stays responsive. `render_viewer` polls the receiver
-                    // non-blockingly to pick up the result when ready.
+                    // Take the file bytes that load_from_path already read
+                    // for metadata extraction. This avoids a second disk read.
+                    let heif_bytes = self
+                        .current_image
+                        .as_mut()
+                        .and_then(|doc| doc.heif_bytes.take());
+
                     let file_path = path.clone();
                     let (tx, rx) = std::sync::mpsc::channel();
                     self.pending_decode = Some(rx);
                     std::thread::spawn(move || {
-                        let cached = std::fs::read(&file_path)
-                            .ok()
+                        let cached = heif_bytes
+                            .or_else(|| {
+                                // Fallback: re-read from disk if bytes weren't
+                                // cached (shouldn't normally happen).
+                                std::fs::read(&file_path).ok()
+                            })
                             .and_then(|bytes| lumia_core::decode_heic_to_png(&bytes).ok());
                         let _ = tx.send(cached);
                     });
                 }
+
+                // Preload adjacent images so next/previous navigation is instant.
+                self.start_preload_adjacent();
             }
             Err(error) => {
                 self.error_message = Some(format_load_error(&error));
                 self.is_panning = false;
                 self.context_menu_position = None;
                 self.last_mouse_position = None;
+                self.show_zoom_menu = false;
                 self.is_decoding = false;
             }
         }
@@ -418,6 +591,58 @@ impl LumiaApp {
                 .cmp(&b.file_name().and_then(|n| n.to_str()))
         });
         self.image_list = entries;
+    }
+
+    /// Kick off background decodes for the immediately adjacent HEIC images
+    /// so that next/previous navigation feels instant.
+    fn start_preload_adjacent(&mut self) {
+        let Some(current_idx) = self.current_image_index() else {
+            return;
+        };
+
+        // Preload up to 2 images: previous and next.
+        for offset in [-1i32, 1] {
+            let target_idx = if offset < 0 {
+                current_idx.saturating_sub(offset.unsigned_abs() as usize)
+            } else {
+                let next = current_idx + offset as usize;
+                if next >= self.image_list.len() {
+                    continue;
+                }
+                next
+            };
+            if target_idx == current_idx || target_idx >= self.image_list.len() {
+                continue;
+            }
+
+            let target_path = self.image_list[target_idx].clone();
+
+            // Skip if already cached or already queued.
+            if self.preload_cache.contains_key(&target_path) {
+                continue;
+            }
+
+            // Only preload HEIC/HEIF — other formats are fast-path via GPUI.
+            let is_heic = target_path
+                .extension()
+                .and_then(|e| e.to_str())
+                .is_some_and(|ext| {
+                    ext.eq_ignore_ascii_case("heic") || ext.eq_ignore_ascii_case("heif")
+                });
+            if !is_heic {
+                continue;
+            }
+
+            let (tx, rx) = std::sync::mpsc::channel();
+            self.pending_preloads.push(rx);
+            std::thread::spawn(move || {
+                let cached = std::fs::read(&target_path)
+                    .ok()
+                    .and_then(|bytes| lumia_core::decode_heic_to_png(&bytes).ok())
+                    .map(|img| (target_path, img));
+                let _ = tx.send(cached);
+            });
+        }
     }
 
     pub(crate) fn current_image_index(&self) -> Option<usize> {
@@ -454,7 +679,12 @@ impl LumiaApp {
         }
     }
 
-    pub(crate) fn next_image(&mut self, _: &NextImage, window: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn next_image(
+        &mut self,
+        _: &NextImage,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if self.is_viewer_blocked() {
             return;
         }
@@ -515,21 +745,12 @@ impl LumiaApp {
     }
 
     pub(crate) fn scaled_image_size(&self, window: &Window) -> Option<(f32, f32)> {
-        let metadata = self.current_image.as_ref()?.metadata.as_ref()?;
+        let (image_width, image_height) = self.display_image_dimensions()?;
         let viewport_size = window.viewport_size();
         let available_width = f32::from(viewport_size.width).max(1.0);
-        let chrome_height = if self.is_fullscreen {
-            if self.should_show_toolbar() {
-                TITLE_BAR_HEIGHT + TOOLBAR_HEIGHT
-            } else {
-                0.0
-            }
-        } else {
-            TOOLBAR_HEIGHT
-        };
-        let available_height = (f32::from(viewport_size.height) - chrome_height).max(1.0);
-        let image_width = metadata.width as f32;
-        let image_height = metadata.height as f32;
+        let available_height = f32::from(viewport_size.height).max(1.0);
+        let image_width = image_width as f32;
+        let image_height = image_height as f32;
         let fit_scale = (available_width / image_width)
             .min(available_height / image_height)
             .min(1.0);
@@ -538,32 +759,51 @@ impl LumiaApp {
         Some((image_width * scale, image_height * scale))
     }
 
-    const HOVER_ZONE_HEIGHT: f32 = 72.0;
+    pub(crate) fn display_image_dimensions(&self) -> Option<(u32, u32)> {
+        if let Some(rotated) = self.rotated_image.as_ref() {
+            return Some((rotated.width, rotated.height));
+        }
 
-    pub(crate) fn should_show_toolbar(&self) -> bool {
-        !self.is_fullscreen || self.toolbar_locked || self.root_mouse_y <= Self::HOVER_ZONE_HEIGHT
+        let metadata = self.current_image.as_ref()?.metadata.as_ref()?;
+        if self.rotation_quarter_turns % 2 == 1 {
+            Some((metadata.height, metadata.width))
+        } else {
+            Some((metadata.width, metadata.height))
+        }
     }
-
-    pub(crate) fn should_show_titlebar(&self) -> bool {
-        self.is_fullscreen && self.should_show_toolbar()
-    }
-
-    pub(crate) fn toggle_toolbar_lock(&mut self, cx: &mut Context<Self>) {
-        self.toolbar_locked = !self.toolbar_locked;
-        cx.notify();
-    }
+    const STATUS_BAR_HOVER_ZONE_HEIGHT: f32 = STATUS_BAR_HEIGHT + 24.0;
 
     pub(crate) fn handle_root_mouse_move(
         &mut self,
         event: &MouseMoveEvent,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let new_y = f32::from(event.position.y);
-        let was_in_zone = self.root_mouse_y <= Self::HOVER_ZONE_HEIGHT;
-        let is_in_zone = new_y <= Self::HOVER_ZONE_HEIGHT;
-        self.root_mouse_y = new_y;
-        if was_in_zone != is_in_zone {
+        let viewport_size = window.viewport_size();
+        let viewport_width = f32::from(viewport_size.width);
+        let viewport_height = f32::from(viewport_size.height);
+        let x = f32::from(event.position.x);
+        let y = f32::from(event.position.y);
+        let bottom_distance = viewport_height - y;
+        let in_status_bar_zone = bottom_distance <= Self::STATUS_BAR_HOVER_ZONE_HEIGHT;
+        let in_zoom_menu_zone = self.show_zoom_menu && {
+            let menu_left = viewport_width - ZOOM_MENU_RIGHT - ZOOM_MENU_WIDTH;
+            let menu_right = viewport_width - ZOOM_MENU_RIGHT;
+            let menu_top =
+                viewport_height - STATUS_BAR_HEIGHT - ZOOM_MENU_BOTTOM_GAP - ZOOM_MENU_HEIGHT;
+            let menu_bottom = viewport_height - STATUS_BAR_HEIGHT;
+
+            x >= menu_left - ZOOM_MENU_HOVER_MARGIN
+                && x <= menu_right + ZOOM_MENU_HOVER_MARGIN
+                && y >= menu_top - ZOOM_MENU_HOVER_MARGIN
+                && y <= menu_bottom + ZOOM_MENU_HOVER_MARGIN
+        };
+        let should_show = in_status_bar_zone || in_zoom_menu_zone;
+        if self.show_status_bar != should_show {
+            self.show_status_bar = should_show;
+            if !should_show {
+                self.show_zoom_menu = false;
+            }
             cx.notify();
         }
     }

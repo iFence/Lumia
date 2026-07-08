@@ -12,13 +12,30 @@ mod shell;
 mod util;
 mod widgets;
 
-use gpui::{
-    actions, px, size, App, AppContext, Application, Bounds, WindowBounds, WindowOptions,
-};
+use gpui::{actions, px, size, Action, App, AppContext, Bounds, WindowBounds, WindowOptions};
+use lumia_core::{Language, ThemeAccent, ThemeMode};
+use serde::Deserialize;
 
-pub(crate) const TOOLBAR_HEIGHT: f32 = 36.0;
-pub(crate) const TITLE_BAR_HEIGHT: f32 = 24.0;
+pub(crate) const STATUS_BAR_HEIGHT: f32 = 44.0;
+pub(crate) const ZOOM_MENU_WIDTH: f32 = 132.0;
+pub(crate) const ZOOM_MENU_RIGHT: f32 = 48.0;
+pub(crate) const ZOOM_MENU_BOTTOM_GAP: f32 = 8.0;
+pub(crate) const ZOOM_MENU_ITEM_HEIGHT: f32 = 28.0;
+pub(crate) const ZOOM_MENU_HEIGHT: f32 = 16.0 + 9.0 * ZOOM_MENU_ITEM_HEIGHT;
+pub(crate) const ZOOM_MENU_HOVER_MARGIN: f32 = 12.0;
 pub(crate) const APP_TITLE: &str = "Lumia";
+
+#[derive(Action, Clone, PartialEq, Eq, Deserialize)]
+#[action(namespace = lumia, no_json)]
+pub(crate) struct SelectLanguage(pub(crate) Language);
+
+#[derive(Action, Clone, PartialEq, Eq, Deserialize)]
+#[action(namespace = lumia, no_json)]
+pub(crate) struct SelectThemeMode(pub(crate) ThemeMode);
+
+#[derive(Action, Clone, PartialEq, Eq, Deserialize)]
+#[action(namespace = lumia, no_json)]
+pub(crate) struct SelectThemeAccent(pub(crate) ThemeAccent);
 
 actions!(
     lumia,
@@ -29,6 +46,8 @@ actions!(
         ZoomIn,
         ZoomOut,
         ZoomFit,
+        RotateClockwise,
+        RotateCounterClockwise,
         ToggleFullscreen,
         ExitFullscreen,
         ToggleImageInfo,
@@ -56,7 +75,9 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn run_gui(initial_path: Option<std::path::PathBuf>) -> anyhow::Result<()> {
-    Application::new().run(move |cx: &mut App| {
+    gpui_platform::application().run(move |cx: &mut App| {
+        gpui_component::init(cx);
+
         cx.on_action(|_: &Quit, cx| cx.quit());
 
         let bounds = Bounds::centered(None, size(px(1200.0), px(800.0)), cx);
@@ -70,7 +91,9 @@ fn run_gui(initial_path: Option<std::path::PathBuf>) -> anyhow::Result<()> {
                 ..Default::default()
             },
             |window, cx| {
-                cx.new(|cx| app::LumiaApp::new(window, cx, initial_path.clone()))
+                let view = cx.new(|cx| app::LumiaApp::new(window, cx, initial_path.clone()));
+                view.update(cx, |app, cx| app.set_self_handle(view.downgrade(), cx));
+                cx.new(|cx| gpui_component::Root::new(view, window, cx).bordered(false))
             },
         )
         .expect("failed to open Lumia window");

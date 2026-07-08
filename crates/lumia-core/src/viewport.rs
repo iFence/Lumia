@@ -21,7 +21,7 @@ impl Default for ViewportState {
 
 impl ViewportState {
     pub const MIN_ZOOM: f32 = 0.1;
-    pub const MAX_ZOOM: f32 = 10.0;
+    pub const MAX_ZOOM: f32 = 32.0;
     pub const ZOOM_STEP: f32 = 1.2;
 
     pub fn zoom_in(&mut self) {
@@ -31,6 +31,11 @@ impl ViewportState {
 
     pub fn zoom_out(&mut self) {
         self.zoom = (self.zoom / Self::ZOOM_STEP).max(Self::MIN_ZOOM);
+        self.fit_mode = FitMode::ActualSize;
+    }
+
+    pub fn set_zoom(&mut self, zoom: f32) {
+        self.zoom = zoom.clamp(Self::MIN_ZOOM, Self::MAX_ZOOM);
         self.fit_mode = FitMode::ActualSize;
     }
 
@@ -65,6 +70,16 @@ mod tests {
             viewport.zoom_in();
         }
         assert_eq!(viewport.zoom, ViewportState::MAX_ZOOM);
+        assert_eq!(viewport.fit_mode, FitMode::ActualSize);
+
+        viewport.set_zoom(64.0);
+        assert_eq!(viewport.zoom, ViewportState::MAX_ZOOM);
+
+        viewport.set_zoom(0.01);
+        assert_eq!(viewport.zoom, ViewportState::MIN_ZOOM);
+
+        viewport.set_zoom(1.5);
+        assert_eq!(viewport.zoom, 1.5);
         assert_eq!(viewport.fit_mode, FitMode::ActualSize);
 
         for _ in 0..128 {

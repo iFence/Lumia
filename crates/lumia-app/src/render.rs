@@ -1,15 +1,20 @@
 use gpui::{
-    div, img, px, rgb, App, Context, ExternalPaths, FontWeight, InteractiveElement, IntoElement,
-    MouseButton, MouseDownEvent, MouseMoveEvent, ObjectFit, ParentElement, Render, ScrollDelta,
-    ScrollWheelEvent, StatefulInteractiveElement, Styled, StyledImage, Window,
+    div, img, px, rgb, svg, AnyElement, App, Context, ExternalPaths, FontWeight,
+    InteractiveElement, IntoElement, MouseButton, MouseDownEvent, MouseMoveEvent, ObjectFit,
+    ParentElement, Render, ScrollDelta, ScrollWheelEvent, Styled, StyledImage, Window,
 };
+use gpui_component::button::{Button, ButtonVariants};
+use lumia_core::FitMode;
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
 use crate::palette::Palette;
-use crate::util::status_message;
-use crate::widgets::{context_menu_item, titlebar_button, titlebar_close_button, toolbar_button};
-use crate::{Quit, TOOLBAR_HEIGHT, TITLE_BAR_HEIGHT};
+use crate::util::{format_file_size, status_message};
+use crate::widgets::context_menu_item;
+use crate::{
+    Quit, STATUS_BAR_HEIGHT, ZOOM_MENU_BOTTOM_GAP, ZOOM_MENU_ITEM_HEIGHT, ZOOM_MENU_RIGHT,
+    ZOOM_MENU_WIDTH,
+};
 
 impl Render for LumiaApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -33,6 +38,8 @@ impl Render for LumiaApp {
             .on_action(cx.listener(Self::toggle_image_info))
             .on_action(cx.listener(Self::next_image))
             .on_action(cx.listener(Self::previous_image))
+            .on_action(cx.listener(Self::rotate_clockwise))
+            .on_action(cx.listener(Self::rotate_counter_clockwise))
             .on_action(|_: &Quit, _: &mut Window, cx: &mut App| cx.quit())
             .on_mouse_move(cx.listener(Self::handle_root_mouse_move))
             .size_full()
@@ -40,158 +47,17 @@ impl Render for LumiaApp {
             .flex_col()
             .bg(rgb(palette.viewer_bg))
             .text_color(rgb(palette.text))
-            .children(
-                self.should_show_titlebar()
-                    .then(|| self.render_titlebar(palette, cx)),
-            )
-            .children(
-                self.should_show_toolbar()
-                    .then(|| self.render_toolbar(palette, cx)),
-            )
             .child(self.render_viewer(window, palette, cx))
+            .children(
+                (self.show_status_bar || self.show_zoom_menu)
+                    .then(|| self.render_status_bar(palette, cx)),
+            )
             .children(self.render_settings_panel(window, palette, cx))
     }
 }
 
 impl LumiaApp {
-    fn render_toolbar(&self, palette: Palette, cx: &mut Context<Self>) -> impl IntoElement {
-        let language = self.settings.language;
-
-        div()
-            .id("toolbar")
-            .h(px(TOOLBAR_HEIGHT))
-            .w_full()
-            .flex()
-            .items_center()
-            .gap_2()
-            .px_4()
-            .border_b_1()
-            .border_color(rgb(palette.border))
-            .bg(rgb(palette.toolbar_bg))
-            .child(toolbar_button(
-                "fit-button",
-                tr(language, TextKey::Fit),
-                palette,
-                cx,
-                |this, _, _, cx| {
-                    this.reset_fit(cx);
-                },
-            ))
-            .child(toolbar_button(
-                "fullscreen-button",
-                tr(language, TextKey::Full),
-                palette,
-                cx,
-                |this, _, window, cx| {
-                    this.toggle_window_fullscreen(window, cx);
-                },
-            ))
-            .child(
-                div()
-                    .px_2()
-                    .text_sm()
-                    .text_color(rgb(palette.muted_text))
-                    .child(format!("{:.0}%", self.viewport.zoom * 100.0)),
-            )
-            .children(self.render_position_indicator(palette))
-            .child(div().flex_1())
-            .child(toolbar_button(
-                "lock-button",
-                if self.toolbar_locked {
-                    tr(language, TextKey::Unlock)
-                } else {
-                    tr(language, TextKey::Lock)
-                },
-                palette,
-                cx,
-                |this, _, _, cx| {
-                    this.toggle_toolbar_lock(cx);
-                },
-            ))
-    }
-
-    fn render_titlebar(&self, palette: Palette, cx: &mut Context<Self>) -> impl IntoElement {
-        div()
-            .id("titlebar")
-            .h(px(TITLE_BAR_HEIGHT))
-            .w_full()
-            .flex()
-            .items_center()
-            .border_b_1()
-            .border_color(rgb(palette.border))
-            .bg(rgb(palette.selection_bg))
-            .child(
-                div()
-                    .id("titlebar-drag-region")
-                    .flex_1()
-                    .h_full()
-                    .flex()
-                    .items_center()
-                    .pl_3()
-                    .on_mouse_down(MouseButton::Left, cx.listener(|_, _, window, _| {
-                        window.start_window_move();
-                    }))
-                    .child(
-                        div()
-                            .text_sm()
-                            .text_color(rgb(palette.muted_text))
-                            .child(self.window_title.clone()),
-                    ),
-            )
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .child(titlebar_button(
-                        "titlebar-minimize",
-                        "\u{2014}",
-                        palette,
-                        cx,
-                        |_, _, window, _| {
-                            window.minimize_window();
-                        },
-                    ))
-                    .child(titlebar_button(
-                        "titlebar-maximize",
-                        if self.is_fullscreen { "\u{29C9}" } else { "\u{25A1}" },
-                        palette,
-                        cx,
-                        |this, _, window, cx| {
-                            this.toggle_window_fullscreen(window, cx);
-                        },
-                    ))
-                    .child(titlebar_close_button(
-                        "titlebar-close",
-                        "\u{2715}",
-                        palette,
-                        cx,
-                        |_, _, _, cx| {
-                            cx.quit();
-                        },
-                    )),
-            )
-    }
-
-    fn render_position_indicator(&self, palette: Palette) -> Option<impl IntoElement> {
-        let count = self.sibling_count();
-        if count <= 1 {
-            return None;
-        }
-        let current = self.current_image_index().map(|i| i + 1).unwrap_or(0);
-        Some(
-            div()
-                .px_2()
-                .text_sm()
-                .text_color(rgb(palette.muted_text))
-                .child(format!("{current} / {count}")),
-        )
-    }
-
-    fn render_empty_state(
-        &self,
-        palette: Palette,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    fn render_empty_state(&self, palette: Palette, _cx: &mut Context<Self>) -> impl IntoElement {
         let language = self.settings.language;
 
         div()
@@ -215,30 +81,30 @@ impl LumiaApp {
                     .child(tr(language, TextKey::EmptyState)),
             )
             .child(
-                div()
-                    .id("empty-state-open-button")
-                    .px_4()
-                    .py_2()
-                    .rounded_md()
-                    .bg(rgb(palette.accent))
-                    .text_color(rgb(0xffffff))
-                    .text_sm()
-                    .font_weight(FontWeight::MEDIUM)
-                    .cursor_pointer()
-                    .hover(|style| style.bg(rgb(palette.accent_bg)))
-                    .on_click(cx.listener(|this, _, window, cx| {
-                        this.open_file_dialog(cx, Some(window));
-                    }))
-                    .child(tr(language, TextKey::EmptyStateOpenButton)),
+                Button::new("empty-state-open-button")
+                    .primary()
+                    .label(tr(language, TextKey::EmptyStateOpenButton))
+                    .on_click({
+                        let self_handle = self.self_handle.clone();
+                        move |_, window, cx| {
+                            let _ = self_handle.update(cx, |this, cx| {
+                                this.open_file_dialog(cx, Some(window));
+                            });
+                        }
+                    }),
             )
     }
 
     fn poll_decode(&mut self, cx: &mut Context<Self>) {
+        // Main decode channel (current image).
         if let Some(ref rx) = self.pending_decode {
             match rx.try_recv() {
                 Ok(cached) => {
                     if let Some(ref mut doc) = self.current_image {
                         doc.cached_image = cached;
+                    }
+                    if self.rotation_quarter_turns != 0 {
+                        self.rebuild_rotated_image();
                     }
                     self.is_decoding = false;
                     self.pending_decode = None;
@@ -253,6 +119,22 @@ impl LumiaApp {
                 }
             }
         }
+
+        // Drain completed preload receivers and stash results in the cache.
+        self.pending_preloads.retain(|rx| {
+            match rx.try_recv() {
+                Ok(Some((path, cached))) => {
+                    self.preload_cache.insert(path, cached);
+                    false // remove this receiver
+                }
+                Ok(None) => {
+                    // Decode failed — nothing to cache.
+                    false
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => false,
+                Err(std::sync::mpsc::TryRecvError::Empty) => true, // still running
+            }
+        });
     }
 
     fn render_viewer(
@@ -326,19 +208,8 @@ impl LumiaApp {
                     if this.show_settings_panel {
                         return;
                     }
-                    let chrome_height = if this.is_fullscreen {
-                        if this.should_show_toolbar() {
-                            TITLE_BAR_HEIGHT + TOOLBAR_HEIGHT
-                        } else {
-                            0.0
-                        }
-                    } else {
-                        TOOLBAR_HEIGHT
-                    };
-                    this.context_menu_position = Some(gpui::point(
-                        event.position.x,
-                        px((f32::from(event.position.y) - chrome_height).max(0.0)),
-                    ));
+                    this.context_menu_position =
+                        Some(gpui::point(event.position.x, event.position.y));
                     this.is_panning = false;
                     this.last_mouse_position = None;
                     cx.notify();
@@ -380,19 +251,25 @@ impl LumiaApp {
             // Formats like HEIC are pre-decoded and cached as PNG at load
             // time (see ImageDocument::load_from_path) because GPUI's img()
             // cannot natively render them.
-            let cached = self
-                .current_image
-                .as_ref()
-                .and_then(|doc| doc.cached_image.as_ref());
+            // Check the document's own cache first, then the preload cache
+            // (populated by background adjacent-image decoding).
+            let cached = self.rotated_image.as_ref().or_else(|| {
+                (self.rotation_quarter_turns == 0)
+                    .then(|| {
+                        self.current_image
+                            .as_ref()
+                            .and_then(|doc| doc.cached_image.as_ref())
+                            .or_else(|| self.image_path().and_then(|p| self.preload_cache.get(p)))
+                    })
+                    .flatten()
+            });
 
             let image = if let Some(cached) = cached {
                 let (display_w, display_h) = self
                     .scaled_image_size(window)
                     .unwrap_or((cached.width as f32, cached.height as f32));
-                let gpui_image = gpui::Image::from_bytes(
-                    gpui::ImageFormat::Png,
-                    cached.png_data.clone(),
-                );
+                let gpui_image =
+                    gpui::Image::from_bytes(gpui::ImageFormat::Bmp, cached.cached_data.clone());
                 img(std::sync::Arc::new(gpui_image))
                     .w(px(display_w))
                     .h(px(display_h))
@@ -428,6 +305,341 @@ impl LumiaApp {
                 .children(self.render_image_info_overlay())
                 .children(self.render_context_menu(palette, cx))
         }
+    }
+
+    fn render_status_bar(&self, palette: Palette, cx: &mut Context<Self>) -> impl IntoElement {
+        let has_image = self.current_image.is_some();
+        let count = self.sibling_count();
+        let current = self
+            .current_image_index()
+            .map(|index| index + 1)
+            .unwrap_or(0);
+        let dimensions = self
+            .current_image
+            .as_ref()
+            .and_then(|image| image.metadata.as_ref())
+            .map(|metadata| format!("{}x{}", metadata.width, metadata.height))
+            .unwrap_or_else(|| "--".to_string());
+        let file_size = self
+            .image_path()
+            .and_then(|path| std::fs::metadata(path).ok())
+            .map(|metadata| format_file_size(metadata.len()))
+            .unwrap_or_else(|| "--".to_string());
+        div()
+            .id("status-bar")
+            .absolute()
+            .left_0()
+            .right_0()
+            .bottom_0()
+            .h(px(STATUS_BAR_HEIGHT))
+            .w_full()
+            .flex()
+            .items_center()
+            .justify_between()
+            .gap_3()
+            .px_4()
+            .border_t_1()
+            .border_color(rgb(palette.border))
+            .bg(rgb(palette.toolbar_bg))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_1()
+                    .child(self.render_status_icon_button(
+                        "status-prev-image",
+                        "chevron_left.svg",
+                        has_image && current > 1,
+                        palette,
+                        cx,
+                        |this, _, window, cx| {
+                            this.navigate_image(-1, window, cx);
+                            cx.notify();
+                        },
+                    ))
+                    .child(self.render_status_text(format!("{current}/{count}"), palette))
+                    .child(self.render_status_icon_button(
+                        "status-next-image",
+                        "chevron_right.svg",
+                        has_image && current < count,
+                        palette,
+                        cx,
+                        |this, _, window, cx| {
+                            this.navigate_image(1, window, cx);
+                            cx.notify();
+                        },
+                    ))
+                    .child(self.render_status_icon_button(
+                        "status-rotate-counter-clockwise",
+                        "rotate_ccw.svg",
+                        has_image,
+                        palette,
+                        cx,
+                        |this, _, _, cx| {
+                            this.rotate_display(3, cx);
+                        },
+                    ))
+                    .child(self.render_status_icon_button(
+                        "status-rotate-clockwise",
+                        "rotate_cw.svg",
+                        has_image,
+                        palette,
+                        cx,
+                        |this, _, _, cx| {
+                            this.rotate_display(1, cx);
+                        },
+                    ))
+                    .child(self.render_status_text(file_size, palette))
+                    .child(self.render_status_text(dimensions, palette)),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_1()
+                    .child(self.render_status_icon_button(
+                        "status-fit-toggle",
+                        if self.viewport.fit_mode == FitMode::FitToWindow {
+                            "screen.svg"
+                        } else {
+                            "maximize.svg"
+                        },
+                        has_image,
+                        palette,
+                        cx,
+                        |this, _, _, cx| {
+                            this.toggle_fit_or_actual_size(cx);
+                        },
+                    ))
+                    .child(self.render_status_zoom_button(
+                        has_image,
+                        palette,
+                        cx,
+                        |this, _, _, cx| {
+                            this.toggle_zoom_menu(cx);
+                        },
+                    ))
+                    .child(self.render_status_icon_button(
+                        "status-zoom-in",
+                        "plus.svg",
+                        has_image,
+                        palette,
+                        cx,
+                        |this, _, _, cx| {
+                            if this.current_image.is_some() {
+                                this.viewport.zoom_in();
+                                this.show_zoom_menu = false;
+                                cx.notify();
+                            }
+                        },
+                    ))
+                    .child(self.render_status_icon_button(
+                        "status-zoom-out",
+                        "dash.svg",
+                        has_image,
+                        palette,
+                        cx,
+                        |this, _, _, cx| {
+                            if this.current_image.is_some() {
+                                this.viewport.zoom_out();
+                                this.show_zoom_menu = false;
+                                cx.notify();
+                            }
+                        },
+                    ))
+                    .child(self.render_status_icon_button(
+                        "status-fullscreen",
+                        "maximize_alt.svg",
+                        true,
+                        palette,
+                        cx,
+                        |this, _, window, cx| {
+                            this.toggle_window_fullscreen(window, cx);
+                        },
+                    )),
+            )
+            .children(self.render_zoom_menu(palette, cx))
+    }
+
+    fn render_status_zoom_button(
+        &self,
+        enabled: bool,
+        palette: Palette,
+        cx: &mut Context<Self>,
+        on_click: impl Fn(&mut LumiaApp, &MouseDownEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
+    ) -> AnyElement {
+        let text_color = if enabled {
+            palette.text
+        } else {
+            palette.muted_text
+        };
+
+        div()
+            .id("status-zoom-menu-button")
+            .h(px(28.0))
+            .px_2()
+            .flex()
+            .items_center()
+            .justify_center()
+            .gap_1()
+            .rounded_sm()
+            .border_1()
+            .border_color(rgb(palette.border))
+            .bg(rgb(palette.button_bg))
+            .text_sm()
+            .text_color(rgb(text_color))
+            .hover(move |style| style.bg(rgb(palette.button_hover)))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |this, event, window, cx| {
+                    if enabled {
+                        on_click(this, event, window, cx);
+                    }
+                }),
+            )
+            .child(format!("{:.0}%", self.viewport.zoom * 100.0))
+            .child(
+                svg()
+                    .external_path(Self::status_icon_path(if self.show_zoom_menu {
+                        "chevron_down.svg"
+                    } else {
+                        "chevron_up.svg"
+                    }))
+                    .size(px(14.0))
+                    .text_color(rgb(text_color)),
+            )
+            .into_any_element()
+    }
+    fn render_status_icon_button(
+        &self,
+        id: &'static str,
+        icon_name: impl Into<String>,
+        enabled: bool,
+        palette: Palette,
+        cx: &mut Context<Self>,
+        on_click: impl Fn(&mut LumiaApp, &MouseDownEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
+    ) -> AnyElement {
+        let icon_color = if enabled {
+            palette.text
+        } else {
+            palette.muted_text
+        };
+
+        div()
+            .id(id)
+            .w(px(32.0))
+            .h(px(28.0))
+            .flex()
+            .items_center()
+            .justify_center()
+            .rounded_sm()
+            .border_1()
+            .border_color(rgb(palette.border))
+            .bg(rgb(palette.button_bg))
+            .hover(move |style| style.bg(rgb(palette.button_hover)))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |this, event, window, cx| {
+                    if enabled {
+                        on_click(this, event, window, cx);
+                    }
+                }),
+            )
+            .child(
+                svg()
+                    .external_path(Self::status_icon_path(&icon_name.into()))
+                    .size(px(16.0))
+                    .text_color(rgb(icon_color)),
+            )
+            .into_any_element()
+    }
+    fn render_status_text(&self, label: impl Into<String>, palette: Palette) -> AnyElement {
+        div()
+            .px_2()
+            .text_sm()
+            .text_color(rgb(palette.muted_text))
+            .child(label.into())
+            .into_any_element()
+    }
+
+    fn render_zoom_menu(&self, palette: Palette, cx: &mut Context<Self>) -> Option<AnyElement> {
+        if !self.show_zoom_menu {
+            return None;
+        }
+
+        let presets = [32.0, 16.0, 8.0, 4.0, 2.0, 1.5, 1.0, 0.5, 0.1];
+        Some(
+            div()
+                .id("status-zoom-menu")
+                .absolute()
+                .right(px(ZOOM_MENU_RIGHT))
+                .bottom(px(STATUS_BAR_HEIGHT + ZOOM_MENU_BOTTOM_GAP))
+                .w(px(ZOOM_MENU_WIDTH))
+                .py_2()
+                .rounded_md()
+                .border_1()
+                .border_color(rgb(palette.border))
+                .bg(rgb(palette.panel_bg))
+                .shadow_lg()
+                .children(presets.into_iter().map(|zoom| {
+                    let active = (self.viewport.zoom - zoom).abs() < 0.01;
+                    self.render_zoom_menu_item(zoom, active, palette, cx)
+                }))
+                .into_any_element(),
+        )
+    }
+
+    fn render_zoom_menu_item(
+        &self,
+        zoom: f32,
+        active: bool,
+        palette: Palette,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        div()
+            .id(format!("zoom-preset-{:.0}", zoom * 100.0))
+            .w_full()
+            .h(px(ZOOM_MENU_ITEM_HEIGHT))
+            .px_3()
+            .flex()
+            .items_center()
+            .gap_2()
+            .text_sm()
+            .text_color(rgb(if active {
+                palette.accent
+            } else {
+                palette.muted_text
+            }))
+            .hover(move |style| style.bg(rgb(palette.button_hover)))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |this, _, _, cx| {
+                    this.set_zoom(zoom, cx);
+                }),
+            )
+            .child(
+                div()
+                    .w(px(16.0))
+                    .h(px(16.0))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .children(active.then(|| {
+                        svg()
+                            .external_path(Self::status_icon_path("check.svg"))
+                            .size(px(14.0))
+                            .text_color(rgb(palette.accent))
+                    })),
+            )
+            .child(format!("{:.0}%", zoom * 100.0))
+            .into_any_element()
+    }
+    fn status_icon_path(icon_name: &str) -> String {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../vendor/zed/assets/icons")
+            .join(icon_name)
+            .to_string_lossy()
+            .into_owned()
     }
 
     fn render_decoding_overlay(&self, palette: Palette) -> Option<impl IntoElement> {

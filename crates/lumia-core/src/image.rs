@@ -1,3 +1,4 @@
+use image::ImageEncoder;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use thiserror::Error;
@@ -5,8 +6,7 @@ use uuid::Uuid;
 
 pub const SUPPORTED_IMAGE_EXTENSIONS: &[&str] = &[
     "avif", "jpg", "jpeg", "png", "gif", "webp", "tif", "tiff", "tga", "dds", "bmp", "ico", "hdr",
-    "exr", "pbm", "pam", "ppm", "pgm", "ff", "farbfeld", "qoi", "svg",
-    "heic", "heif",
+    "exr", "pbm", "pam", "ppm", "pgm", "ff", "farbfeld", "qoi", "svg", "heic", "heif",
 ];
 
 pub fn supported_image_extensions() -> &'static [&'static str] {
@@ -19,37 +19,131 @@ pub fn is_supported_image_extension(extension: &str) -> bool {
         .any(|candidate| candidate.eq_ignore_ascii_case(extension))
 }
 
-/// Decode a HEIC/HEIF file to PNG bytes for rendering via GPUI.
+pub fn cached_image_from_rgba(
+    rgba: &[u8],
+    width: u32,
+    height: u32,
+) -> Result<CachedImage, ImageLoadError> {
+    let mut cached_data = Vec::new();
+    let encoder = image::codecs::bmp::BmpEncoder::new(&mut cached_data);
+    encoder
+        .write_image(rgba, width, height, image::ExtendedColorType::Rgba8)
+        .map_err(|e: image::ImageError| ImageLoadError::Io {
+            path: "(memory)".into(),
+            source: std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
+        })?;
+
+    Ok(CachedImage {
+        cached_data,
+        width,
+        height,
+    })
+}
+
+pub fn load_cached_image_from_path(path: impl AsRef<Path>) -> Result<CachedImage, ImageLoadError> {
+    let path = path.as_ref();
+    let extension = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .ok_or_else(|| ImageLoadError::MissingExtension(path.to_path_buf()))?;
+
+    if extension.eq_ignore_ascii_case("heic") || extension.eq_ignore_ascii_case("heif") {
+        let file_bytes = std::fs::read(path).map_err(|source| ImageLoadError::Io {
+            path: path.to_path_buf(),
+            source,
+        })?;
+        return decode_heic_to_png(&file_bytes);
+    }
+
+    let reader = image::ImageReader::open(path).map_err(|source| ImageLoadError::Io {
+        path: path.to_path_buf(),
+        source,
+    })?;
+    let reader = reader
+        .with_guessed_format()
+        .map_err(|source| ImageLoadError::Io {
+            path: path.to_path_buf(),
+            source,
+        })?;
+    let image = reader.decode().map_err(|source| ImageLoadError::Metadata {
+        path: path.to_path_buf(),
+        source,
+    })?;
+    let rgba = image.to_rgba8();
+    cached_image_from_rgba(rgba.as_raw(), rgba.width(), rgba.height())
+}
+
+pub fn rotate_cached_image(
+    cached: &CachedImage,
+    quarter_turns: u8,
+) -> Result<CachedImage, ImageLoadError> {
+    match quarter_turns % 4 {
+        0 => Ok(cached.clone()),
+        turns => {
+            let image =
+                image::load_from_memory_with_format(&cached.cached_data, image::ImageFormat::Bmp)
+                    .map_err(|source| ImageLoadError::Metadata {
+                        path: "(memory)".into(),
+                        source,
+                    })?
+                    .to_rgba8();
+            let rotated = match turns {
+                1 => image::imageops::rotate90(&image),
+                2 => image::imageops::rotate180(&image),
+                3 => image::imageops::rotate270(&image),
+                _ => unreachable!(),
+            };
+            cached_image_from_rgba(rotated.as_raw(), rotated.width(), rotated.height())
+        }
+    }
+}
+
+/// Decode a HEIC/HEIF file to BMP bytes for rendering via GPUI.
 ///
-/// This is the slow path (decode + PNG encode) and should be run on a
+/// This is the slow path (decode + BMP encode) and should be run on a
 /// background thread. Call [`Self::load_from_path`] first for fast metadata.
+///
+/// Uses [`DecodeRequest::decode_into`] to stream tiles directly into a
+/// pre-allocated RGBA buffer (avoiding an intermediate YCbCr allocation for
+/// grid-based images). BMP encoding is used because it has zero compression
+/// overhead — just a header + raw pixel copy.
 pub fn decode_heic_to_png(file_bytes: &[u8]) -> Result<CachedImage, ImageLoadError> {
-    let decoded = heic::DecoderConfig::default()
-        .decode(file_bytes, heic::PixelLayout::Rgba8)
+    let info =
+        heic::ImageInfo::from_bytes(file_bytes).map_err(|e| ImageLoadError::HeifMetadata {
+            path: "(memory)".into(),
+            message: e.to_string(),
+        })?;
+
+    let pixel_count = (info.width as usize)
+        .checked_mul(info.height as usize)
+        .ok_or_else(|| ImageLoadError::HeifMetadata {
+            path: "(memory)".into(),
+            message: "image dimensions overflow".into(),
+        })?;
+    let buf_size = pixel_count
+        .checked_mul(4) // RGBA8 = 4 bytes per pixel
+        .ok_or_else(|| ImageLoadError::HeifMetadata {
+            path: "(memory)".into(),
+            message: "pixel buffer size overflow".into(),
+        })?;
+
+    let mut rgba = vec![0u8; buf_size];
+
+    // decode_into streams tiles straight into the output buffer for grid
+    // images, avoiding the intermediate full-frame YCbCr allocation.
+    // When the `parallel` feature is enabled on the `heic` crate, tile
+    // decoding is parallelised across multiple threads.
+    heic::DecoderConfig::default()
+        .decode_request(file_bytes)
+        .decode_into(&mut rgba)
         .map_err(|e| ImageLoadError::HeifMetadata {
             path: "(memory)".into(),
             message: e.to_string(),
         })?;
 
-    let mut png_data = Vec::new();
-    image::write_buffer_with_format(
-        &mut std::io::Cursor::new(&mut png_data),
-        &decoded.data,
-        decoded.width,
-        decoded.height,
-        image::ColorType::Rgba8,
-        image::ImageFormat::Png,
-    )
-    .map_err(|e| ImageLoadError::Io {
-        path: "(memory)".into(),
-        source: std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
-    })?;
-
-    Ok(CachedImage {
-        png_data,
-        width: decoded.width,
-        height: decoded.height,
-    })
+    // BMP encoding is nearly instant — just a header + raw pixel rows
+    // (row order is reversed by the encoder). No compression is involved.
+    cached_image_from_rgba(&rgba, info.width, info.height)
 }
 
 #[derive(Debug, Error)]
@@ -78,14 +172,15 @@ pub enum ImageLoadError {
     },
 }
 
-/// Pre-encoded PNG image data for formats that GPUI cannot natively decode
-/// (e.g. HEIC). The image is decoded at load time and stored as PNG bytes so
-/// that GPUI's `img()` element can render it. Encoding happens once during
-/// `load_from_path()`, not every frame.
+/// Pre-encoded image data for formats that GPUI cannot natively decode
+/// (e.g. HEIC). The image is decoded at load time and stored as BMP bytes so
+/// that GPUI's `img()` element can render it. BMP is used instead of PNG
+/// because it requires zero compression — encoding is just a header + raw
+/// pixel copy.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CachedImage {
-    /// Pre-encoded PNG bytes (ready to pass to `gpui::Image::from_bytes`).
-    pub png_data: Vec<u8>,
+    /// Pre-encoded BMP bytes (ready to pass to `gpui::Image::from_bytes`).
+    pub cached_data: Vec<u8>,
     pub width: u32,
     pub height: u32,
 }
@@ -98,6 +193,10 @@ pub struct ImageDocument {
     /// Cached PNG data for formats GPUI cannot natively render.
     #[serde(skip)]
     pub cached_image: Option<CachedImage>,
+    /// Raw HEIF file bytes kept alive so the async decode thread can reuse
+    /// them without reading the file from disk a second time.
+    #[serde(skip)]
+    pub heif_bytes: Option<Vec<u8>>,
 }
 
 impl ImageDocument {
@@ -107,6 +206,7 @@ impl ImageDocument {
             source: ImageSource::LocalPath(path.into()),
             metadata: None,
             cached_image: None,
+            heif_bytes: None,
         }
     }
 
@@ -129,14 +229,11 @@ impl ImageDocument {
 
         let metadata = if extension.eq_ignore_ascii_case("svg") {
             None
-        } else if extension.eq_ignore_ascii_case("heic")
-            || extension.eq_ignore_ascii_case("heif")
-        {
-            let file_bytes =
-                std::fs::read(path).map_err(|source| ImageLoadError::Io {
-                    path: path.to_path_buf(),
-                    source,
-                })?;
+        } else if extension.eq_ignore_ascii_case("heic") || extension.eq_ignore_ascii_case("heif") {
+            let file_bytes = std::fs::read(path).map_err(|source| ImageLoadError::Io {
+                path: path.to_path_buf(),
+                source,
+            })?;
             let info = heic::ImageInfo::from_bytes(&file_bytes).map_err(|err| {
                 ImageLoadError::HeifMetadata {
                     path: path.to_path_buf(),
@@ -162,6 +259,9 @@ impl ImageDocument {
                 source: ImageSource::LocalPath(path.to_path_buf()),
                 metadata,
                 cached_image: None,
+                // Keep file bytes alive so the caller can pass them to the
+                // async decode thread without re-reading from disk.
+                heif_bytes: Some(file_bytes),
             });
         } else {
             let reader = image::ImageReader::open(path).map_err(|source| ImageLoadError::Io {
@@ -200,6 +300,7 @@ impl ImageDocument {
             source: ImageSource::LocalPath(path.to_path_buf()),
             metadata,
             cached_image: None,
+            heif_bytes: None,
         })
     }
 }

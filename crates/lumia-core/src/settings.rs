@@ -20,6 +20,8 @@ pub enum ShortcutId {
 pub struct AppSettings {
     pub language: Language,
     pub theme: ThemeMode,
+    #[serde(default)]
+    pub theme_accent: ThemeAccent,
     #[serde(default = "default_shortcuts")]
     pub shortcuts: HashMap<ShortcutId, String>,
 }
@@ -29,6 +31,7 @@ impl Default for AppSettings {
         Self {
             language: Language::English,
             theme: ThemeMode::FollowSystem,
+            theme_accent: ThemeAccent::default(),
             shortcuts: default_shortcuts(),
         }
     }
@@ -81,6 +84,20 @@ pub enum ThemeMode {
     FollowSystem,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ThemeAccent {
+    Blue,
+    Green,
+    Orange,
+    Rose,
+}
+
+impl Default for ThemeAccent {
+    fn default() -> Self {
+        Self::Blue
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SettingsGroup {
     General,
@@ -92,11 +109,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn app_settings_default_to_english_and_follow_system() {
+    fn app_settings_default_to_english_follow_system_and_blue_accent() {
         let settings = AppSettings::default();
 
         assert_eq!(settings.language, Language::English);
         assert_eq!(settings.theme, ThemeMode::FollowSystem);
+        assert_eq!(settings.theme_accent, ThemeAccent::Blue);
         assert!(!settings.shortcuts.is_empty());
     }
 
@@ -105,6 +123,7 @@ mod tests {
         let settings = AppSettings {
             language: Language::Chinese,
             theme: ThemeMode::Dark,
+            theme_accent: ThemeAccent::Rose,
             shortcuts: default_shortcuts(),
         };
 
@@ -119,6 +138,7 @@ mod tests {
         let json = r#"{"language":"English","theme":"Light"}"#;
         let parsed: AppSettings =
             serde_json::from_str(json).expect("deserialize without shortcuts field");
+        assert_eq!(parsed.theme_accent, ThemeAccent::Blue);
         assert_eq!(parsed.shortcuts, default_shortcuts());
     }
 
@@ -131,6 +151,7 @@ mod tests {
         let json = r#"{"language":"English","theme":"Light","shortcuts":{}}"#;
         let parsed: AppSettings =
             serde_json::from_str(json).expect("deserialize with empty shortcuts");
+        assert_eq!(parsed.theme_accent, ThemeAccent::Blue);
         assert!(parsed.shortcuts.is_empty());
     }
 

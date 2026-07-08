@@ -11,9 +11,12 @@ rust-version.workspace = true
 anyhow.workspace = true
 chrono.workspace = true
 gpui.workspace = true
+gpui_platform.workspace = true
+gpui-component.workspace = true
 lumia-core.workspace = true
 lumia-plugin-host.workspace = true
 rfd.workspace = true
+serde.workspace = true
 serde_json.workspace = true
 
 [package.metadata.wix]
