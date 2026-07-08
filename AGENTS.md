@@ -81,11 +81,20 @@ lumia-plugin-sample ──> lumia-plugin-api
 
 ## GPUI Guidance
 
-- Use `GPUI-Developer-Tutorial.md` as the local reference before introducing new UI patterns.
+- Use `GPUI-Developer-Tutorial.md` as the local reference before introducing new UI patterns. You may also reference the GPUI book at `https://matinaniss.github.io/gpui-book/` when the local tutorial does not cover the pattern you need.
 - Prefer stable GPUI element IDs and avoid expensive allocations in `Render::render`.
-- GPUI is pinned in the workspace. Any upgrade must include an ADR with the reason, API impact, and verification result.
+- GPUI is sourced from the workspace's current Zed dependency set. For framework behavior, prefer the checked-in workspace code and `vendor/zed` patches when they differ from external docs. Any upgrade must include an ADR with the reason, API impact, and verification result.
 - The `actions!` macro must stay in `main.rs` (crate root). Action types are referenced from other modules via `crate::OpenFile` etc.
 - GPUI trait imports ( `InteractiveElement`, `ParentElement`, `StatefulInteractiveElement`, `StyledImage`, etc.) must be explicitly listed in each module that uses them — they do not carry over from other modules.
+
+## UI Component Library
+
+- Lumia uses `gpui-component` as the shared UI component library for `crates/lumia-app`. Besides reading existing Lumia code, you may also reference the upstream documentation and examples at `https://github.com/longbridge/gpui-component`.
+- Initialize the component library in `main.rs` with `gpui_component::init(cx)` before creating application UI, and keep the root view wrapped in `gpui_component::Root`.
+- Prefer `gpui_component` widgets for common controls such as buttons. Button helpers belong in `widgets.rs` and should return `AnyElement` when shared across render modules.
+- When bridging `gpui_component::button::Button::on_click` into `LumiaApp`, use the callback-provided `&mut Window` directly and update app state through the stored `WeakEntity`; avoid `update_in` unless the code specifically requires GPUI to resolve the entity window.
+- Raw GPUI `div()`-based controls are still acceptable for viewer-specific interactions, context menu rows, drag regions, or cases where `gpui-component` does not expose the needed mouse/keyboard semantics.
+- Keep component styling aligned with `Palette`; do not hard-code colors in component wrappers unless the palette cannot express the state.
 
 ## Verification
 
@@ -118,3 +127,4 @@ cargo build --release -p lumia-app
 - Use `!` before the colon for breaking changes, and include a `BREAKING CHANGE:` footer when needed.
 - Do not commit generated build artifacts.
 - Do not rewrite or discard user changes unless explicitly asked.
+

@@ -1,8 +1,8 @@
 # Lumia
 
-Lumia is a small, cross-platform image viewer built with Rust and GPUI.
+Lumia is a small, cross-platform image viewer built with Rust on top of GPUI and `gpui-component`.
 
-The core app is intentionally small: it owns the window, viewer state, task orchestration, and plugin host. Heavy capabilities such as broad format support, compression, conversion, crop/export, super-resolution, and cloud AI editing are designed as process plugins.
+The core app is intentionally small: it owns the window, viewer state, task orchestration, and plugin host. GPUI provides the desktop runtime and rendering model, while `gpui-component` supplies shared controls such as buttons, dropdowns, menus, and the root UI wrapper. Heavy capabilities such as broad format support, compression, conversion, crop/export, super-resolution, and cloud AI editing are designed as process plugins.
 
 ## Installation
 
@@ -10,12 +10,12 @@ The core app is intentionally small: it owns the window, viewer state, task orch
 
 Download the latest installer (`lumia-app-*-x64.msi`) or portable archive (`lumia-portable-windows-x64.zip`) from the [Releases](https://github.com/iFence/Lumia/releases) page.
 
-- **MSI installer**: Run the `.msi` file. Lumia will be installed to `Program Files`, with Start Menu and Desktop shortcuts. Right-click any image in Explorer and choose "Open with Lumia" — no extra setup needed.
+- **MSI installer**: Run the `.msi` file. Lumia will be installed to `Program Files`, with Start Menu and Desktop shortcuts. Right-click any image in Explorer and choose "Open with Lumia" - no extra setup needed.
 - **Portable**: Extract the `.zip` archive and run `lumia-app.exe`. To add right-click support, run `lumia-app --register-context-menu` once.
 
 ### macOS
 
-Download the `.dmg` from the [Releases](https://github.com/iFence/Lumia/releases) page. Open the disk image and drag **Lumia.app** into your `Applications` folder. Once installed, right-click any image in Finder and choose **Open With → Lumia**.
+Download the `.dmg` from the [Releases](https://github.com/iFence/Lumia/releases) page. Open the disk image and drag **Lumia.app** into your `Applications` folder. Once installed, right-click any image in Finder and choose **Open With -> Lumia**.
 
 If you prefer the portable binary, run `lumia-app --register-context-menu` to create a wrapper app bundle under `~/Applications/` so Lumia appears in Finder's "Open With" menu.
 
@@ -66,11 +66,18 @@ The `--register-context-menu` command is designed for portable / development use
 
 ## Workspace
 
-- `crates/lumia-app`: GPUI desktop shell.
+- `crates/lumia-app`: GPUI desktop shell and `gpui-component`-backed UI layer.
 - `crates/lumia-core`: viewer state and shared domain models.
 - `crates/lumia-plugin-api`: JSON-RPC types shared by the host and plugins.
 - `crates/lumia-plugin-host`: process plugin launcher and stdio transport.
 - `plugins/lumia-plugin-sample`: minimal process plugin used to validate the protocol.
+
+## UI Stack
+
+- `gpui` and `gpui_platform` are sourced from the `zed-industries/zed` repository instead of a crates.io-pinned `0.2.x` release.
+- The workspace keeps a local compatibility patch set under `vendor/zed/`, wired through the root `Cargo.toml` `[patch."https://github.com/zed-industries/zed"]` section.
+- `gpui-component` is pulled from `longbridge/gpui-component` and initialized in `crates/lumia-app/src/main.rs` with `gpui_component::init(cx)`.
+- The Lumia root view is wrapped in `gpui_component::Root`, and shared widgets in `crates/lumia-app/src/widgets.rs` use `gpui-component` primitives where that library already fits the interaction model.
 
 ## Development
 
@@ -81,7 +88,10 @@ cargo test --workspace
 cargo run -p lumia-app
 ```
 
-GPUI is pinned to `=0.2.2`. Upgrades should be documented in `docs/adr/` because GPUI is still pre-1.0 and may change APIs.
+Notes:
+
+- Updating GPUI now means updating the Zed-sourced dependency set and keeping the local `vendor/zed` patch entries in sync.
+- When changing UI infrastructure, verify both the GPUI surface and the `gpui-component` integration still build cleanly across the workspace.
 
 ## Packaging
 
