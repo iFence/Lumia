@@ -40,9 +40,6 @@ pub(crate) struct LumiaApp {
     pub(crate) window_title: String,
     /// Whether a background decode is in progress for a HEIC/HEIF image.
     pub(crate) is_decoding: bool,
-    /// Receiver for the background HEIC→PNG decode result.
-    /// Polled non-blockingly in `render_viewer`.
-    pub(crate) pending_decode: Option<std::sync::mpsc::Receiver<Option<lumia_core::CachedImage>>>,
     /// Pre-decoded adjacent images for instant navigation.
     pub(crate) preload_cache: HashMap<PathBuf, CachedImage>,
     /// Receivers for in-flight preload decode tasks.
@@ -83,7 +80,6 @@ impl LumiaApp {
             recording_shortcut: None,
             window_title: APP_TITLE.to_string(),
             is_decoding: false,
-            pending_decode: None,
             preload_cache: HashMap::new(),
             pending_preloads: Vec::new(),
             rotation_quarter_turns: 0,
@@ -496,7 +492,6 @@ impl LumiaApp {
                 // Always discard any in-flight decode from the previously
                 // displayed image — a new image is taking over.
                 self.is_decoding = false;
-                self.pending_decode = None;
 
                 self.current_image = Some(document);
                 self.error_message = None;
@@ -537,19 +532,36 @@ impl LumiaApp {
                         .as_mut()
                         .and_then(|doc| doc.heif_bytes.take());
 
-                    let file_path = path.clone();
-                    let (tx, rx) = std::sync::mpsc::channel();
-                    self.pending_decode = Some(rx);
-                    std::thread::spawn(move || {
-                        let cached = heif_bytes
-                            .or_else(|| {
-                                // Fallback: re-read from disk if bytes weren't
-                                // cached (shouldn't normally happen).
-                                std::fs::read(&file_path).ok()
+                    let decode_path = path.clone();
+                    _cx.spawn(async move |this, cx| {
+                        let cached = cx
+                            .background_executor()
+                            .spawn(async move {
+                                heif_bytes
+                                    .or_else(|| {
+                                        // Fallback: re-read from disk if bytes weren't
+                                        // cached (shouldn't normally happen).
+                                        std::fs::read(&decode_path).ok()
+                                    })
+                                    .and_then(|bytes| lumia_core::decode_heic_to_png(&bytes).ok())
                             })
-                            .and_then(|bytes| lumia_core::decode_heic_to_png(&bytes).ok());
-                        let _ = tx.send(cached);
-                    });
+                            .await;
+
+                        let _ = this.update(cx, |this, cx| {
+                            if this.image_path() != Some(path.as_path()) {
+                                return;
+                            }
+                            if let Some(ref mut doc) = this.current_image {
+                                doc.cached_image = cached;
+                            }
+                            if this.rotation_quarter_turns != 0 {
+                                this.rebuild_rotated_image();
+                            }
+                            this.is_decoding = false;
+                            cx.notify();
+                        });
+                    })
+                    .detach();
                 }
 
                 // Preload adjacent images so next/previous navigation is instant.
@@ -660,20 +672,15 @@ impl LumiaApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let image_count = self.image_list.len();
+        if image_count == 0 {
+            return;
+        }
         let Some(current_idx) = self.current_image_index() else {
             return;
         };
-        let new_idx = if step < 0 {
-            current_idx.saturating_sub(step.unsigned_abs() as usize)
-        } else {
-            let next = current_idx + step as usize;
-            if next >= self.image_list.len() {
-                self.image_list.len().saturating_sub(1)
-            } else {
-                next
-            }
-        };
-        if new_idx != current_idx && new_idx < self.image_list.len() {
+        let new_idx = (current_idx as i32 + step).rem_euclid(image_count as i32) as usize;
+        if new_idx != current_idx {
             let path = self.image_list[new_idx].clone();
             self.load_image(path, Some(window), cx);
         }

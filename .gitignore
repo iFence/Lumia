@@ -8,3 +8,6 @@
 *.bak
 .DS_Store
 Thumbs.db
+
+.claude
+.codegraph

@@ -1,9 +1,9 @@
 use gpui::{
     div, img, px, rgb, svg, AnyElement, App, Context, ExternalPaths, FontWeight,
     InteractiveElement, IntoElement, MouseButton, MouseDownEvent, MouseMoveEvent, ObjectFit,
-    ParentElement, Render, ScrollDelta, ScrollWheelEvent, Styled, StyledImage, Window,
+    ParentElement, Render, ScrollDelta, ScrollWheelEvent, StatefulInteractiveElement, Styled,
+    StyledImage, Window,
 };
-use gpui_component::button::{Button, ButtonVariants};
 use lumia_core::FitMode;
 
 use crate::app::LumiaApp;
@@ -18,9 +18,8 @@ use crate::{
 
 impl Render for LumiaApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // Non-blocking poll: if a background HEIC→PNG decode completed, apply
-        // the result now so this frame renders with the decoded image.
-        self.poll_decode(cx);
+        // Non-blocking poll: drain completed adjacent-image preloads.
+        self.poll_preloads(cx);
 
         let palette = self.palette(window);
 
@@ -81,45 +80,29 @@ impl LumiaApp {
                     .child(tr(language, TextKey::EmptyState)),
             )
             .child(
-                Button::new("empty-state-open-button")
-                    .primary()
-                    .label(tr(language, TextKey::EmptyStateOpenButton))
-                    .on_click({
+                div()
+                    .id("empty-state-open-button")
+                    .px_4()
+                    .py_2()
+                    .rounded_md()
+                    .cursor_pointer()
+                    .bg(rgb(palette.accent))
+                    .text_color(rgb(palette.accent_text))
+                    .hover(move |style| style.bg(rgb(palette.accent_hover)))
+                    .active(move |style| style.bg(rgb(palette.accent_active)))
+                    .on_mouse_down(MouseButton::Left, {
                         let self_handle = self.self_handle.clone();
                         move |_, window, cx| {
                             let _ = self_handle.update(cx, |this, cx| {
                                 this.open_file_dialog(cx, Some(window));
                             });
                         }
-                    }),
+                    })
+                    .child(tr(language, TextKey::EmptyStateOpenButton)),
             )
     }
 
-    fn poll_decode(&mut self, cx: &mut Context<Self>) {
-        // Main decode channel (current image).
-        if let Some(ref rx) = self.pending_decode {
-            match rx.try_recv() {
-                Ok(cached) => {
-                    if let Some(ref mut doc) = self.current_image {
-                        doc.cached_image = cached;
-                    }
-                    if self.rotation_quarter_turns != 0 {
-                        self.rebuild_rotated_image();
-                    }
-                    self.is_decoding = false;
-                    self.pending_decode = None;
-                    cx.notify();
-                }
-                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                    self.is_decoding = false;
-                    self.pending_decode = None;
-                }
-                Err(std::sync::mpsc::TryRecvError::Empty) => {
-                    // Still decoding — check again next frame.
-                }
-            }
-        }
-
+    fn poll_preloads(&mut self, _cx: &mut Context<Self>) {
         // Drain completed preload receivers and stash results in the cache.
         self.pending_preloads.retain(|rx| {
             match rx.try_recv() {

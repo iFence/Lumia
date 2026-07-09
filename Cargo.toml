@@ -7,13 +7,11 @@ members = [
     "plugins/lumia-plugin-sample",
 ]
 resolver = "2"
-exclude = ["vendor/zed", "vendor/gpui_util"]
-
 [workspace.package]
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/iFence/lumia"
-rust-version = "1.85"
+rust-version = "1.95"
 
 [workspace.dependencies]
 anyhow = "1.0.95"
@@ -31,26 +29,3 @@ serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.135"
 thiserror = "2.0.11"
 uuid = { version = "1.11.0", features = ["serde", "v7"] }
-
-[patch."https://github.com/zed-industries/zed"]
-collections = { path = "vendor/zed/crates/collections" }
-derive_refineable = { path = "vendor/zed/crates/refineable/derive_refineable" }
-gpui = { path = "vendor/zed/crates/gpui" }
-gpui_linux = { path = "vendor/zed/crates/gpui_linux" }
-gpui_macos = { path = "vendor/zed/crates/gpui_macos" }
-gpui_macros = { path = "vendor/zed/crates/gpui_macros" }
-gpui_platform = { path = "vendor/zed/crates/gpui_platform" }
-gpui_shared_string = { path = "vendor/zed/crates/gpui_shared_string" }
-gpui_util = { path = "vendor/zed/crates/gpui_util" }
-gpui_web = { path = "vendor/zed/crates/gpui_web" }
-gpui_wgpu = { path = "vendor/zed/crates/gpui_wgpu" }
-gpui_windows = { path = "vendor/zed/crates/gpui_windows" }
-http_client = { path = "vendor/zed/crates/http_client" }
-media = { path = "vendor/zed/crates/media" }
-refineable = { path = "vendor/zed/crates/refineable" }
-scheduler = { path = "vendor/zed/crates/scheduler" }
-sum_tree = { path = "vendor/zed/crates/sum_tree" }
-util_macros = { path = "vendor/zed/crates/util_macros" }
-zlog = { path = "vendor/zed/crates/zlog" }
-ztracing = { path = "vendor/zed/crates/ztracing" }
-ztracing_macro = { path = "vendor/zed/crates/ztracing_macro" }
