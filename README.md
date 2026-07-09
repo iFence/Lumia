@@ -1,8 +1,21 @@
 # Lumia
 
-Lumia is a small, cross-platform image viewer built with Rust on top of GPUI and `gpui-component`.
+Lumia is a small, polished, high-performance, cross-platform image viewer built with Rust, GPUI, and `gpui-component`.
 
-The core app is intentionally small: it owns the window, viewer state, task orchestration, and plugin host. GPUI provides the desktop runtime and rendering model, while `gpui-component` supplies shared controls such as buttons, dropdowns, menus, and the root UI wrapper. Heavy capabilities such as broad format support, compression, conversion, crop/export, super-resolution, and cloud AI editing are designed as process plugins.
+The product goal is a viewer that opens quickly, stays low-memory, and remains stable while serving both everyday image browsing and professional preview workflows for photographers, UI designers, and engineers. The core app owns the desktop shell, viewer state, fast navigation, and plugin host. Heavier capabilities are isolated behind process plugins so they can evolve without slowing down or destabilizing the core viewer.
+
+## Capability Model
+
+Lumia is organized around four capability layers:
+
+| Layer | Included capabilities | Architecture boundary |
+|---|---|---|
+| Core viewer | Image preview; zoom, pan, and display rotation; image information; EXIF display; folder browsing; basic sorting, filtering, and favorites; fast preview for common formats | Built into the app and optimized for startup time, open latency, memory use, and stability |
+| Built-in light editing | Rotate, crop, mirror, resize, simple compression, simple color adjustments, and export copy | Built in only when the operation is lightweight and copy-export oriented |
+| Official bundled plugins | RAW, HDR, HEIC/HEIF, professional/advanced format preview, and simple format conversion | Shipped with default builds, but implemented through the plugin protocol |
+| Optional plugins | AI stylization, background removal, super-resolution, repair, outpainting, denoising, batch watermarking, batch conversion, compression plugins, cloud model plugins, and local model plugins | Installed or enabled separately through the same process-plugin boundary |
+
+Current implementation status: single-image preview, zoom, pan, display rotation, image information, sibling-image navigation, adjacent preloading, settings, and the initial stdio JSON-RPC plugin protocol are in place. EXIF, full folder browsing UI, favorites, filtering, built-in edit tools, bundled professional-format plugins, and AI/batch plugins are product goals rather than complete features.
 
 ## Installation
 
@@ -66,18 +79,26 @@ The `--register-context-menu` command is designed for portable / development use
 
 ## Workspace
 
-- `crates/lumia-app`: GPUI desktop shell and `gpui-component`-backed UI layer.
-- `crates/lumia-core`: viewer state and shared domain models.
+- `crates/lumia-app`: GPUI desktop shell, `gpui-component`-backed UI, viewer orchestration, and plugin-host integration.
+- `crates/lumia-core`: viewer state and shared domain models with no UI dependency.
 - `crates/lumia-plugin-api`: JSON-RPC types shared by the host and plugins.
-- `crates/lumia-plugin-host`: process plugin launcher and stdio transport.
+- `crates/lumia-plugin-host`: process plugin launcher and newline-delimited stdio transport.
 - `plugins/lumia-plugin-sample`: minimal process plugin used to validate the protocol.
+
+## Architecture
+
+The core application should remain the fast path for opening and browsing images. Common viewer state belongs in `lumia-core`; UI and event handling belong in `lumia-app`; plugin wire types belong in `lumia-plugin-api`; plugin process management belongs in `lumia-plugin-host`.
+
+Image payloads cross the plugin boundary by path and metadata, not by base64 or JSON-inline pixel buffers. Official bundled plugins and third-party plugins use the same manifest, permission, and JSON-RPC protocol. This keeps professional formats, AI, cloud integrations, batch processing, and heavy native dependencies outside the core process.
+
+`lumia-core` currently contains HEIC/HEIF decode support as a transition bridge. New heavy or professional format support should be designed as official bundled plugins unless a future ADR explicitly moves a narrow capability into core.
 
 ## UI Stack
 
-- `gpui` and `gpui_platform` are sourced from the `zed-industries/zed` repository instead of a crates.io-pinned `0.2.x` release.
-- The workspace keeps a local compatibility patch set under `vendor/zed/`, wired through the root `Cargo.toml` `[patch."https://github.com/zed-industries/zed"]` section.
+- `gpui` and `gpui_platform` are sourced from the `zed-industries/zed` repository.
 - `gpui-component` is pulled from `longbridge/gpui-component` and initialized in `crates/lumia-app/src/main.rs` with `gpui_component::init(cx)`.
-- The Lumia root view is wrapped in `gpui_component::Root`, and shared widgets in `crates/lumia-app/src/widgets.rs` use `gpui-component` primitives where that library already fits the interaction model.
+- The direct `gpui` and `gpui_platform` dependencies intentionally use the same unpinned git URL shape as `gpui-component`; the actual Zed revision is pinned through `Cargo.lock`.
+- The Lumia root view is wrapped in `gpui_component::Root`, and shared widgets in `crates/lumia-app/src/widgets.rs` use `gpui-component` primitives where that library fits the interaction model.
 
 ## Development
 
@@ -90,7 +111,7 @@ cargo run -p lumia-app
 
 Notes:
 
-- Updating GPUI now means updating the Zed-sourced dependency set and keeping the local `vendor/zed` patch entries in sync.
+- Updating GPUI means updating the Zed-sourced dependency set through Cargo, committing the resulting `Cargo.lock`, keeping `rust-toolchain.toml` aligned with the locked revision, and recording meaningful policy changes in an ADR.
 - When changing UI infrastructure, verify both the GPUI surface and the `gpui-component` integration still build cleanly across the workspace.
 
 ## Packaging
@@ -119,10 +140,10 @@ cargo wix -p lumia-app --output target/wix/
 # Output: target/wix/lumia-app-0.1.0-x86_64.msi
 ```
 
-The MSI includes:
+The MSI is intended to include:
 - Application installed to `Program Files`
 - Start Menu and Desktop shortcuts
-- File associations for 24 image formats (double-click to open in Lumia)
+- File associations for registered image formats
 - Clean uninstall via Windows "Apps & features"
 
 ### Releasing
@@ -136,26 +157,13 @@ git push origin v0.1.0
 
 GitHub Actions will build the MSI, portable zip, and platform binaries, then attach them to a new [Release](https://github.com/iFence/Lumia/releases).
 
-## Supported Image Formats
+## Image Format Strategy
 
-| Category | Extensions |
-|---|---|
-| AVIF | `.avif` |
-| BMP | `.bmp` |
-| DDS | `.dds` |
-| EXR | `.exr` |
-| Farbfeld | `.ff` `.farbfeld` |
-| GIF | `.gif` |
-| HDR / Radiance | `.hdr` |
-| HEIC / HEIF | `.heic` `.heif` |
-| ICO | `.ico` |
-| JPEG | `.jpg` `.jpeg` |
-| Netpbm | `.pbm` `.pam` `.ppm` `.pgm` |
-| PNG | `.png` |
-| QOI | `.qoi` |
-| SVG | `.svg` |
-| TGA | `.tga` |
-| TIFF | `.tif` `.tiff` |
-| WebP | `.webp` |
+| Category | Extensions | Intended support path |
+|---|---|---|
+| Common web and desktop formats | `.jpg` `.jpeg` `.png` `.gif` `.webp` `.bmp` `.ico` `.tga` `.tif` `.tiff` | Core viewer fast path where dependencies stay lightweight |
+| Additional lightweight formats | `.avif` `.dds` `.ff` `.farbfeld` `.pbm` `.pam` `.ppm` `.pgm` `.qoi` `.svg` | Core or plugin depending on dependency and rendering cost |
+| Professional and heavy preview formats | `.hdr` `.exr` `.heic` `.heif` plus future RAW formats | Official bundled plugins by default |
+| Conversion and batch output formats | Project-defined per plugin | Plugin protocol |
 
-**24** extensions across **17** format families.
+Current registered extensions include 24 extensions across 17 format families. Registration does not mean every advanced format should remain implemented inside the core app.

@@ -2,7 +2,18 @@
 
 ## Project Intent
 
-Lumia is a cross-platform, minimal image viewer. The core app should stay small, fast, and maintainable. Broad image format support, image editing, compression, conversion, super-resolution, and cloud AI features belong behind the plugin boundary unless there is an explicit architecture decision to move them into core.
+Lumia is a small, polished, high-performance, cross-platform image viewer for everyday users and professional users such as photographers, UI designers, and engineers. The product should feel fast for ordinary image browsing while still leaving room for professional preview formats and extensibility.
+
+The core app must stay small, fast, low-memory, stable, and maintainable. Startup, first image open, folder navigation, zooming, panning, rotation, and metadata display are core quality bars. Heavy decoders, AI, networking, batch processing, and model SDKs must stay outside the core process unless an explicit ADR moves a narrowly scoped capability into core.
+
+Product capability layers:
+
+1. Core viewer: image preview; zoom, pan, and display rotation; image information; EXIF display; folder browsing; basic sorting, filtering, and favorites; fast preview for common formats.
+2. Built-in light editing: non-destructive or copy-export operations only, including rotate, crop, mirror, resize, simple compression, simple color adjustments, and export copy.
+3. Official bundled plugins: professional and heavier default capabilities such as RAW, HDR, HEIC/HEIF, advanced/professional format preview, and simple format conversion. Users may experience these as default support, but implementation should remain behind the plugin boundary.
+4. Optional third-party or advanced plugins: AI stylization, background removal, super-resolution, repair, outpainting, denoising, batch watermarking, batch conversion, compression plugins, cloud model plugins, and local model plugins.
+
+Current transition note: `lumia-core` currently contains HEIC/HEIF decode support. Treat this as a compatibility bridge, not a precedent for adding more heavy decoders to core. Future professional/heavy format work should move toward official bundled plugins.
 
 ## Workspace Structure
 
@@ -59,11 +70,15 @@ lumia-plugin-sample ──> lumia-plugin-api
 
 - Use Rust and GPUI for the desktop application.
 - Keep UI code in `crates/lumia-app` thin; put reusable viewer state and task models in `crates/lumia-core`.
-- Do not add heavy decoder, AI, networking, or image-processing SDKs to `lumia-app`.
+- Keep the core viewer path optimized for startup time, open latency, memory use, and crash isolation.
+- Do not add heavy decoder, AI, networking, batch-processing, or model SDK dependencies to `lumia-app`.
+- Do not add new heavy/professional format decoders to `lumia-core`; route them through official bundled plugins unless an ADR explicitly approves a core exception.
+- Keep built-in editing constrained to lightweight copy-export operations. Complex edits, batch edits, and AI edits belong in plugins.
 - All plugin-facing request and response shapes must live in `crates/lumia-plugin-api`.
 - Process plugins communicate with the host over newline-delimited stdio JSON-RPC.
 - Image payloads must be passed by path plus metadata, not base64 or JSON-inline pixel buffers.
 - Plugin permissions must be declared in the manifest and enforced by the host before real filesystem or network access is implemented.
+- Official bundled plugins must use the same manifest, permission, and JSON-RPC protocol as third-party plugins.
 
 ## Module Organization Rules
 
@@ -83,13 +98,16 @@ lumia-plugin-sample ──> lumia-plugin-api
 
 - Use `GPUI-Developer-Tutorial.md` as the local reference before introducing new UI patterns. You may also reference the GPUI book at `https://matinaniss.github.io/gpui-book/` when the local tutorial does not cover the pattern you need.
 - Prefer stable GPUI element IDs and avoid expensive allocations in `Render::render`.
-- GPUI is sourced from the workspace's current Zed dependency set. For framework behavior, prefer the checked-in workspace code and `vendor/zed` patches when they differ from external docs. Any upgrade must include an ADR with the reason, API impact, and verification result.
+- GPUI is sourced from the workspace's current Zed dependency set. For framework behavior, prefer the locked dependency source and local tutorial over external docs when they differ. Any dependency policy change or major upgrade must include an ADR with the reason, API impact, and verification result.
 - The `actions!` macro must stay in `main.rs` (crate root). Action types are referenced from other modules via `crate::OpenFile` etc.
 - GPUI trait imports ( `InteractiveElement`, `ParentElement`, `StatefulInteractiveElement`, `StyledImage`, etc.) must be explicitly listed in each module that uses them — they do not carry over from other modules.
 
 ## UI Component Library
 
 - Lumia uses `gpui-component` as the shared UI component library for `crates/lumia-app`. Besides reading existing Lumia code, you may also reference the upstream documentation and examples at `https://github.com/longbridge/gpui-component`.
+- Keep the direct `gpui`/`gpui_platform` dependencies in `Cargo.toml` using the same unpinned git URL shape as `gpui-component`; do NOT add `rev = ...` there. Cargo treats `git+url` and `git+url?rev=...` as different sources, which creates two incompatible `gpui` crates even when both resolve to the same commit.
+- Pin the actual Zed/GPUI revision through the committed `Cargo.lock` instead. If the Zed revision needs to change, use `cargo update` and verify the whole workspace rather than editing dependency source or vendoring Zed.
+- Keep `rust-toolchain.toml` aligned with the Rust version required by the locked Zed revision. Recent Zed GPUI commits use Rust APIs such as `slice_as_array` and `cold_path`, so older local stable toolchains may fail even when dependency source is correct.
 - Initialize the component library in `main.rs` with `gpui_component::init(cx)` before creating application UI, and keep the root view wrapped in `gpui_component::Root`.
 - Prefer `gpui_component` widgets for common controls such as buttons. Button helpers belong in `widgets.rs` and should return `AnyElement` when shared across render modules.
 - When bridging `gpui_component::button::Button::on_click` into `LumiaApp`, use the callback-provided `&mut Window` directly and update app state through the stored `WeakEntity`; avoid `update_in` unless the code specifically requires GPUI to resolve the entity window.
@@ -127,4 +145,3 @@ cargo build --release -p lumia-app
 - Use `!` before the colon for breaking changes, and include a `BREAKING CHANGE:` footer when needed.
 - Do not commit generated build artifacts.
 - Do not rewrite or discard user changes unless explicitly asked.
-
