@@ -96,7 +96,6 @@ lumia-plugin-sample ──> lumia-plugin-api
 
 ## GPUI Guidance
 
-- Use `GPUI-Developer-Tutorial.md` as the local reference before introducing new UI patterns. You may also reference the GPUI book at `https://matinaniss.github.io/gpui-book/` when the local tutorial does not cover the pattern you need.
 - Prefer stable GPUI element IDs and avoid expensive allocations in `Render::render`.
 - GPUI is sourced from the workspace's current Zed dependency set. For framework behavior, prefer the locked dependency source and local tutorial over external docs when they differ. Any dependency policy change or major upgrade must include an ADR with the reason, API impact, and verification result.
 - The `actions!` macro must stay in `main.rs` (crate root). Action types are referenced from other modules via `crate::OpenFile` etc.
