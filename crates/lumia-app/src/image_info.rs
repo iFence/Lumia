@@ -8,7 +8,7 @@ use lumia_core::Language;
 
 impl LumiaApp {
     pub(crate) fn render_image_info_overlay(&self) -> Option<impl IntoElement> {
-        (self.show_image_info && self.image_path().is_some()).then(|| {
+        (self.ui.show_image_info && self.image_path().is_some()).then(|| {
             let language = self.settings.language;
             div()
                 .id("image-info-overlay")
@@ -46,8 +46,8 @@ impl LumiaApp {
         ));
 
         if let Some(metadata) = self
-            .current_image
-            .as_ref()
+            .viewer
+            .document()
             .and_then(|image| image.metadata.as_ref())
         {
             lines.push(format!(
@@ -87,7 +87,7 @@ impl LumiaApp {
         lines.push(format!(
             "{}: {:.0}%",
             tr(language, TextKey::ImageInfoZoom),
-            self.viewport.zoom * 100.0
+            self.viewer.viewport().zoom * 100.0
         ));
         lines.push(format!(
             "{}: {}",

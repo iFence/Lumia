@@ -19,38 +19,42 @@ Current transition note: `lumia-core` currently contains HEIC/HEIF decode suppor
 
 ```
 crates/
-  lumia-core/src/          -- 领域模型库（无 UI 依赖）
-    lib.rs                 -- 仅 re-export，不包含业务逻辑
-    image.rs               -- ImageDocument, ImageLoadError, ImageMetadata, ColorDescription, PixelFormat, TransferFunction, 扩展名工具函数
-    viewport.rs            -- ViewportState, FitMode
-    task.rs                -- TaskState, TaskStatus
-    settings.rs            -- AppSettings, Language, ThemeMode, SettingsGroup
+  lumia-core/src/              -- UI-independent viewer domain
+    lib.rs                     -- module declarations and re-exports only
+    image.rs + image/          -- facade; types, formats, loading, raster, HEIC bridge
+    navigation.rs              -- FolderNavigation scanning and traversal
+    viewer.rs                  -- ViewerSession and display-transform state
+    viewport.rs                -- ViewportState, FitMode
+    settings.rs, task.rs       -- settings and task models
 
-  lumia-plugin-api/src/    -- 插件协议类型库（纯数据，无运行时逻辑）
-    lib.rs                 -- 仅 re-export
-    rpc.rs                 -- JSON_RPC_VERSION, PROTOCOL_VERSION, RpcId, JsonRpcRequest, JsonRpcResponse, RpcError
-    manifest.rs            -- PluginManifest, PluginCapability, PluginPermission
-    messages.rs            -- 所有 RPC 参数/结果类型, ImageOperation, ImagePath, ImageOutput
+  lumia-plugin-api/src/        -- pure plugin protocol data
+  lumia-plugin-host/src/       -- process transport
+    lib.rs                     -- declarations and re-exports only
+    error.rs, process.rs       -- host errors and stdio JSON-RPC process
 
-  lumia-plugin-host/src/   -- 插件进程管理器（子进程生成 + stdio JSON-RPC 传输）
-    lib.rs                 -- PluginProcess, PluginHostError
-
-  lumia-app/src/           -- GPUI 桌面应用（二进制 crate）
-    main.rs                -- 入口点：mod 声明、常量、actions! 宏、main()（约 35 行，不包含业务逻辑）
-    app.rs                 -- LumiaApp 结构体 + 全部事件处理器 + 图像加载 + 缩放计算 + Focusable impl
-    render.rs              -- Render trait 实现 + render_toolbar + render_viewer + render_context_menu
-    settings_ui.rs         -- 设置面板渲染：render_settings_panel 等 5 个方法
-    image_info.rs          -- 图像信息遮罩：render_image_info_overlay + image_info_lines
-    widgets.rs             -- UI 组件工厂函数：toolbar_button, context_menu_item, settings_group_button 等
-    palette.rs             -- Palette 结构体 + theme_resolves_to_dark + impl LumiaApp { palette() }
-    i18n.rs                -- TextKey 枚举 + tr() 翻译函数
-    persistence.rs         -- load_settings, save_settings, settings_path, platform_config_dir
-    util.rs                -- status_message, format_file_size, format_modified_time, format_load_error
+  lumia-app/src/               -- GPUI desktop integration
+    main.rs, bootstrap.rs      -- CLI/action skeleton and GPUI window startup
+    app.rs                     -- LumiaApp state composition and construction
+    load_state.rs              -- load generations, queued preloads, decode/cache lifecycle
+    image_loading.rs           -- decode, preload, and navigation orchestration
+    viewer_actions.rs          -- open, zoom, rotate viewer commands
+    window_actions.rs          -- fullscreen, panels, status hover behavior
+    preferences.rs             -- settings updates and shortcut bindings
+    ui_state.rs                -- pointer, window, menu, overlay, and settings-panel state
+    render.rs                  -- root Render implementation and viewer surface
+    status_bar.rs              -- status/navigation/zoom controls
+    viewer_overlays.rs         -- zoom menu, decode overlay, context menu
+    settings_ui.rs             -- settings panel shell and sidebar
+    settings_general.rs        -- language/theme settings
+    settings_shortcuts.rs      -- shortcut editor
+    image_info.rs, widgets.rs  -- image overlay and shared widget factories
+    palette.rs, i18n.rs        -- theme palette and translations
+    persistence.rs, util.rs    -- settings storage and formatting helpers
+    shell.rs + shell/          -- OS dispatch and per-platform registration
 
 plugins/
-  lumia-plugin-sample/     -- 示例插件（最小 stdin/stdout JSON-RPC 循环）
+  lumia-plugin-sample/         -- minimal stdin/stdout JSON-RPC plugin
 ```
-
 ## Crate Dependency Graph
 
 ```
@@ -83,6 +87,7 @@ lumia-plugin-sample ──> lumia-plugin-api
 ## Module Organization Rules
 
 - Each module file must have a single clear responsibility. Do NOT put unrelated code into the same file.
+- Production Rust modules must stay at or below 500 lines. Treat 300 lines as a review threshold and split by responsibility before adding substantial behavior.
 - `lib.rs` files in library crates must contain ONLY `mod` declarations and `pub use` re-exports — no business logic.
 - `main.rs` in the binary crate should be a thin skeleton: `mod` declarations, constants, `actions!` macro, and `main()` — no business logic.
 - UI widget helpers (button factories, etc.) go in `widgets.rs`, NOT inline in render methods.
@@ -91,7 +96,7 @@ lumia-plugin-sample ──> lumia-plugin-api
 - Settings persistence logic lives in `persistence.rs`.
 - Theme/color palette logic lives in `palette.rs`.
 - Utility/formatting functions live in `util.rs`.
-- When adding a new settings group: add the variant to `SettingsGroup` in `lumia-core/settings.rs`, add sidebar + content renderers in `settings_ui.rs`.
+- When adding a new settings group: add the variant to `SettingsGroup` in `lumia-core/settings.rs`, add navigation in `settings_ui.rs`, and put the content renderer in its own `settings_*.rs` module.
 - When adding a new plugin capability: add the variant in `lumia-plugin-api/manifest.rs`, add params/result types in `lumia-plugin-api/messages.rs`.
 
 ## GPUI Guidance
@@ -107,7 +112,7 @@ lumia-plugin-sample ──> lumia-plugin-api
 - Keep the direct `gpui`/`gpui_platform` dependencies in `Cargo.toml` using the same unpinned git URL shape as `gpui-component`; do NOT add `rev = ...` there. Cargo treats `git+url` and `git+url?rev=...` as different sources, which creates two incompatible `gpui` crates even when both resolve to the same commit.
 - Pin the actual Zed/GPUI revision through the committed `Cargo.lock` instead. If the Zed revision needs to change, use `cargo update` and verify the whole workspace rather than editing dependency source or vendoring Zed.
 - Keep `rust-toolchain.toml` aligned with the Rust version required by the locked Zed revision. Recent Zed GPUI commits use Rust APIs such as `slice_as_array` and `cold_path`, so older local stable toolchains may fail even when dependency source is correct.
-- Initialize the component library in `main.rs` with `gpui_component::init(cx)` before creating application UI, and keep the root view wrapped in `gpui_component::Root`.
+- Initialize the component library in `bootstrap.rs` with `gpui_component::init(cx)` before creating application UI, and keep the root view wrapped in `gpui_component::Root`.
 - Prefer `gpui_component` widgets for common controls such as buttons. Button helpers belong in `widgets.rs` and should return `AnyElement` when shared across render modules.
 - When bridging `gpui_component::button::Button::on_click` into `LumiaApp`, use the callback-provided `&mut Window` directly and update app state through the stored `WeakEntity`; avoid `update_in` unless the code specifically requires GPUI to resolve the entity window.
 - Raw GPUI `div()`-based controls are still acceptable for viewer-specific interactions, context menu rows, drag regions, or cases where `gpui-component` does not expose the needed mouse/keyboard semantics.

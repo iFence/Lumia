@@ -1,26 +1,18 @@
 use gpui::{
-    div, img, px, rgb, AnyElement, App, Context, ExternalPaths, FontWeight, InteractiveElement,
-    IntoElement, MouseButton, MouseDownEvent, MouseMoveEvent, ObjectFit, ParentElement, Render,
-    ScrollDelta, ScrollWheelEvent, StatefulInteractiveElement, Styled, StyledImage, Window,
+    div, img, px, rgb, App, Context, ExternalPaths, FontWeight, InteractiveElement, IntoElement,
+    MouseButton, MouseDownEvent, MouseMoveEvent, ObjectFit, ParentElement, Render, ScrollDelta,
+    ScrollWheelEvent, StatefulInteractiveElement, Styled, StyledImage, Window,
 };
-use gpui_component::{Icon, IconName, Theme, ThemeMode as ComponentThemeMode};
-use lumia_core::FitMode;
+use gpui_component::{Theme, ThemeMode as ComponentThemeMode};
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
 use crate::palette::{theme_resolves_to_dark, Palette};
-use crate::util::{format_file_size, status_message};
-use crate::widgets::context_menu_item;
-use crate::{
-    Quit, STATUS_BAR_HEIGHT, ZOOM_MENU_BOTTOM_GAP, ZOOM_MENU_ITEM_HEIGHT, ZOOM_MENU_RIGHT,
-    ZOOM_MENU_WIDTH,
-};
+use crate::util::status_message;
+use crate::Quit;
 
 impl Render for LumiaApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // Non-blocking poll: drain completed adjacent-image preloads.
-        self.poll_preloads(cx);
-
         let component_theme_mode =
             if theme_resolves_to_dark(self.settings.theme, window.appearance()) {
                 ComponentThemeMode::Dark
@@ -58,7 +50,7 @@ impl Render for LumiaApp {
             .text_color(rgb(palette.text))
             .child(self.render_viewer(window, palette, cx))
             .children(
-                (self.show_status_bar || self.show_zoom_menu)
+                (self.ui.show_status_bar || self.ui.show_zoom_menu)
                     .then(|| self.render_status_bar(palette, cx)),
             )
             .children(self.render_settings_panel(window, palette, cx))
@@ -112,24 +104,6 @@ impl LumiaApp {
             )
     }
 
-    fn poll_preloads(&mut self, _cx: &mut Context<Self>) {
-        // Drain completed preload receivers and stash results in the cache.
-        self.pending_preloads.retain(|rx| {
-            match rx.try_recv() {
-                Ok(Some((path, cached))) => {
-                    self.preload_cache.insert(path, cached);
-                    false // remove this receiver
-                }
-                Ok(None) => {
-                    // Decode failed — nothing to cache.
-                    false
-                }
-                Err(std::sync::mpsc::TryRecvError::Disconnected) => false,
-                Err(std::sync::mpsc::TryRecvError::Empty) => true, // still running
-            }
-        });
-    }
-
     fn render_viewer(
         &self,
         window: &Window,
@@ -146,14 +120,14 @@ impl LumiaApp {
             .relative()
             .bg(rgb(palette.viewer_bg))
             .on_drop(cx.listener(|this, paths: &ExternalPaths, window, cx| {
-                if this.show_settings_panel {
+                if this.ui.show_settings_panel {
                     return;
                 }
-                this.pending_drop_paths = paths.paths().to_vec();
+                this.ui.pending_drop_paths = paths.paths().to_vec();
                 this.load_first_supported_drop(window, cx);
             }))
             .on_scroll_wheel(cx.listener(|this, event: &ScrollWheelEvent, _, cx| {
-                if this.show_settings_panel {
+                if this.ui.show_settings_panel {
                     return;
                 }
                 let delta = match event.delta {
@@ -161,25 +135,25 @@ impl LumiaApp {
                     ScrollDelta::Lines(delta) => delta.y,
                 };
                 if delta > 0.0 {
-                    this.viewport.zoom_out();
+                    this.viewer.viewport_mut().zoom_out();
                 } else if delta < 0.0 {
-                    this.viewport.zoom_in();
+                    this.viewer.viewport_mut().zoom_in();
                 }
                 cx.notify();
             }))
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(|this, event: &MouseDownEvent, _, cx| {
-                    if this.show_settings_panel {
+                    if this.ui.show_settings_panel {
                         return;
                     }
-                    if this.context_menu_position.take().is_some() {
+                    if this.ui.context_menu_position.take().is_some() {
                         cx.notify();
                         return;
                     }
-                    if this.current_image.is_some() {
-                        this.is_panning = true;
-                        this.last_mouse_position = Some(event.position);
+                    if this.viewer.has_document() {
+                        this.ui.is_panning = true;
+                        this.ui.last_mouse_position = Some(event.position);
                         cx.notify();
                     }
                 }),
@@ -187,55 +161,55 @@ impl LumiaApp {
             .on_mouse_up(
                 MouseButton::Left,
                 cx.listener(|this, _, _, cx| {
-                    if this.show_settings_panel {
+                    if this.ui.show_settings_panel {
                         return;
                     }
-                    this.is_panning = false;
-                    this.last_mouse_position = None;
+                    this.ui.is_panning = false;
+                    this.ui.last_mouse_position = None;
                     cx.notify();
                 }),
             )
             .on_mouse_down(
                 MouseButton::Right,
                 cx.listener(|this, event: &MouseDownEvent, _, cx| {
-                    if this.show_settings_panel {
+                    if this.ui.show_settings_panel {
                         return;
                     }
-                    this.context_menu_position =
+                    this.ui.context_menu_position =
                         Some(gpui::point(event.position.x, event.position.y));
-                    this.is_panning = false;
-                    this.last_mouse_position = None;
+                    this.ui.is_panning = false;
+                    this.ui.last_mouse_position = None;
                     cx.notify();
                 }),
             )
             .on_mouse_up_out(
                 MouseButton::Left,
                 cx.listener(|this, _, _, cx| {
-                    if this.show_settings_panel {
+                    if this.ui.show_settings_panel {
                         return;
                     }
-                    this.is_panning = false;
-                    this.last_mouse_position = None;
+                    this.ui.is_panning = false;
+                    this.ui.last_mouse_position = None;
                     cx.notify();
                 }),
             )
             .on_mouse_move(cx.listener(|this, event: &MouseMoveEvent, _, cx| {
-                if this.show_settings_panel {
+                if this.ui.show_settings_panel {
                     return;
                 }
-                if this.is_panning && event.dragging() {
-                    if let Some(last_position) = this.last_mouse_position {
-                        this.viewport.pan_by(
+                if this.ui.is_panning && event.dragging() {
+                    if let Some(last_position) = this.ui.last_mouse_position {
+                        this.viewer.viewport_mut().pan_by(
                             f32::from(event.position.x - last_position.x),
                             f32::from(event.position.y - last_position.y),
                         );
                     }
-                    this.last_mouse_position = Some(event.position);
+                    this.ui.last_mouse_position = Some(event.position);
                     cx.notify();
                 }
             }));
 
-        if let Some(message) = &self.error_message {
+        if let Some(message) = &self.ui.error_message {
             viewer
                 .child(status_message("error-state", message, palette.error_text))
                 .children(self.render_image_info_overlay())
@@ -246,13 +220,13 @@ impl LumiaApp {
             // cannot natively render them.
             // Check the document's own cache first, then the preload cache
             // (populated by background adjacent-image decoding).
-            let cached = self.rotated_image.as_ref().or_else(|| {
-                (self.rotation_quarter_turns == 0)
+            let cached = self.viewer.rotated_image().or_else(|| {
+                (self.viewer.rotation_quarter_turns() == 0)
                     .then(|| {
-                        self.current_image
-                            .as_ref()
+                        self.viewer
+                            .document()
                             .and_then(|doc| doc.cached_image.as_ref())
-                            .or_else(|| self.image_path().and_then(|p| self.preload_cache.get(p)))
+                            .or_else(|| self.image_path().and_then(|path| self.loads.cached(path)))
                     })
                     .flatten()
             });
@@ -285,8 +259,8 @@ impl LumiaApp {
             viewer
                 .child(
                     div()
-                        .ml(px(self.viewport.pan_x))
-                        .mt(px(self.viewport.pan_y))
+                        .ml(px(self.viewer.viewport().pan_x))
+                        .mt(px(self.viewer.viewport().pan_y))
                         .child(image),
                 )
                 .children(self.render_decoding_overlay(palette))
@@ -298,398 +272,5 @@ impl LumiaApp {
                 .children(self.render_image_info_overlay())
                 .children(self.render_context_menu(palette, cx))
         }
-    }
-
-    fn render_status_bar(&self, palette: Palette, cx: &mut Context<Self>) -> impl IntoElement {
-        let has_image = self.current_image.is_some();
-        let count = self.sibling_count();
-        let current = self
-            .current_image_index()
-            .map(|index| index + 1)
-            .unwrap_or(0);
-        let dimensions = self
-            .current_image
-            .as_ref()
-            .and_then(|image| image.metadata.as_ref())
-            .map(|metadata| format!("{}x{}", metadata.width, metadata.height))
-            .unwrap_or_else(|| "--".to_string());
-        let file_size = self
-            .image_path()
-            .and_then(|path| std::fs::metadata(path).ok())
-            .map(|metadata| format_file_size(metadata.len()))
-            .unwrap_or_else(|| "--".to_string());
-        div()
-            .id("status-bar")
-            .absolute()
-            .left_0()
-            .right_0()
-            .bottom_0()
-            .h(px(STATUS_BAR_HEIGHT))
-            .w_full()
-            .flex()
-            .items_center()
-            .justify_between()
-            .gap_3()
-            .px_4()
-            .border_t_1()
-            .border_color(rgb(palette.border))
-            .bg(rgb(palette.toolbar_bg))
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_1()
-                    .child(self.render_status_icon_button(
-                        "status-prev-image",
-                        IconName::ChevronLeft,
-                        has_image && current > 1,
-                        palette,
-                        cx,
-                        |this, _, window, cx| {
-                            this.navigate_image(-1, window, cx);
-                            cx.notify();
-                        },
-                    ))
-                    .child(self.render_status_text(format!("{current}/{count}"), palette))
-                    .child(self.render_status_icon_button(
-                        "status-next-image",
-                        IconName::ChevronRight,
-                        has_image && current < count,
-                        palette,
-                        cx,
-                        |this, _, window, cx| {
-                            this.navigate_image(1, window, cx);
-                            cx.notify();
-                        },
-                    ))
-                    .child(self.render_status_icon_button(
-                        "status-rotate-counter-clockwise",
-                        IconName::Undo2,
-                        has_image,
-                        palette,
-                        cx,
-                        |this, _, _, cx| {
-                            this.rotate_display(3, cx);
-                        },
-                    ))
-                    .child(self.render_status_icon_button(
-                        "status-rotate-clockwise",
-                        IconName::Redo2,
-                        has_image,
-                        palette,
-                        cx,
-                        |this, _, _, cx| {
-                            this.rotate_display(1, cx);
-                        },
-                    ))
-                    .child(self.render_status_text(file_size, palette))
-                    .child(self.render_status_text(dimensions, palette)),
-            )
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_1()
-                    .child(self.render_status_icon_button(
-                        "status-fit-toggle",
-                        if self.viewport.fit_mode == FitMode::FitToWindow {
-                            IconName::Minimize
-                        } else {
-                            IconName::Maximize
-                        },
-                        has_image,
-                        palette,
-                        cx,
-                        |this, _, _, cx| {
-                            this.toggle_fit_or_actual_size(cx);
-                        },
-                    ))
-                    .child(self.render_status_zoom_button(
-                        has_image,
-                        palette,
-                        cx,
-                        |this, _, _, cx| {
-                            this.toggle_zoom_menu(cx);
-                        },
-                    ))
-                    .child(self.render_status_icon_button(
-                        "status-zoom-in",
-                        IconName::Plus,
-                        has_image,
-                        palette,
-                        cx,
-                        |this, _, _, cx| {
-                            if this.current_image.is_some() {
-                                this.viewport.zoom_in();
-                                this.show_zoom_menu = false;
-                                cx.notify();
-                            }
-                        },
-                    ))
-                    .child(self.render_status_icon_button(
-                        "status-zoom-out",
-                        IconName::Minus,
-                        has_image,
-                        palette,
-                        cx,
-                        |this, _, _, cx| {
-                            if this.current_image.is_some() {
-                                this.viewport.zoom_out();
-                                this.show_zoom_menu = false;
-                                cx.notify();
-                            }
-                        },
-                    ))
-                    .child(self.render_status_icon_button(
-                        "status-fullscreen",
-                        IconName::Maximize,
-                        true,
-                        palette,
-                        cx,
-                        |this, _, window, cx| {
-                            this.toggle_window_fullscreen(window, cx);
-                        },
-                    )),
-            )
-            .children(self.render_zoom_menu(palette, cx))
-    }
-
-    fn render_status_zoom_button(
-        &self,
-        enabled: bool,
-        palette: Palette,
-        cx: &mut Context<Self>,
-        on_click: impl Fn(&mut LumiaApp, &MouseDownEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
-    ) -> AnyElement {
-        let text_color = if enabled {
-            palette.text
-        } else {
-            palette.muted_text
-        };
-
-        div()
-            .id("status-zoom-menu-button")
-            .h(px(28.0))
-            .px_2()
-            .flex()
-            .items_center()
-            .justify_center()
-            .gap_1()
-            .rounded_sm()
-            .border_1()
-            .border_color(rgb(palette.border))
-            .bg(rgb(palette.button_bg))
-            .text_sm()
-            .text_color(rgb(text_color))
-            .hover(move |style| style.bg(rgb(palette.button_hover)))
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |this, event, window, cx| {
-                    if enabled {
-                        on_click(this, event, window, cx);
-                    }
-                }),
-            )
-            .child(format!("{:.0}%", self.viewport.zoom * 100.0))
-            .child(
-                Icon::new(if self.show_zoom_menu {
-                    IconName::ChevronDown
-                } else {
-                    IconName::ChevronUp
-                })
-                .size(px(14.0))
-                .text_color(rgb(text_color)),
-            )
-            .into_any_element()
-    }
-    fn render_status_icon_button(
-        &self,
-        id: &'static str,
-        icon: IconName,
-        enabled: bool,
-        palette: Palette,
-        cx: &mut Context<Self>,
-        on_click: impl Fn(&mut LumiaApp, &MouseDownEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
-    ) -> AnyElement {
-        let icon_color = if enabled {
-            palette.text
-        } else {
-            palette.muted_text
-        };
-
-        div()
-            .id(id)
-            .w(px(32.0))
-            .h(px(28.0))
-            .flex()
-            .items_center()
-            .justify_center()
-            .rounded_sm()
-            .border_1()
-            .border_color(rgb(palette.border))
-            .bg(rgb(palette.button_bg))
-            .hover(move |style| style.bg(rgb(palette.button_hover)))
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |this, event, window, cx| {
-                    if enabled {
-                        on_click(this, event, window, cx);
-                    }
-                }),
-            )
-            .child(Icon::new(icon).size(px(16.0)).text_color(rgb(icon_color)))
-            .into_any_element()
-    }
-    fn render_status_text(&self, label: impl Into<String>, palette: Palette) -> AnyElement {
-        div()
-            .px_2()
-            .text_sm()
-            .text_color(rgb(palette.muted_text))
-            .child(label.into())
-            .into_any_element()
-    }
-
-    fn render_zoom_menu(&self, palette: Palette, cx: &mut Context<Self>) -> Option<AnyElement> {
-        if !self.show_zoom_menu {
-            return None;
-        }
-
-        let presets = [32.0, 16.0, 8.0, 4.0, 2.0, 1.5, 1.0, 0.5, 0.1];
-        Some(
-            div()
-                .id("status-zoom-menu")
-                .absolute()
-                .right(px(ZOOM_MENU_RIGHT))
-                .bottom(px(STATUS_BAR_HEIGHT + ZOOM_MENU_BOTTOM_GAP))
-                .w(px(ZOOM_MENU_WIDTH))
-                .py_2()
-                .rounded_md()
-                .border_1()
-                .border_color(rgb(palette.border))
-                .bg(rgb(palette.panel_bg))
-                .shadow_lg()
-                .children(presets.into_iter().map(|zoom| {
-                    let active = (self.viewport.zoom - zoom).abs() < 0.01;
-                    self.render_zoom_menu_item(zoom, active, palette, cx)
-                }))
-                .into_any_element(),
-        )
-    }
-
-    fn render_zoom_menu_item(
-        &self,
-        zoom: f32,
-        active: bool,
-        palette: Palette,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
-        div()
-            .id(format!("zoom-preset-{:.0}", zoom * 100.0))
-            .w_full()
-            .h(px(ZOOM_MENU_ITEM_HEIGHT))
-            .px_3()
-            .flex()
-            .items_center()
-            .gap_2()
-            .text_sm()
-            .text_color(rgb(if active {
-                palette.accent
-            } else {
-                palette.muted_text
-            }))
-            .hover(move |style| style.bg(rgb(palette.button_hover)))
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    this.set_zoom(zoom, cx);
-                }),
-            )
-            .child(
-                div()
-                    .w(px(16.0))
-                    .h(px(16.0))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .children(active.then(|| {
-                        Icon::new(IconName::Check)
-                            .size(px(14.0))
-                            .text_color(rgb(palette.accent))
-                    })),
-            )
-            .child(format!("{:.0}%", zoom * 100.0))
-            .into_any_element()
-    }
-    fn render_decoding_overlay(&self, palette: Palette) -> Option<impl IntoElement> {
-        if !self.is_decoding {
-            return None;
-        }
-        Some(
-            div()
-                .absolute()
-                .bottom_4()
-                .right_4()
-                .px_3()
-                .py_1()
-                .rounded_md()
-                .bg(rgb(palette.button_bg))
-                .text_color(rgb(palette.muted_text))
-                .text_sm()
-                .child("Decoding…"),
-        )
-    }
-
-    fn render_context_menu(
-        &self,
-        palette: Palette,
-        cx: &mut Context<Self>,
-    ) -> Option<impl IntoElement> {
-        let language = self.settings.language;
-
-        self.context_menu_position.map(|position| {
-            div()
-                .id("viewer-context-menu")
-                .absolute()
-                .left(position.x)
-                .top(position.y)
-                .w(px(156.0))
-                .py_1()
-                .rounded_md()
-                .bg(rgb(palette.panel_bg))
-                .border_1()
-                .border_color(rgb(palette.border))
-                .shadow_lg()
-                .text_color(rgb(palette.text))
-                .text_sm()
-                .child(context_menu_item(
-                    "settings-menu-item",
-                    tr(language, TextKey::Settings),
-                    palette,
-                    cx,
-                    |this, _, _, cx| {
-                        this.open_settings_panel(cx);
-                    },
-                ))
-                .child(context_menu_item(
-                    "about-menu-item",
-                    tr(language, TextKey::About),
-                    palette,
-                    cx,
-                    |this, _, _, cx| {
-                        this.context_menu_position = None;
-                        cx.notify();
-                    },
-                ))
-                .child(context_menu_item(
-                    "quit-menu-item",
-                    tr(language, TextKey::Quit),
-                    palette,
-                    cx,
-                    |this, _, _, cx| {
-                        this.context_menu_position = None;
-                        cx.quit();
-                    },
-                ))
-        })
     }
 }

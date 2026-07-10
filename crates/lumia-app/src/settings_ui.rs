@@ -7,20 +7,16 @@ use lumia_core::{Language, SettingsGroup, ShortcutId, ThemeAccent, ThemeMode};
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
 use crate::palette::Palette;
-use crate::widgets::{
-    settings_dropdown_button, settings_group_button, settings_label, shortcut_record_button,
-    shortcut_reset_button,
-};
-use crate::{SelectLanguage, SelectThemeAccent, SelectThemeMode};
+use crate::widgets::settings_group_button;
 
-fn language_text_key(language: Language) -> TextKey {
+pub(crate) fn language_text_key(language: Language) -> TextKey {
     match language {
         Language::English => TextKey::English,
         Language::Chinese => TextKey::Chinese,
     }
 }
 
-fn theme_mode_text_key(theme: ThemeMode) -> TextKey {
+pub(crate) fn theme_mode_text_key(theme: ThemeMode) -> TextKey {
     match theme {
         ThemeMode::Light => TextKey::Light,
         ThemeMode::Dark => TextKey::Dark,
@@ -28,7 +24,7 @@ fn theme_mode_text_key(theme: ThemeMode) -> TextKey {
     }
 }
 
-fn theme_accent_text_key(accent: ThemeAccent) -> TextKey {
+pub(crate) fn theme_accent_text_key(accent: ThemeAccent) -> TextKey {
     match accent {
         ThemeAccent::Blue => TextKey::AccentBlue,
         ThemeAccent::Green => TextKey::AccentGreen,
@@ -37,7 +33,7 @@ fn theme_accent_text_key(accent: ThemeAccent) -> TextKey {
     }
 }
 
-fn shortcut_record_button_id(shortcut_id: ShortcutId) -> &'static str {
+pub(crate) fn shortcut_record_button_id(shortcut_id: ShortcutId) -> &'static str {
     match shortcut_id {
         ShortcutId::OpenFile => "shortcut-record-open-file",
         ShortcutId::ZoomIn => "shortcut-record-zoom-in",
@@ -52,7 +48,7 @@ fn shortcut_record_button_id(shortcut_id: ShortcutId) -> &'static str {
     }
 }
 
-fn shortcut_reset_button_id(shortcut_id: ShortcutId) -> &'static str {
+pub(crate) fn shortcut_reset_button_id(shortcut_id: ShortcutId) -> &'static str {
     match shortcut_id {
         ShortcutId::OpenFile => "shortcut-reset-open-file",
         ShortcutId::ZoomIn => "shortcut-reset-zoom-in",
@@ -74,7 +70,7 @@ impl LumiaApp {
         palette: Palette,
         cx: &mut Context<Self>,
     ) -> Option<impl IntoElement> {
-        self.show_settings_panel.then(|| {
+        self.ui.show_settings_panel.then(|| {
             let language = self.settings.language;
             let viewport_size = window.viewport_size();
             let panel_width = (f32::from(viewport_size.width) - 48.0)
@@ -84,7 +80,7 @@ impl LumiaApp {
                 .max(360.0)
                 .min(520.0);
 
-            let is_recording = self.recording_shortcut.is_some();
+            let is_recording = self.ui.recording_shortcut.is_some();
 
             let overlay = div()
                 .id("settings-overlay")
@@ -192,7 +188,7 @@ impl LumiaApp {
             .child(settings_group_button(
                 "settings-group-general",
                 tr(language, TextKey::General),
-                self.active_settings_group == SettingsGroup::General,
+                self.ui.active_settings_group == SettingsGroup::General,
                 palette,
                 cx,
                 |this, _, _, cx| {
@@ -202,7 +198,7 @@ impl LumiaApp {
             .child(settings_group_button(
                 "settings-group-shortcuts",
                 tr(language, TextKey::Shortcuts),
-                self.active_settings_group == SettingsGroup::Shortcuts,
+                self.ui.active_settings_group == SettingsGroup::Shortcuts,
                 palette,
                 cx,
                 |this, _, _, cx| {
@@ -217,7 +213,7 @@ impl LumiaApp {
         palette: Palette,
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
-        match self.active_settings_group {
+        match self.ui.active_settings_group {
             SettingsGroup::General => self
                 .render_general_settings(window, palette, cx)
                 .into_any_element(),
@@ -225,272 +221,5 @@ impl LumiaApp {
                 .render_shortcuts_settings(palette, cx)
                 .into_any_element(),
         }
-    }
-
-    pub(crate) fn render_general_settings(
-        &self,
-        _window: &Window,
-        palette: Palette,
-        _cx: &mut Context<Self>,
-    ) -> impl IntoElement {
-        let language = self.settings.language;
-        let selected_language = self.settings.language;
-        let selected_theme = self.settings.theme;
-        let selected_accent = self.settings.theme_accent;
-
-        div()
-            .id("settings-general")
-            .flex_1()
-            .h_full()
-            .flex()
-            .flex_col()
-            .gap_5()
-            .p_5()
-            .overflow_y_scroll()
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .gap_4()
-                    .child(settings_label(
-                        tr(language, TextKey::Language),
-                        tr(language, TextKey::LanguageDescription),
-                        palette,
-                    ))
-                    .child(settings_dropdown_button(
-                        "settings-language-select",
-                        tr(language, language_text_key(selected_language)),
-                        move |menu, _, _| {
-                            menu.label(tr(language, TextKey::Language))
-                                .menu_with_check(
-                                    tr(language, TextKey::English),
-                                    selected_language == Language::English,
-                                    Box::new(SelectLanguage(Language::English)),
-                                )
-                                .menu_with_check(
-                                    tr(language, TextKey::Chinese),
-                                    selected_language == Language::Chinese,
-                                    Box::new(SelectLanguage(Language::Chinese)),
-                                )
-                        },
-                    )),
-            )
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .gap_4()
-                    .child(settings_label(
-                        tr(language, TextKey::Theme),
-                        tr(language, TextKey::ThemeDescription),
-                        palette,
-                    ))
-                    .child(settings_dropdown_button(
-                        "settings-theme-select",
-                        tr(language, theme_mode_text_key(selected_theme)),
-                        move |menu, _, _| {
-                            menu.label(tr(language, TextKey::Theme))
-                                .menu_with_check(
-                                    tr(language, TextKey::Light),
-                                    selected_theme == ThemeMode::Light,
-                                    Box::new(SelectThemeMode(ThemeMode::Light)),
-                                )
-                                .menu_with_check(
-                                    tr(language, TextKey::Dark),
-                                    selected_theme == ThemeMode::Dark,
-                                    Box::new(SelectThemeMode(ThemeMode::Dark)),
-                                )
-                                .menu_with_check(
-                                    tr(language, TextKey::FollowSystem),
-                                    selected_theme == ThemeMode::FollowSystem,
-                                    Box::new(SelectThemeMode(ThemeMode::FollowSystem)),
-                                )
-                        },
-                    )),
-            )
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .gap_4()
-                    .child(settings_label(
-                        tr(language, TextKey::ThemeColor),
-                        tr(language, TextKey::ThemeColorDescription),
-                        palette,
-                    ))
-                    .child(settings_dropdown_button(
-                        "settings-theme-accent-select",
-                        tr(language, theme_accent_text_key(selected_accent)),
-                        move |menu, _, _| {
-                            menu.label(tr(language, TextKey::ThemeColor))
-                                .menu_with_check(
-                                    tr(language, TextKey::AccentBlue),
-                                    selected_accent == ThemeAccent::Blue,
-                                    Box::new(SelectThemeAccent(ThemeAccent::Blue)),
-                                )
-                                .menu_with_check(
-                                    tr(language, TextKey::AccentGreen),
-                                    selected_accent == ThemeAccent::Green,
-                                    Box::new(SelectThemeAccent(ThemeAccent::Green)),
-                                )
-                                .menu_with_check(
-                                    tr(language, TextKey::AccentOrange),
-                                    selected_accent == ThemeAccent::Orange,
-                                    Box::new(SelectThemeAccent(ThemeAccent::Orange)),
-                                )
-                                .menu_with_check(
-                                    tr(language, TextKey::AccentRose),
-                                    selected_accent == ThemeAccent::Rose,
-                                    Box::new(SelectThemeAccent(ThemeAccent::Rose)),
-                                )
-                        },
-                    )),
-            )
-    }
-
-    pub(crate) fn render_shortcuts_settings(
-        &self,
-        palette: Palette,
-        cx: &mut Context<LumiaApp>,
-    ) -> impl IntoElement {
-        let language = self.settings.language;
-
-        let shortcut_rows: Vec<(ShortcutId, TextKey)> = vec![
-            (ShortcutId::OpenFile, TextKey::ShortcutOpenFileLabel),
-            (ShortcutId::ZoomIn, TextKey::ShortcutZoomInLabel),
-            (ShortcutId::ZoomOut, TextKey::ShortcutZoomOutLabel),
-            (ShortcutId::ZoomFit, TextKey::ShortcutZoomFitLabel),
-            (
-                ShortcutId::ToggleFullscreen,
-                TextKey::ShortcutToggleFullscreenLabel,
-            ),
-            (
-                ShortcutId::ExitFullscreen,
-                TextKey::ShortcutExitFullscreenLabel,
-            ),
-            (
-                ShortcutId::ToggleImageInfo,
-                TextKey::ShortcutToggleImageInfoLabel,
-            ),
-            (ShortcutId::NextImage, TextKey::ShortcutNextImageLabel),
-            (
-                ShortcutId::PreviousImage,
-                TextKey::ShortcutPreviousImageLabel,
-            ),
-            (ShortcutId::Quit, TextKey::ShortcutQuitLabel),
-        ];
-        let shortcut_row_count = shortcut_rows.len();
-
-        div()
-            .id("settings-shortcuts")
-            .flex_1()
-            .h_full()
-            .flex()
-            .flex_col()
-            .gap_4()
-            .p_5()
-            .overflow_y_scroll()
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .gap_4()
-                    .child(
-                        div()
-                            .flex_1()
-                            .flex()
-                            .flex_col()
-                            .gap_1()
-                            .child(div().text_sm().child(tr(language, TextKey::Shortcuts)))
-                            .child(
-                                div()
-                                    .text_xs()
-                                    .text_color(rgb(palette.muted_text))
-                                    .child(tr(language, TextKey::ShortcutDescription)),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .id("shortcuts-reset-all")
-                            .px_3()
-                            .py_1()
-                            .rounded_md()
-                            .border_1()
-                            .border_color(rgb(palette.border))
-                            .text_sm()
-                            .cursor_pointer()
-                            .text_color(rgb(palette.muted_text))
-                            .hover(|style| {
-                                style
-                                    .bg(rgb(palette.button_hover))
-                                    .text_color(rgb(palette.text))
-                            })
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.reset_all_shortcuts(cx);
-                            }))
-                            .child(tr(language, TextKey::ShortcutResetAll)),
-                    ),
-            )
-            .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .overflow_hidden()
-                    .rounded_md()
-                    .border_1()
-                    .border_color(rgb(palette.border))
-                    .bg(rgb(palette.panel_bg))
-                    .children(shortcut_rows.into_iter().enumerate().map(
-                        |(index, (shortcut_id, label))| {
-                            let is_recording = self.recording_shortcut == Some(shortcut_id);
-                            let current_binding = self.get_shortcut_binding(shortcut_id);
-                            let label_text = tr(language, label);
-                            let separator = if index + 1 == shortcut_row_count {
-                                rgb(palette.border).opacity(0.0)
-                            } else {
-                                rgb(palette.border)
-                            };
-
-                            div()
-                                .h(px(48.0))
-                                .flex()
-                                .items_center()
-                                .justify_between()
-                                .gap_3()
-                                .px_3()
-                                .border_b_1()
-                                .border_color(separator)
-                                .hover(move |style| style.bg(rgb(palette.subtle_bg)))
-                                .child(div().flex_1().text_sm().child(label_text))
-                                .child(shortcut_record_button(
-                                    shortcut_record_button_id(shortcut_id),
-                                    current_binding,
-                                    is_recording,
-                                    palette,
-                                    cx,
-                                    move |this, _, _, cx| {
-                                        if this.recording_shortcut == Some(shortcut_id) {
-                                            this.stop_recording_shortcut(cx);
-                                        } else {
-                                            this.start_recording_shortcut(shortcut_id, cx);
-                                        }
-                                    },
-                                ))
-                                .child(shortcut_reset_button(
-                                    shortcut_reset_button_id(shortcut_id),
-                                    tr(language, TextKey::ShortcutResetToDefault),
-                                    palette,
-                                    cx,
-                                    move |this, _, _, cx| {
-                                        this.reset_shortcut(shortcut_id, cx);
-                                    },
-                                ))
-                        },
-                    )),
-            )
     }
 }

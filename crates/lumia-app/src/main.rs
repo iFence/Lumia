@@ -1,18 +1,29 @@
 #![windows_subsystem = "windows"]
 
 mod app;
+mod bootstrap;
 mod cli;
 mod i18n;
 mod image_info;
+mod image_loading;
+mod load_state;
 mod palette;
 mod persistence;
+mod preferences;
 mod render;
+mod settings_general;
+mod settings_shortcuts;
 mod settings_ui;
 mod shell;
+mod status_bar;
+mod ui_state;
 mod util;
+mod viewer_actions;
+mod viewer_overlays;
 mod widgets;
+mod window_actions;
 
-use gpui::{actions, px, size, Action, App, AppContext, Bounds, WindowBounds, WindowOptions};
+use gpui::{actions, Action};
 use lumia_core::{Language, ThemeAccent, ThemeMode};
 use serde::Deserialize;
 
@@ -69,38 +80,7 @@ fn main() -> anyhow::Result<()> {
             println!("Lumia removed from system context menu.");
             Ok(())
         }
-        cli::CliCommand::OpenFile(path) => run_gui(Some(path)),
-        cli::CliCommand::Normal => run_gui(None),
+        cli::CliCommand::OpenFile(path) => bootstrap::run_gui(Some(path)),
+        cli::CliCommand::Normal => bootstrap::run_gui(None),
     }
-}
-
-fn run_gui(initial_path: Option<std::path::PathBuf>) -> anyhow::Result<()> {
-    gpui_platform::application()
-        .with_assets(gpui_component_assets::Assets)
-        .run(move |cx: &mut App| {
-            gpui_component::init(cx);
-
-            cx.on_action(|_: &Quit, cx| cx.quit());
-
-            let bounds = Bounds::centered(None, size(px(1200.0), px(800.0)), cx);
-            cx.open_window(
-                WindowOptions {
-                    window_bounds: Some(WindowBounds::Windowed(bounds)),
-                    titlebar: Some(gpui::TitlebarOptions {
-                        title: Some(APP_TITLE.into()),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                },
-                |window, cx| {
-                    let view = cx.new(|cx| app::LumiaApp::new(window, cx, initial_path.clone()));
-                    view.update(cx, |app, cx| app.set_self_handle(view.downgrade(), cx));
-                    cx.new(|cx| gpui_component::Root::new(view, window, cx).bordered(false))
-                },
-            )
-            .expect("failed to open Lumia window");
-            cx.activate(true);
-        });
-
-    Ok(())
 }
