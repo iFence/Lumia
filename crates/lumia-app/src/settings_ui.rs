@@ -382,6 +382,7 @@ impl LumiaApp {
             ),
             (ShortcutId::Quit, TextKey::ShortcutQuitLabel),
         ];
+        let shortcut_row_count = shortcut_rows.len();
 
         div()
             .id("settings-shortcuts")
@@ -389,77 +390,107 @@ impl LumiaApp {
             .h_full()
             .flex()
             .flex_col()
-            .gap_1()
+            .gap_4()
             .p_5()
             .overflow_y_scroll()
             .child(
                 div()
                     .flex()
-                    .flex_col()
-                    .gap_1()
-                    .children(shortcut_rows.into_iter().map(|(shortcut_id, label)| {
-                        let is_recording = self.recording_shortcut == Some(shortcut_id);
-                        let current_binding = self.get_shortcut_binding(shortcut_id);
-                        let label_text = tr(language, label);
-
+                    .items_center()
+                    .justify_between()
+                    .gap_4()
+                    .child(
                         div()
+                            .flex_1()
                             .flex()
-                            .items_center()
-                            .justify_between()
-                            .gap_3()
+                            .flex_col()
+                            .gap_1()
+                            .child(div().text_sm().child(tr(language, TextKey::Shortcuts)))
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .text_color(rgb(palette.muted_text))
+                                    .child(tr(language, TextKey::ShortcutDescription)),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .id("shortcuts-reset-all")
                             .px_3()
-                            .py_2()
+                            .py_1()
                             .rounded_md()
-                            .bg(rgb(palette.subtle_bg))
-                            .child(div().flex_1().text_sm().child(label_text))
-                            .child(shortcut_record_button(
-                                shortcut_record_button_id(shortcut_id),
-                                current_binding,
-                                is_recording,
-                                palette,
-                                cx,
-                                move |this, _, _, cx| {
-                                    if this.recording_shortcut == Some(shortcut_id) {
-                                        this.stop_recording_shortcut(cx);
-                                    } else {
-                                        this.start_recording_shortcut(shortcut_id, cx);
-                                    }
-                                },
-                            ))
-                            .child(shortcut_reset_button(
-                                shortcut_reset_button_id(shortcut_id),
-                                tr(language, TextKey::ShortcutResetToDefault),
-                                palette,
-                                cx,
-                                move |this, _, _, cx| {
-                                    this.reset_shortcut(shortcut_id, cx);
-                                },
-                            ))
-                    })),
+                            .border_1()
+                            .border_color(rgb(palette.border))
+                            .text_sm()
+                            .cursor_pointer()
+                            .text_color(rgb(palette.muted_text))
+                            .hover(|style| {
+                                style
+                                    .bg(rgb(palette.button_hover))
+                                    .text_color(rgb(palette.text))
+                            })
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.reset_all_shortcuts(cx);
+                            }))
+                            .child(tr(language, TextKey::ShortcutResetAll)),
+                    ),
             )
-            .child(div().h(px(16.0)))
             .child(
-                div().flex().justify_end().child(
-                    div()
-                        .id("shortcuts-reset-all")
-                        .px_3()
-                        .py_1()
-                        .rounded_md()
-                        .border_1()
-                        .border_color(rgb(palette.border))
-                        .text_sm()
-                        .cursor_pointer()
-                        .text_color(rgb(palette.muted_text))
-                        .hover(|style| {
-                            style
-                                .bg(rgb(palette.button_hover))
-                                .text_color(rgb(palette.text))
-                        })
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            this.reset_all_shortcuts(cx);
-                        }))
-                        .child(tr(language, TextKey::ShortcutResetAll)),
-                ),
+                div()
+                    .flex()
+                    .flex_col()
+                    .overflow_hidden()
+                    .rounded_md()
+                    .border_1()
+                    .border_color(rgb(palette.border))
+                    .bg(rgb(palette.panel_bg))
+                    .children(shortcut_rows.into_iter().enumerate().map(
+                        |(index, (shortcut_id, label))| {
+                            let is_recording = self.recording_shortcut == Some(shortcut_id);
+                            let current_binding = self.get_shortcut_binding(shortcut_id);
+                            let label_text = tr(language, label);
+                            let separator = if index + 1 == shortcut_row_count {
+                                rgb(palette.border).opacity(0.0)
+                            } else {
+                                rgb(palette.border)
+                            };
+
+                            div()
+                                .h(px(48.0))
+                                .flex()
+                                .items_center()
+                                .justify_between()
+                                .gap_3()
+                                .px_3()
+                                .border_b_1()
+                                .border_color(separator)
+                                .hover(move |style| style.bg(rgb(palette.subtle_bg)))
+                                .child(div().flex_1().text_sm().child(label_text))
+                                .child(shortcut_record_button(
+                                    shortcut_record_button_id(shortcut_id),
+                                    current_binding,
+                                    is_recording,
+                                    palette,
+                                    cx,
+                                    move |this, _, _, cx| {
+                                        if this.recording_shortcut == Some(shortcut_id) {
+                                            this.stop_recording_shortcut(cx);
+                                        } else {
+                                            this.start_recording_shortcut(shortcut_id, cx);
+                                        }
+                                    },
+                                ))
+                                .child(shortcut_reset_button(
+                                    shortcut_reset_button_id(shortcut_id),
+                                    tr(language, TextKey::ShortcutResetToDefault),
+                                    palette,
+                                    cx,
+                                    move |this, _, _, cx| {
+                                        this.reset_shortcut(shortcut_id, cx);
+                                    },
+                                ))
+                        },
+                    )),
             )
     }
 }

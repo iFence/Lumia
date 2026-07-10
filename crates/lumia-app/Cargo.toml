@@ -13,6 +13,7 @@ chrono.workspace = true
 gpui.workspace = true
 gpui_platform.workspace = true
 gpui-component.workspace = true
+gpui-component-assets.workspace = true
 lumia-core.workspace = true
 lumia-plugin-host.workspace = true
 rfd.workspace = true

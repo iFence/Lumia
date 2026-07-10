@@ -3511,6 +3511,7 @@ dependencies = [
  "chrono",
  "gpui",
  "gpui-component",
+ "gpui-component-assets",
  "gpui_platform",
  "lumia-core",
  "lumia-plugin-host",

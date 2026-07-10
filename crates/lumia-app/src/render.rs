@@ -1,14 +1,14 @@
 use gpui::{
-    div, img, px, rgb, svg, AnyElement, App, Context, ExternalPaths, FontWeight,
-    InteractiveElement, IntoElement, MouseButton, MouseDownEvent, MouseMoveEvent, ObjectFit,
-    ParentElement, Render, ScrollDelta, ScrollWheelEvent, StatefulInteractiveElement, Styled,
-    StyledImage, Window,
+    div, img, px, rgb, AnyElement, App, Context, ExternalPaths, FontWeight, InteractiveElement,
+    IntoElement, MouseButton, MouseDownEvent, MouseMoveEvent, ObjectFit, ParentElement, Render,
+    ScrollDelta, ScrollWheelEvent, StatefulInteractiveElement, Styled, StyledImage, Window,
 };
+use gpui_component::{Icon, IconName, Theme, ThemeMode as ComponentThemeMode};
 use lumia_core::FitMode;
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
-use crate::palette::Palette;
+use crate::palette::{theme_resolves_to_dark, Palette};
 use crate::util::{format_file_size, status_message};
 use crate::widgets::context_menu_item;
 use crate::{
@@ -20,6 +20,16 @@ impl Render for LumiaApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         // Non-blocking poll: drain completed adjacent-image preloads.
         self.poll_preloads(cx);
+
+        let component_theme_mode =
+            if theme_resolves_to_dark(self.settings.theme, window.appearance()) {
+                ComponentThemeMode::Dark
+            } else {
+                ComponentThemeMode::Light
+            };
+        if Theme::global(cx).mode != component_theme_mode {
+            Theme::change(component_theme_mode, None, cx);
+        }
 
         let palette = self.palette(window);
 
@@ -331,7 +341,7 @@ impl LumiaApp {
                     .gap_1()
                     .child(self.render_status_icon_button(
                         "status-prev-image",
-                        "chevron_left.svg",
+                        IconName::ChevronLeft,
                         has_image && current > 1,
                         palette,
                         cx,
@@ -343,7 +353,7 @@ impl LumiaApp {
                     .child(self.render_status_text(format!("{current}/{count}"), palette))
                     .child(self.render_status_icon_button(
                         "status-next-image",
-                        "chevron_right.svg",
+                        IconName::ChevronRight,
                         has_image && current < count,
                         palette,
                         cx,
@@ -354,7 +364,7 @@ impl LumiaApp {
                     ))
                     .child(self.render_status_icon_button(
                         "status-rotate-counter-clockwise",
-                        "rotate_ccw.svg",
+                        IconName::Undo2,
                         has_image,
                         palette,
                         cx,
@@ -364,7 +374,7 @@ impl LumiaApp {
                     ))
                     .child(self.render_status_icon_button(
                         "status-rotate-clockwise",
-                        "rotate_cw.svg",
+                        IconName::Redo2,
                         has_image,
                         palette,
                         cx,
@@ -383,9 +393,9 @@ impl LumiaApp {
                     .child(self.render_status_icon_button(
                         "status-fit-toggle",
                         if self.viewport.fit_mode == FitMode::FitToWindow {
-                            "screen.svg"
+                            IconName::Minimize
                         } else {
-                            "maximize.svg"
+                            IconName::Maximize
                         },
                         has_image,
                         palette,
@@ -404,7 +414,7 @@ impl LumiaApp {
                     ))
                     .child(self.render_status_icon_button(
                         "status-zoom-in",
-                        "plus.svg",
+                        IconName::Plus,
                         has_image,
                         palette,
                         cx,
@@ -418,7 +428,7 @@ impl LumiaApp {
                     ))
                     .child(self.render_status_icon_button(
                         "status-zoom-out",
-                        "dash.svg",
+                        IconName::Minus,
                         has_image,
                         palette,
                         cx,
@@ -432,7 +442,7 @@ impl LumiaApp {
                     ))
                     .child(self.render_status_icon_button(
                         "status-fullscreen",
-                        "maximize_alt.svg",
+                        IconName::Maximize,
                         true,
                         palette,
                         cx,
@@ -482,21 +492,20 @@ impl LumiaApp {
             )
             .child(format!("{:.0}%", self.viewport.zoom * 100.0))
             .child(
-                svg()
-                    .external_path(Self::status_icon_path(if self.show_zoom_menu {
-                        "chevron_down.svg"
-                    } else {
-                        "chevron_up.svg"
-                    }))
-                    .size(px(14.0))
-                    .text_color(rgb(text_color)),
+                Icon::new(if self.show_zoom_menu {
+                    IconName::ChevronDown
+                } else {
+                    IconName::ChevronUp
+                })
+                .size(px(14.0))
+                .text_color(rgb(text_color)),
             )
             .into_any_element()
     }
     fn render_status_icon_button(
         &self,
         id: &'static str,
-        icon_name: impl Into<String>,
+        icon: IconName,
         enabled: bool,
         palette: Palette,
         cx: &mut Context<Self>,
@@ -528,12 +537,7 @@ impl LumiaApp {
                     }
                 }),
             )
-            .child(
-                svg()
-                    .external_path(Self::status_icon_path(&icon_name.into()))
-                    .size(px(16.0))
-                    .text_color(rgb(icon_color)),
-            )
+            .child(Icon::new(icon).size(px(16.0)).text_color(rgb(icon_color)))
             .into_any_element()
     }
     fn render_status_text(&self, label: impl Into<String>, palette: Palette) -> AnyElement {
@@ -608,8 +612,7 @@ impl LumiaApp {
                     .items_center()
                     .justify_center()
                     .children(active.then(|| {
-                        svg()
-                            .external_path(Self::status_icon_path("check.svg"))
+                        Icon::new(IconName::Check)
                             .size(px(14.0))
                             .text_color(rgb(palette.accent))
                     })),
@@ -617,14 +620,6 @@ impl LumiaApp {
             .child(format!("{:.0}%", zoom * 100.0))
             .into_any_element()
     }
-    fn status_icon_path(icon_name: &str) -> String {
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../vendor/zed/assets/icons")
-            .join(icon_name)
-            .to_string_lossy()
-            .into_owned()
-    }
-
     fn render_decoding_overlay(&self, palette: Palette) -> Option<impl IntoElement> {
         if !self.is_decoding {
             return None;

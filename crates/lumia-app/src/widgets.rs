@@ -1,11 +1,10 @@
 use gpui::{
     div, px, rgb, Context, InteractiveElement, IntoElement, MouseButton, MouseDownEvent,
-    ParentElement, SharedString, StatefulInteractiveElement, Styled, Window,
+    ParentElement, StatefulInteractiveElement, Styled, Window,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants, DropdownButton},
-    menu::PopupMenu,
-    Selectable, Sizable,
+    button::{Button, ButtonRounded},
+    menu::{DropdownMenu, PopupMenu},
 };
 
 use crate::app::LumiaApp;
@@ -88,16 +87,15 @@ pub(crate) fn settings_dropdown_button(
     label: &'static str,
     menu: impl Fn(PopupMenu, &mut Window, &mut Context<PopupMenu>) -> PopupMenu + 'static,
 ) -> gpui::AnyElement {
-    DropdownButton::new(id)
-        .button(
-            Button::new(format!("{id}-trigger"))
-                .label(label)
-                .min_w(px(148.0)),
-        )
+    Button::new(format!("{id}-trigger"))
+        .w(px(172.0))
+        .h(px(36.0))
+        .px_3()
+        .label(label)
         .outline()
-        .small()
-        .compact()
-        .dropdown_menu(menu)
+        .rounded(ButtonRounded::Large)
+        .dropdown_caret(true)
+        .dropdown_menu(move |popup, window, cx| menu(popup.min_w(px(172.0)), window, cx))
         .into_any_element()
 }
 
@@ -124,44 +122,68 @@ pub(crate) fn shortcut_record_button(
     id: &'static str,
     current_binding: String,
     is_recording: bool,
-    _palette: Palette,
+    palette: Palette,
     cx: &mut Context<LumiaApp>,
     on_click: impl Fn(&mut LumiaApp, &gpui::ClickEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
 ) -> gpui::AnyElement {
-    let text: SharedString = if is_recording {
-        "...".into()
+    let text = if is_recording {
+        "...".to_string()
     } else {
-        current_binding.into()
+        current_binding
     };
-    let app = cx.weak_entity();
+    let background = if is_recording {
+        palette.accent_soft
+    } else {
+        palette.button_bg
+    };
+    let border = if is_recording {
+        palette.accent
+    } else {
+        palette.border
+    };
 
-    Button::new(id)
-        .outline()
-        .small()
-        .selected(is_recording)
-        .min_w(px(120.0))
-        .label(text)
-        .on_click(move |event, window, cx| {
-            let _ = app.update(cx, |this, cx| on_click(this, event, window, cx));
-        })
+    div()
+        .id(id)
+        .min_w(px(132.0))
+        .h(px(32.0))
+        .px_3()
+        .flex()
+        .items_center()
+        .justify_center()
+        .rounded_md()
+        .border_1()
+        .border_color(rgb(border))
+        .bg(rgb(background))
+        .text_sm()
+        .text_color(rgb(palette.text))
+        .cursor_pointer()
+        .hover(move |style| style.bg(rgb(palette.button_hover)))
+        .on_click(cx.listener(on_click))
+        .child(text)
         .into_any_element()
 }
 
 pub(crate) fn shortcut_reset_button(
     id: &'static str,
     label: &'static str,
-    _palette: Palette,
+    palette: Palette,
     cx: &mut Context<LumiaApp>,
     on_click: impl Fn(&mut LumiaApp, &gpui::ClickEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
 ) -> gpui::AnyElement {
-    let app = cx.weak_entity();
-
-    Button::new(id)
-        .text()
-        .xsmall()
-        .label(label)
-        .on_click(move |event, window, cx| {
-            let _ = app.update(cx, |this, cx| on_click(this, event, window, cx));
+    div()
+        .id(id)
+        .px_2()
+        .py_1()
+        .rounded_sm()
+        .text_xs()
+        .text_color(rgb(palette.muted_text))
+        .cursor_pointer()
+        .hover(move |style| {
+            style
+                .bg(rgb(palette.button_hover))
+                .text_color(rgb(palette.text))
         })
+        .on_click(cx.listener(on_click))
+        .child(label)
         .into_any_element()
 }

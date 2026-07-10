@@ -19,6 +19,7 @@ chrono = "0.4"
 gpui = { git = "https://github.com/zed-industries/zed" }
 gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["font-kit"] }
 gpui-component = { git = "https://github.com/longbridge/gpui-component" }
+gpui-component-assets = { git = "https://github.com/longbridge/gpui-component" }
 image = "0.25"
 lumia-core = { path = "crates/lumia-core" }
 lumia-plugin-api = { path = "crates/lumia-plugin-api" }
