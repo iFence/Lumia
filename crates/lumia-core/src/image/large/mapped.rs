@@ -6,6 +6,7 @@ use std::{
 use image::{ColorType, ImageDecoder};
 use memmap2::MmapMut;
 
+use super::cache::{RasterCacheWriter, RasterLayout};
 use super::{cache::RasterCacheKey, decode::bounded_dimensions, LargeImageError};
 use crate::{DecodeCancellation, DecodedImage};
 
@@ -148,6 +149,82 @@ fn mapped_pixel(
         ],
         _ => return Err(LargeImageError::UnsupportedColorType),
     })
+}
+
+pub(super) fn write_mapped_bgra_raster(
+    path: &Path,
+    cache_dir: &Path,
+    key: &str,
+    layout: RasterLayout,
+    cancellation: &DecodeCancellation,
+) -> Result<PathBuf, LargeImageError> {
+    let mut reader = image::ImageReader::open(path)?.with_guessed_format()?;
+    reader.no_limits();
+    let decoder = reader.into_decoder()?;
+    let (width, height) = decoder.dimensions();
+    if (width, height) != (layout.width(), layout.height()) {
+        return Err(LargeImageError::InvalidPixelData);
+    }
+    let color_type = decoder.color_type();
+    let total_bytes = decoder.total_bytes();
+    if total_bytes > MAX_MAPPED_DECODE_BYTES {
+        return Err(LargeImageError::MappedImageTooLarge {
+            bytes: total_bytes,
+            limit: MAX_MAPPED_DECODE_BYTES,
+        });
+    }
+    let native_path = cache_dir.join(format!("{key}.native.part"));
+    let _cleanup = RemoveOnDrop(native_path.clone());
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(native_path)?;
+    file.set_len(total_bytes)?;
+    // SAFETY: the fixed-size file outlives the mapping and the decoder writes
+    // exactly its declared byte count.
+    let mut map = unsafe { MmapMut::map_mut(&file)? };
+    decoder.read_image(&mut map)?;
+    if cancellation.is_cancelled() {
+        return Err(LargeImageError::Cancelled);
+    }
+
+    let source_stride = usize::try_from(
+        u64::from(width)
+            .checked_mul(u64::from(color_type.bytes_per_pixel()))
+            .ok_or(LargeImageError::SizeOverflow)?,
+    )
+    .map_err(|_| LargeImageError::SizeOverflow)?;
+    let bytes_per_pixel = usize::from(color_type.bytes_per_pixel());
+    let mut writer = RasterCacheWriter::create(cache_dir, key, layout)?;
+    for y in 0..height {
+        if cancellation.is_cancelled() {
+            return Err(LargeImageError::Cancelled);
+        }
+        let source_row = usize::try_from(y)
+            .ok()
+            .and_then(|row| row.checked_mul(source_stride))
+            .ok_or(LargeImageError::SizeOverflow)?;
+        let output = writer.row_mut(y).ok_or(LargeImageError::InvalidPixelData)?;
+        for x in 0..width {
+            let source = source_row
+                .checked_add(
+                    usize::try_from(x)
+                        .ok()
+                        .and_then(|value| value.checked_mul(bytes_per_pixel))
+                        .ok_or(LargeImageError::SizeOverflow)?,
+                )
+                .ok_or(LargeImageError::SizeOverflow)?;
+            let destination = usize::try_from(x)
+                .ok()
+                .and_then(|value| value.checked_mul(4))
+                .ok_or(LargeImageError::SizeOverflow)?;
+            let pixel = mapped_pixel(&map, source, color_type)?;
+            output[destination..destination + 4].copy_from_slice(&pixel);
+        }
+    }
+    writer.finish()
 }
 
 fn u16_to_u8(bytes: &[u8], offset: usize) -> u8 {

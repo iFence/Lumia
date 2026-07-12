@@ -25,7 +25,7 @@ pub(super) fn decode_png_preview(
     if bit_depth != BitDepth::Eight {
         return Err(LargeImageError::InvalidPixelData);
     }
-    let channels = channels(color_type);
+    let channels = png_channels(color_type);
     let preview_len = usize::try_from(
         u64::from(preview_width)
             .checked_mul(u64::from(preview_height))
@@ -102,7 +102,7 @@ fn copy_sampled_row(
     Ok(())
 }
 
-fn png_pixel(row: &[u8], offset: usize, color_type: ColorType) -> [u8; 4] {
+pub(super) fn png_pixel(row: &[u8], offset: usize, color_type: ColorType) -> [u8; 4] {
     match color_type {
         ColorType::Grayscale => {
             let value = row[offset];
@@ -123,7 +123,7 @@ fn png_pixel(row: &[u8], offset: usize, color_type: ColorType) -> [u8; 4] {
     }
 }
 
-const fn channels(color_type: ColorType) -> usize {
+pub(super) const fn png_channels(color_type: ColorType) -> usize {
     match color_type {
         ColorType::Grayscale => 1,
         ColorType::GrayscaleAlpha => 2,

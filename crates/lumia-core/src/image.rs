@@ -14,6 +14,9 @@ pub use formats::{
 };
 pub use heif::{decode_heic, decode_heic_thumbnail, decode_heic_with_cancellation};
 pub use large::decode_large_image_preview;
+pub use large::{
+    build_large_image_raster, large_image_worker_count, LargeImageRaster, PixelBudget,
+};
 pub use large::{checked_bgra8_len, ImagePixelRect, LargeImagePolicy, TileCoordinate, TileLevel};
 pub use raster::{
     decoded_image_from_rgba, load_decoded_image_from_path, rotate_bgra8, rotate_decoded_image,

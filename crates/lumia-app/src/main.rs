@@ -25,6 +25,8 @@ mod settings_ui;
 mod shell;
 mod single_instance;
 mod status_bar;
+#[allow(dead_code)] // Wired into LargeImageSession in Task 5.
+mod tile_cache;
 mod ui_state;
 mod util;
 mod viewer_actions;

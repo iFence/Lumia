@@ -61,8 +61,8 @@ impl RasterLayout {
         if row >= self.height {
             return None;
         }
-        let start = usize::try_from(row).ok()?.checked_mul(self.row_bytes)?;
-        Some(start..start.checked_add(self.row_bytes)?)
+        let start = usize::try_from(row).ok()?.checked_mul(self.row_bytes())?;
+        Some(start..start.checked_add(self.row_bytes())?)
     }
 }
 
@@ -91,6 +91,7 @@ impl RasterCacheKey {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn ensure_disk_space(required: u64, available: u64) -> Result<(), LargeImageError> {
     if required > available {
         Err(LargeImageError::InsufficientDiskSpace {
@@ -127,7 +128,7 @@ impl RasterCacheWriter {
             .create(true)
             .truncate(true)
             .open(&partial_path)?;
-        file.set_len(u64::try_from(layout.len).map_err(|_| LargeImageError::SizeOverflow)?)?;
+        file.set_len(u64::try_from(layout.len()).map_err(|_| LargeImageError::SizeOverflow)?)?;
         // SAFETY: the file is held open for the mapping lifetime and its length is
         // fixed to exactly `layout.len` before the mapping is created.
         let map = unsafe { MmapMut::map_mut(&file)? };
@@ -146,10 +147,12 @@ impl RasterCacheWriter {
         self.map.as_mut()?.get_mut(range)
     }
 
+    #[cfg(test)]
     pub(crate) fn partial_path(&self) -> &Path {
         &self.partial_path
     }
 
+    #[cfg(test)]
     pub(crate) fn finished_path(&self) -> &Path {
         &self.finished_path
     }
@@ -189,7 +192,7 @@ impl RasterCacheReader {
     pub(crate) fn open(path: &Path, layout: RasterLayout) -> Result<Self, LargeImageError> {
         let file = File::open(path)?;
         let actual = file.metadata()?.len();
-        let expected = u64::try_from(layout.len).map_err(|_| LargeImageError::SizeOverflow)?;
+        let expected = u64::try_from(layout.len()).map_err(|_| LargeImageError::SizeOverflow)?;
         if actual != expected {
             return Err(LargeImageError::InvalidCacheLength { expected, actual });
         }

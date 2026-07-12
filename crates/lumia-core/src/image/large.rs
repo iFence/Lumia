@@ -1,13 +1,15 @@
-// The disk raster is populated by the tile pipeline in the next implementation stage.
-#[allow(dead_code)]
 mod cache;
 mod decode;
 mod error;
 mod mapped;
 mod png;
+mod tiles;
+mod worker;
 
 pub use decode::decode_large_image_preview;
 pub use error::LargeImageError;
+pub use tiles::{build_large_image_raster, LargeImageRaster};
+pub use worker::{large_image_worker_count, PixelBudget};
 
 const DEFAULT_MAX_TEXTURE_EDGE: u32 = 8192;
 const DEFAULT_MAX_DECODED_BYTES: u64 = 256 * 1024 * 1024;
@@ -130,6 +132,10 @@ impl TileLevel {
 
     pub const fn rows(&self) -> u32 {
         self.rows
+    }
+
+    pub const fn divisor(&self) -> u32 {
+        self.divisor
     }
 
     pub fn tile_rect(&self, coordinate: TileCoordinate) -> Option<ImagePixelRect> {

@@ -26,6 +26,8 @@ pub enum LargeImageError {
     InvalidPixelData,
     #[error("large image uses an unsupported decoded color type")]
     UnsupportedColorType,
+    #[error("large image tile coordinate is outside the selected level")]
+    InvalidTileCoordinate,
     #[error("large image decode failed")]
     Image(#[from] image::ImageError),
     #[error("large PNG decode failed")]
