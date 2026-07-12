@@ -1,6 +1,6 @@
 [package]
 name = "lumia-app"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["iFence"]
 edition.workspace = true
 license.workspace = true
@@ -9,12 +9,15 @@ rust-version.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+async-channel.workspace = true
 chrono.workspace = true
 gpui.workspace = true
 gpui_platform.workspace = true
 gpui-component.workspace = true
 gpui-component-assets.workspace = true
+image.workspace = true
 lumia-core.workspace = true
+lumia-plugin-api.workspace = true
 lumia-plugin-host.workspace = true
 rfd.workspace = true
 serde.workspace = true
@@ -26,16 +29,6 @@ icon = "resources/icon.ico"
 language = 1033
 platform = "x64"
 
-[[package.metadata.wix.file-extension]]
-extensions = [
-    "avif", "bmp", "dds", "exr", "ff", "farbfeld",
-    "gif", "hdr", "heic", "heif", "ico",
-    "jpg", "jpeg", "pbm", "pam", "ppm", "pgm",
-    "png", "qoi", "svg", "tga", "tif", "tiff", "webp",
-]
-mime = "application/octet-stream"
-progid = "Lumia.Image"
-
 [package.metadata.wix.start-menu]
 name = "Lumia"
 working-directory = "INSTALLDIR"
@@ -46,6 +39,7 @@ name = "Lumia"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.54"
+windows-sys.workspace = true
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"

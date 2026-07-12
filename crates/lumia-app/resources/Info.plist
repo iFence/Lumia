@@ -133,6 +133,18 @@
             <key>LSHandlerRank</key><string>Alternate</string>
             <key>LSItemContentTypes</key><array><string>org.webmproject.webp</string></array>
         </dict>
+        <dict>
+            <key>CFBundleTypeName</key><string>Adobe Photoshop document</string>
+            <key>CFBundleTypeRole</key><string>Viewer</string>
+            <key>LSHandlerRank</key><string>Alternate</string>
+            <key>LSItemContentTypes</key><array><string>com.adobe.photoshop-image</string></array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key><string>Adobe Photoshop large document</string>
+            <key>CFBundleTypeRole</key><string>Viewer</string>
+            <key>LSHandlerRank</key><string>Alternate</string>
+            <key>LSItemContentTypes</key><array><string>com.ifence.lumia.photoshop-large-document</string></array>
+        </dict>
     </array>
     <key>UTExportedTypeDeclarations</key>
     <array>
@@ -165,6 +177,15 @@
             <key>UTTypeIdentifier</key><string>com.ifence.lumia.qoi</string>
             <key>UTTypeTagSpecification</key>
             <dict><key>public.filename-extension</key><array><string>qoi</string></array></dict>
+        </dict>
+        <dict>
+            <key>UTTypeIdentifier</key><string>com.ifence.lumia.photoshop-large-document</string>
+            <key>UTTypeConformsTo</key><array><string>public.image</string></array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key><array><string>psb</string></array>
+                <key>public.mime-type</key><string>image/vnd.adobe.photoshop</string>
+            </dict>
         </dict>
     </array>
 </dict>

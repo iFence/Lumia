@@ -71,3 +71,14 @@ fn load_from_path_reads_raster_metadata_and_allows_svg_without_metadata() {
     assert!(document.metadata.is_none());
     fs::remove_file(&svg).expect("remove temp svg");
 }
+
+#[test]
+fn load_from_path_accepts_plugin_preview_documents_without_core_decode() {
+    for extension in ["psd", "PSB"] {
+        let path = temp_path(&format!("image.{extension}"));
+        fs::write(&path, b"plugin-owned image data").expect("write plugin image");
+        let document = ImageDocument::load_from_path(&path).expect("accept plugin image path");
+        assert!(document.metadata.is_none());
+        fs::remove_file(path).expect("remove plugin image");
+    }
+}

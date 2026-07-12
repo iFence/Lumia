@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 use super::{
-    is_supported_image_extension, ColorDescription, ImageDocument, ImageLoadError, ImageMetadata,
-    ImageSource, PixelFormat, TransferFunction,
+    is_supported_image_extension, requires_plugin_preview_extension, ColorDescription,
+    ImageDocument, ImageLoadError, ImageMetadata, ImageSource, PixelFormat, TransferFunction,
 };
 
 impl ImageDocument {
@@ -13,7 +13,6 @@ impl ImageDocument {
             id: Uuid::now_v7(),
             source: ImageSource::LocalPath(path.into()),
             metadata: None,
-            cached_image: None,
             heif_bytes: None,
         }
     }
@@ -35,7 +34,9 @@ impl ImageDocument {
             return Err(ImageLoadError::UnsupportedExtension(extension.to_owned()));
         }
 
-        let metadata = if extension.eq_ignore_ascii_case("svg") {
+        let metadata = if extension.eq_ignore_ascii_case("svg")
+            || requires_plugin_preview_extension(extension)
+        {
             None
         } else if extension.eq_ignore_ascii_case("heic") || extension.eq_ignore_ascii_case("heif") {
             let file_bytes = std::fs::read(path).map_err(|source| ImageLoadError::Io {
@@ -62,7 +63,6 @@ impl ImageDocument {
                     },
                     format_name: Some("HEIF".into()),
                 }),
-                cached_image: None,
                 heif_bytes: Some(file_bytes),
             });
         } else {
@@ -101,7 +101,6 @@ impl ImageDocument {
             id: Uuid::now_v7(),
             source: ImageSource::LocalPath(path.to_path_buf()),
             metadata,
-            cached_image: None,
             heif_bytes: None,
         })
     }

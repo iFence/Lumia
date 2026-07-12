@@ -19,17 +19,162 @@ jobs:
       - name: Install WiX Toolset v3
         run: choco install wixtoolset -y --no-progress
 
-      - name: Build release binary
-        run: cargo build --release -p lumia-app
+      - name: Build release binaries
+        run: cargo build --release -p lumia-app -p lumia-plugin-photoshop
 
       - name: Build MSI installer
-        run: cargo wix -p lumia-app --output target/wix/
+        run: cargo wix -p lumia-app --no-build --output target/wix/
 
       - name: Create portable zip
         run: |
+          $root = "target/lumia-portable-windows-x64"
+          $plugin = "$root/plugins/lumia-plugin-photoshop"
+          New-Item -ItemType Directory -Force -Path $plugin | Out-Null
+          Copy-Item target/release/lumia-app.exe $root/
+          Copy-Item target/release/lumia-plugin-photoshop.exe $plugin/
+          Copy-Item plugins/lumia-plugin-photoshop/lumia.plugin.json $plugin/
+          if (-not (Test-Path "$plugin/lumia-plugin-photoshop.exe")) {
+            throw "Photoshop plugin executable is missing from portable bundle"
+          }
+          if (-not (Test-Path "$plugin/lumia.plugin.json")) {
+            throw "Photoshop plugin manifest is missing from portable bundle"
+          }
           Compress-Archive `
-            -Path target/release/lumia-app.exe `
+            -Path "$root/*" `
             -DestinationPath target/lumia-portable-windows-x64.zip
+
+      - name: Verify Windows packages
+        run: |
+          $verify = "target/portable-verify"
+          Expand-Archive target/lumia-portable-windows-x64.zip $verify
+          if (-not (Test-Path "$verify/plugins/lumia-plugin-photoshop/lumia-plugin-photoshop.exe")) {
+            throw "Portable ZIP is missing the Photoshop plugin executable"
+          }
+          if (-not (Test-Path "$verify/plugins/lumia-plugin-photoshop/lumia.plugin.json")) {
+            throw "Portable ZIP is missing the Photoshop plugin manifest"
+          }
+          $msi = (Get-ChildItem target/wix/lumia-app-*.msi | Select-Object -First 1).FullName
+          $installer = New-Object -ComObject WindowsInstaller.Installer
+          $database = $installer.GetType().InvokeMember(
+            "OpenDatabase", "InvokeMethod", $null, $installer, @($msi, 0)
+          )
+          $query = "SELECT " + [char]96 + "FileName" + [char]96 +
+            " FROM " + [char]96 + "File" + [char]96
+          $view = $database.GetType().InvokeMember(
+            "OpenView", "InvokeMethod", $null, $database, @($query)
+          )
+          $view.GetType().InvokeMember("Execute", "InvokeMethod", $null, $view, $null)
+          $files = @()
+          while ($record = $view.GetType().InvokeMember(
+            "Fetch", "InvokeMethod", $null, $view, $null
+          )) {
+            $files += $record.StringData(1)
+          }
+          if (-not ($files -match "lumia-plugin-photoshop.exe")) {
+            throw "MSI is missing the Photoshop plugin executable"
+          }
+          if (-not ($files -match "lumia.plugin.json")) {
+            throw "MSI is missing the Photoshop plugin manifest"
+          }
+
+          function Get-MsiValue($database, $query) {
+            $view = $database.OpenView($query)
+            $null = $view.Execute()
+            $record = $view.Fetch()
+            if ($null -eq $record) {
+              return $null
+            }
+            return $record.StringData(1)
+          }
+
+          $startMenuParent = Get-MsiValue $database (
+            "SELECT " + [char]96 + "Directory_Parent" + [char]96 +
+            " FROM " + [char]96 + "Directory" + [char]96 +
+            " WHERE " + [char]96 + "Directory" + [char]96 +
+            " = 'ApplicationProgramsFolder'"
+          )
+          if ($startMenuParent -ne "ProgramMenuFolder") {
+            throw "MSI Start Menu shortcut is not rooted in ProgramMenuFolder"
+          }
+
+          $desktopDirectory = Get-MsiValue $database (
+            "SELECT " + [char]96 + "Directory_" + [char]96 +
+            " FROM " + [char]96 + "Shortcut" + [char]96 +
+            " WHERE " + [char]96 + "Shortcut" + [char]96 +
+            " = 'ApplicationDesktopShortcut'"
+          )
+          if ($desktopDirectory -ne "DesktopFolder") {
+            throw "MSI Desktop shortcut is not rooted in DesktopFolder"
+          }
+
+          $startMenuComponent = Get-MsiValue $database (
+            "SELECT " + [char]96 + "Component_" + [char]96 +
+            " FROM " + [char]96 + "Shortcut" + [char]96 +
+            " WHERE " + [char]96 + "Shortcut" + [char]96 +
+            " = 'ApplicationStartMenuShortcut'"
+          )
+          $startMenuTarget = Get-MsiValue $database (
+            "SELECT " + [char]96 + "Target" + [char]96 +
+            " FROM " + [char]96 + "Shortcut" + [char]96 +
+            " WHERE " + [char]96 + "Shortcut" + [char]96 +
+            " = 'ApplicationStartMenuShortcut'"
+          )
+          if ($startMenuComponent -ne "ApplicationExecutable" -or
+              $startMenuTarget -ne "Complete") {
+            throw "MSI Start Menu shortcut is not advertised by the application feature"
+          }
+
+          $startMenuShortcut = Join-Path $env:ProgramData `
+            "Microsoft\Windows\Start Menu\Programs\Lumia\Lumia.lnk"
+          $desktopShortcut = Join-Path $env:PUBLIC "Desktop\Lumia.lnk"
+          $expectedExecutable = Join-Path $env:ProgramFiles "Lumia\lumia-app.exe"
+          $installLog = Join-Path $env:RUNNER_TEMP "lumia-msi-install.log"
+          $uninstallLog = Join-Path $env:RUNNER_TEMP "lumia-msi-uninstall.log"
+          $installed = $false
+
+          try {
+            $install = Start-Process msiexec.exe -Wait -PassThru -WindowStyle Hidden `
+              -ArgumentList @(
+                "/i", "`"$msi`"", "/qn", "/norestart", "/l*v", "`"$installLog`""
+              )
+            if ($install.ExitCode -notin @(0, 3010)) {
+              throw "MSI installation failed with exit code $($install.ExitCode)"
+            }
+            $installed = $true
+
+            if (-not (Test-Path -LiteralPath $expectedExecutable)) {
+              throw "MSI did not install the Lumia executable"
+            }
+            foreach ($shortcut in @($startMenuShortcut, $desktopShortcut)) {
+              if (-not (Test-Path -LiteralPath $shortcut)) {
+                throw "MSI did not create expected shortcut: $shortcut"
+              }
+              if ((Get-Item -LiteralPath $shortcut).Length -eq 0) {
+                throw "MSI created an empty shortcut: $shortcut"
+              }
+              $link = (New-Object -ComObject WScript.Shell).CreateShortcut($shortcut)
+              $workingDirectory = $link.WorkingDirectory.TrimEnd("\")
+              $expectedDirectory = (Split-Path $expectedExecutable).TrimEnd("\")
+              if ($workingDirectory -ne $expectedDirectory) {
+                throw "Shortcut working directory '$workingDirectory' does not match '$expectedDirectory'"
+              }
+            }
+          } finally {
+            if ($installed) {
+              $uninstall = Start-Process msiexec.exe -Wait -PassThru -WindowStyle Hidden `
+                -ArgumentList @(
+                  "/x", "`"$msi`"", "/qn", "/norestart", "/l*v", "`"$uninstallLog`""
+                )
+              if ($uninstall.ExitCode -notin @(0, 3010)) {
+                throw "MSI uninstall failed with exit code $($uninstall.ExitCode)"
+              }
+              foreach ($shortcut in @($startMenuShortcut, $desktopShortcut)) {
+                if (Test-Path -LiteralPath $shortcut) {
+                  throw "MSI uninstall left shortcut behind: $shortcut"
+                }
+              }
+            }
+          }
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
@@ -45,14 +190,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Build release binary
-        run: cargo build --release -p lumia-app
+      - name: Build release binaries
+        run: cargo build --release -p lumia-app -p lumia-plugin-photoshop
       - name: Create .app bundle
         run: |
           APP_DIR="target/Lumia.app/Contents"
           mkdir -p "$APP_DIR/MacOS"
           mkdir -p "$APP_DIR/Resources"
           cp target/release/lumia-app "$APP_DIR/MacOS/"
+          PLUGIN_DIR="$APP_DIR/MacOS/plugins/lumia-plugin-photoshop"
+          mkdir -p "$PLUGIN_DIR"
+          cp target/release/lumia-plugin-photoshop "$PLUGIN_DIR/"
+          cp plugins/lumia-plugin-photoshop/lumia.plugin.json "$PLUGIN_DIR/"
+          chmod +x "$PLUGIN_DIR/lumia-plugin-photoshop"
+          test -x "$PLUGIN_DIR/lumia-plugin-photoshop"
+          test -f "$PLUGIN_DIR/lumia.plugin.json"
           cp crates/lumia-app/resources/Info.plist "$APP_DIR/"
           # Copy icon as .icns placeholder (macOS prefers .icns; a proper
           # conversion from .png or .ico should be done in a future step)
@@ -89,17 +241,28 @@ jobs:
             libxcb-randr0-dev \
             libxcb1-dev \
             libxrandr-dev
-      - name: Build release binary
-        run: cargo build --release -p lumia-app
+      - name: Build release binaries
+        run: cargo build --release -p lumia-app -p lumia-plugin-photoshop
       - name: Create release archive
         run: |
           mkdir -p lumia-release
           cp target/release/lumia-app lumia-release/
+          PLUGIN_DIR="lumia-release/plugins/lumia-plugin-photoshop"
+          mkdir -p "$PLUGIN_DIR"
+          cp target/release/lumia-plugin-photoshop "$PLUGIN_DIR/"
+          cp plugins/lumia-plugin-photoshop/lumia.plugin.json "$PLUGIN_DIR/"
+          chmod +x "$PLUGIN_DIR/lumia-plugin-photoshop"
+          test -x "$PLUGIN_DIR/lumia-plugin-photoshop"
+          test -f "$PLUGIN_DIR/lumia.plugin.json"
           cp crates/lumia-app/resources/lumia.desktop lumia-release/
           cp crates/lumia-app/resources/icon.png lumia-release/
           cp crates/lumia-app/resources/install.sh lumia-release/
           chmod +x lumia-release/install.sh
           tar -czf target/lumia-linux-x64.tar.gz -C lumia-release .
+          tar -tzf target/lumia-linux-x64.tar.gz |
+            grep -q "./plugins/lumia-plugin-photoshop/lumia-plugin-photoshop"
+          tar -tzf target/lumia-linux-x64.tar.gz |
+            grep -q "./plugins/lumia-plugin-photoshop/lumia.plugin.json"
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:

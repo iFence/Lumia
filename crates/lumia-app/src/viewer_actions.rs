@@ -1,9 +1,11 @@
 use gpui::{Context, Window};
 use lumia_core::{
-    load_cached_image_from_path, rotate_cached_image, supported_image_extensions, FitMode,
+    load_decoded_image_from_path, rotate_bgra8, rotate_decoded_image, supported_image_extensions,
+    FitMode,
 };
 
 use crate::app::LumiaApp;
+use crate::load_state::PreparedImage;
 use crate::{OpenFile, RotateClockwise, RotateCounterClockwise, ZoomFit, ZoomIn, ZoomOut};
 
 impl LumiaApp {
@@ -23,22 +25,40 @@ impl LumiaApp {
         }
     }
 
-    pub(crate) fn zoom_in(&mut self, _: &ZoomIn, _: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn zoom_in(&mut self, _: &ZoomIn, window: &mut Window, cx: &mut Context<Self>) {
         if self.is_viewer_blocked() {
             return;
         }
+        self.zoom_in_view(window, cx);
+    }
+
+    pub(crate) fn zoom_out(&mut self, _: &ZoomOut, window: &mut Window, cx: &mut Context<Self>) {
+        if self.is_viewer_blocked() {
+            return;
+        }
+        self.zoom_out_view(window, cx);
+    }
+
+    pub(crate) fn zoom_in_view(&mut self, window: &Window, cx: &mut Context<Self>) {
+        self.prepare_manual_zoom(window);
         self.viewer.viewport_mut().zoom_in();
         self.ui.show_zoom_menu = false;
         cx.notify();
     }
 
-    pub(crate) fn zoom_out(&mut self, _: &ZoomOut, _: &mut Window, cx: &mut Context<Self>) {
-        if self.is_viewer_blocked() {
-            return;
-        }
+    pub(crate) fn zoom_out_view(&mut self, window: &Window, cx: &mut Context<Self>) {
+        self.prepare_manual_zoom(window);
         self.viewer.viewport_mut().zoom_out();
         self.ui.show_zoom_menu = false;
         cx.notify();
+    }
+
+    fn prepare_manual_zoom(&mut self, window: &Window) {
+        if self.viewer.viewport().fit_mode == FitMode::FitToWindow {
+            if let Some(scale) = self.image_display_scale(window) {
+                self.viewer.viewport_mut().set_zoom(scale);
+            }
+        }
     }
 
     pub(crate) fn zoom_fit(&mut self, _: &ZoomFit, _: &mut Window, cx: &mut Context<Self>) {
@@ -67,7 +87,7 @@ impl LumiaApp {
             return;
         }
         if self.viewer.viewport().fit_mode == FitMode::FitToWindow {
-            self.viewer.viewport_mut().set_zoom(1.0);
+            self.viewer.viewport_mut().reset_actual_size();
         } else {
             self.viewer.viewport_mut().reset_fit();
         }
@@ -112,23 +132,28 @@ impl LumiaApp {
     }
 
     pub(crate) fn rebuild_rotated_image(&mut self) {
-        self.viewer.set_rotated_image(None);
+        self.loads.set_rotated_image(None);
         let turns = self.viewer.rotation_quarter_turns();
         if turns == 0 {
             return;
         }
 
-        let cached = self
-            .viewer
-            .document()
-            .and_then(|document| document.cached_image.clone())
-            .or_else(|| {
-                self.image_path()
-                    .and_then(|path| load_cached_image_from_path(path).ok())
-            });
-        let rotated = cached
-            .as_ref()
-            .and_then(|image| rotate_cached_image(image, turns).ok());
-        self.viewer.set_rotated_image(rotated);
+        let rotated = if let Some(image) = self.loads.current_image() {
+            let (width, height) = image.dimensions();
+            image
+                .pixels_bgra8()
+                .and_then(|pixels| rotate_bgra8(pixels, width, height, turns).ok())
+        } else if self.loads.is_decoding() {
+            // The progressive decoder will rebuild rotation when its preview
+            // or full-resolution frame arrives. Avoid a synchronous HEIC
+            // decode on the UI thread while that work is already in flight.
+            None
+        } else {
+            self.image_path()
+                .and_then(|path| load_decoded_image_from_path(path).ok())
+                .and_then(|image| rotate_decoded_image(&image, turns).ok())
+        }
+        .map(PreparedImage::from_decoded);
+        self.loads.set_rotated_image(rotated);
     }
 }

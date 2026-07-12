@@ -3,8 +3,9 @@ use gpui::{
     ParentElement, StatefulInteractiveElement, Styled, Window,
 };
 use gpui_component::{
-    button::{Button, ButtonRounded},
+    button::{Button, ButtonRounded, ButtonVariants as _},
     menu::{DropdownMenu, PopupMenu},
+    Disableable as _,
 };
 
 use crate::app::LumiaApp;
@@ -97,6 +98,26 @@ pub(crate) fn settings_dropdown_button(
         .dropdown_caret(true)
         .dropdown_menu(move |popup, window, cx| menu(popup.min_w(px(172.0)), window, cx))
         .into_any_element()
+}
+
+pub(crate) fn settings_action_button(
+    id: &'static str,
+    label: &'static str,
+    primary: bool,
+    disabled: bool,
+    on_click: impl Fn(&gpui::ClickEvent, &mut Window, &mut gpui::App) + 'static,
+) -> gpui::AnyElement {
+    let button = Button::new(id)
+        .h(px(32.0))
+        .px_3()
+        .label(label)
+        .disabled(disabled)
+        .on_click(on_click);
+    if primary {
+        button.primary().into_any_element()
+    } else {
+        button.outline().into_any_element()
+    }
 }
 
 pub(crate) fn settings_label(

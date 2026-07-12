@@ -89,25 +89,6 @@ impl LumiaApp {
             .child(format!("{:.0}%", zoom * 100.0))
             .into_any_element()
     }
-    pub(crate) fn render_decoding_overlay(&self, palette: Palette) -> Option<impl IntoElement> {
-        if !self.loads.is_decoding() {
-            return None;
-        }
-        Some(
-            div()
-                .absolute()
-                .bottom_4()
-                .right_4()
-                .px_3()
-                .py_1()
-                .rounded_md()
-                .bg(rgb(palette.button_bg))
-                .text_color(rgb(palette.muted_text))
-                .text_sm()
-                .child("Decoding…"),
-        )
-    }
-
     pub(crate) fn render_context_menu(
         &self,
         palette: Palette,

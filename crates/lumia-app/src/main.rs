@@ -3,18 +3,27 @@
 mod app;
 mod bootstrap;
 mod cli;
+#[cfg(target_os = "windows")]
+mod file_association_actions;
+mod file_association_state;
 mod i18n;
 mod image_info;
 mod image_loading;
+mod image_overview;
 mod load_state;
 mod palette;
 mod persistence;
+mod plugin_catalog;
 mod preferences;
+mod professional_decode;
 mod render;
+#[cfg(target_os = "windows")]
+mod settings_associations;
 mod settings_general;
 mod settings_shortcuts;
 mod settings_ui;
 mod shell;
+mod single_instance;
 mod status_bar;
 mod ui_state;
 mod util;
@@ -72,7 +81,7 @@ fn main() -> anyhow::Result<()> {
     match command {
         cli::CliCommand::RegisterContextMenu => {
             shell::register_context_menu()?;
-            println!("Lumia registered in system context menu. Right-click any image to open with Lumia.");
+            println!("Lumia registered for supported image formats.");
             Ok(())
         }
         cli::CliCommand::UnregisterContextMenu => {

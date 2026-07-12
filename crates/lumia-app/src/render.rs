@@ -51,7 +51,7 @@ impl Render for LumiaApp {
             .child(self.render_viewer(window, palette, cx))
             .children(
                 (self.ui.show_status_bar || self.ui.show_zoom_menu)
-                    .then(|| self.render_status_bar(palette, cx)),
+                    .then(|| self.render_status_bar(window, palette, cx)),
             )
             .children(self.render_settings_panel(window, palette, cx))
     }
@@ -95,6 +95,7 @@ impl LumiaApp {
                     .on_mouse_down(MouseButton::Left, {
                         let self_handle = self.self_handle.clone();
                         move |_, window, cx| {
+                            cx.stop_propagation();
                             let _ = self_handle.update(cx, |this, cx| {
                                 this.open_file_dialog(cx, Some(window));
                             });
@@ -126,7 +127,7 @@ impl LumiaApp {
                 this.ui.pending_drop_paths = paths.paths().to_vec();
                 this.load_first_supported_drop(window, cx);
             }))
-            .on_scroll_wheel(cx.listener(|this, event: &ScrollWheelEvent, _, cx| {
+            .on_scroll_wheel(cx.listener(|this, event: &ScrollWheelEvent, window, cx| {
                 if this.ui.show_settings_panel {
                     return;
                 }
@@ -135,11 +136,10 @@ impl LumiaApp {
                     ScrollDelta::Lines(delta) => delta.y,
                 };
                 if delta > 0.0 {
-                    this.viewer.viewport_mut().zoom_out();
+                    this.zoom_out_view(window, cx);
                 } else if delta < 0.0 {
-                    this.viewer.viewport_mut().zoom_in();
+                    this.zoom_in_view(window, cx);
                 }
-                cx.notify();
             }))
             .on_mouse_down(
                 MouseButton::Left,
@@ -215,33 +215,25 @@ impl LumiaApp {
                 .children(self.render_image_info_overlay())
                 .children(self.render_context_menu(palette, cx))
         } else if let Some(path) = self.image_path() {
-            // Formats like HEIC are pre-decoded and cached as PNG at load
-            // time (see ImageDocument::load_from_path) because GPUI's img()
-            // cannot natively render them.
-            // Check the document's own cache first, then the preload cache
-            // (populated by background adjacent-image decoding).
-            let cached = self.viewer.rotated_image().or_else(|| {
-                (self.viewer.rotation_quarter_turns() == 0)
-                    .then(|| {
-                        self.viewer
-                            .document()
-                            .and_then(|doc| doc.cached_image.as_ref())
-                            .or_else(|| self.image_path().and_then(|path| self.loads.cached(path)))
-                    })
-                    .flatten()
-            });
+            // HEIC pixels are decoded directly into a stable GPUI RenderImage.
+            // Cloning this Arc is constant-time and avoids copying or hashing
+            // the full pixel buffer during every render.
+            let prepared = self
+                .loads
+                .display_image(self.viewer.rotation_quarter_turns());
 
-            let image = if let Some(cached) = cached {
+            let image = if let Some(prepared) = prepared {
+                let (image_width, image_height) = prepared.dimensions();
                 let (display_w, display_h) = self
                     .scaled_image_size(window)
-                    .unwrap_or((cached.width as f32, cached.height as f32));
-                let gpui_image =
-                    gpui::Image::from_bytes(gpui::ImageFormat::Bmp, cached.cached_data.clone());
-                img(std::sync::Arc::new(gpui_image))
+                    .unwrap_or((image_width as f32, image_height as f32));
+                img(prepared.render_image())
                     .w(px(display_w))
                     .h(px(display_h))
                     .object_fit(ObjectFit::Contain)
                     .into_any_element()
+            } else if self.loads.is_decoding() {
+                div().into_any_element()
             } else if let Some((width, height)) = self.scaled_image_size(window) {
                 img(path.to_path_buf())
                     .w(px(width))
@@ -259,11 +251,19 @@ impl LumiaApp {
             viewer
                 .child(
                     div()
-                        .ml(px(self.viewer.viewport().pan_x))
-                        .mt(px(self.viewer.viewport().pan_y))
-                        .child(image),
+                        .size_full()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(
+                            div()
+                                .relative()
+                                .left(px(self.viewer.viewport().pan_x))
+                                .top(px(self.viewer.viewport().pan_y))
+                                .child(image),
+                        ),
                 )
-                .children(self.render_decoding_overlay(palette))
+                .children(self.render_image_overview(window, palette, cx))
                 .children(self.render_image_info_overlay())
                 .children(self.render_context_menu(palette, cx))
         } else {

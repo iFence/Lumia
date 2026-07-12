@@ -174,7 +174,7 @@ impl LumiaApp {
     ) -> impl IntoElement {
         let language = self.settings.language;
 
-        div()
+        let sidebar = div()
             .id("settings-sidebar")
             .w(px(188.0))
             .h_full()
@@ -194,17 +194,28 @@ impl LumiaApp {
                 |this, _, _, cx| {
                     this.select_settings_group(SettingsGroup::General, cx);
                 },
-            ))
-            .child(settings_group_button(
-                "settings-group-shortcuts",
-                tr(language, TextKey::Shortcuts),
-                self.ui.active_settings_group == SettingsGroup::Shortcuts,
-                palette,
-                cx,
-                |this, _, _, cx| {
-                    this.select_settings_group(SettingsGroup::Shortcuts, cx);
-                },
-            ))
+            ));
+        #[cfg(target_os = "windows")]
+        let sidebar = sidebar.child(settings_group_button(
+            "settings-group-file-associations",
+            tr(language, TextKey::FileAssociations),
+            self.ui.active_settings_group == SettingsGroup::FileAssociations,
+            palette,
+            cx,
+            |this, _, _, cx| {
+                this.select_settings_group(SettingsGroup::FileAssociations, cx);
+            },
+        ));
+        sidebar.child(settings_group_button(
+            "settings-group-shortcuts",
+            tr(language, TextKey::Shortcuts),
+            self.ui.active_settings_group == SettingsGroup::Shortcuts,
+            palette,
+            cx,
+            |this, _, _, cx| {
+                this.select_settings_group(SettingsGroup::Shortcuts, cx);
+            },
+        ))
     }
 
     pub(crate) fn render_settings_content(
@@ -217,6 +228,17 @@ impl LumiaApp {
             SettingsGroup::General => self
                 .render_general_settings(window, palette, cx)
                 .into_any_element(),
+            SettingsGroup::FileAssociations => {
+                #[cfg(target_os = "windows")]
+                {
+                    self.render_file_association_settings(palette, cx)
+                        .into_any_element()
+                }
+                #[cfg(not(target_os = "windows"))]
+                {
+                    div().into_any_element()
+                }
+            }
             SettingsGroup::Shortcuts => self
                 .render_shortcuts_settings(palette, cx)
                 .into_any_element(),

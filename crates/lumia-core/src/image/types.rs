@@ -1,13 +1,42 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use uuid::Uuid;
 
-/// Pre-encoded BMP data ready to pass to GPUI's image element.
+/// Decoded pixels in BGRA8 byte order.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CachedImage {
-    pub cached_data: Vec<u8>,
+pub struct DecodedImage {
+    pub pixels_bgra8: Vec<u8>,
     pub width: u32,
     pub height: u32,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct DecodeCancellation {
+    cancelled: Arc<AtomicBool>,
+}
+
+impl DecodeCancellation {
+    pub fn cancel(&self) {
+        self.cancelled.store(true, Ordering::Relaxed);
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::Relaxed)
+    }
+}
+
+impl heic::Stop for DecodeCancellation {
+    fn check(&self) -> Result<(), heic::StopReason> {
+        if self.is_cancelled() {
+            Err(heic::StopReason::Cancelled)
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -15,8 +44,6 @@ pub struct ImageDocument {
     pub id: Uuid,
     pub source: ImageSource,
     pub metadata: Option<ImageMetadata>,
-    #[serde(skip)]
-    pub cached_image: Option<CachedImage>,
     /// Compatibility bridge used by the asynchronous HEIF decoder.
     #[serde(skip)]
     pub heif_bytes: Option<Vec<u8>>,

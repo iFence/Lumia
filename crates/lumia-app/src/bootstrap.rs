@@ -2,9 +2,13 @@ use std::path::PathBuf;
 
 use gpui::{px, size, App, AppContext, Bounds, WindowBounds, WindowOptions};
 
-use crate::{app::LumiaApp, Quit, APP_TITLE};
+use crate::{app::LumiaApp, single_instance, Quit, APP_TITLE};
 
 pub(crate) fn run_gui(initial_path: Option<PathBuf>) -> anyhow::Result<()> {
+    let Some(primary_instance) = single_instance::acquire(initial_path.as_deref())? else {
+        return Ok(());
+    };
+
     gpui_platform::application()
         .with_assets(gpui_component_assets::Assets)
         .run(move |cx: &mut App| {
@@ -21,9 +25,12 @@ pub(crate) fn run_gui(initial_path: Option<PathBuf>) -> anyhow::Result<()> {
                     }),
                     ..Default::default()
                 },
-                |window, cx| {
+                move |window, cx| {
                     let view = cx.new(|cx| LumiaApp::new(window, cx, initial_path.clone()));
-                    view.update(cx, |app, cx| app.set_self_handle(view.downgrade(), cx));
+                    view.update(cx, |app, cx| {
+                        app.set_self_handle(view.downgrade(), cx);
+                        app.listen_for_instance_requests(primary_instance, window, cx);
+                    });
                     cx.new(|cx| gpui_component::Root::new(view, window, cx).bordered(false))
                 },
             )

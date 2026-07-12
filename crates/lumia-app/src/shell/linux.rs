@@ -70,6 +70,8 @@ fn mime_types() -> String {
         ("ppm", "image/x-portable-pixmap"),
         ("pgm", "image/x-portable-graymap"),
         ("png", "image/png"),
+        ("psb", "image/vnd.adobe.photoshop"),
+        ("psd", "image/vnd.adobe.photoshop"),
         ("qoi", "image/x-qoi"),
         ("svg", "image/svg+xml"),
         ("tga", "image/x-tga"),
@@ -122,5 +124,6 @@ mod tests {
         assert!(parts.windows(2).all(|pair| pair[0] < pair[1]));
         assert!(parts.contains(&"image/png"));
         assert!(parts.contains(&"image/heic"));
+        assert!(parts.contains(&"image/vnd.adobe.photoshop"));
     }
 }

@@ -1,10 +1,15 @@
-use super::{cached_image_from_rgba, CachedImage, ImageLoadError};
+use super::{DecodeCancellation, DecodedImage, ImageLoadError};
 
-/// Decode HEIC/HEIF bytes into the BMP-backed cache used by the viewer.
-///
 /// This compatibility bridge is intentionally isolated so it can later move
 /// behind the official plugin boundary without affecting the document model.
-pub fn decode_heic_to_png(file_bytes: &[u8]) -> Result<CachedImage, ImageLoadError> {
+pub fn decode_heic(file_bytes: &[u8]) -> Result<DecodedImage, ImageLoadError> {
+    decode_heic_with_cancellation(file_bytes, &DecodeCancellation::default())
+}
+
+pub fn decode_heic_with_cancellation(
+    file_bytes: &[u8],
+    cancellation: &DecodeCancellation,
+) -> Result<DecodedImage, ImageLoadError> {
     let info =
         heic::ImageInfo::from_bytes(file_bytes).map_err(|error| ImageLoadError::HeifMetadata {
             path: "(memory)".into(),
@@ -23,13 +28,35 @@ pub fn decode_heic_to_png(file_bytes: &[u8]) -> Result<CachedImage, ImageLoadErr
             message: "pixel buffer size overflow".into(),
         })?;
 
-    let mut rgba = vec![0; buffer_size];
+    let mut pixels_bgra8 = vec![0; buffer_size];
     heic::DecoderConfig::default()
         .decode_request(file_bytes)
-        .decode_into(&mut rgba)
+        .with_output_layout(heic::PixelLayout::Bgra8)
+        .with_stop(cancellation)
+        .decode_into(&mut pixels_bgra8)
         .map_err(|error| ImageLoadError::HeifMetadata {
             path: "(memory)".into(),
             message: error.to_string(),
         })?;
-    cached_image_from_rgba(&rgba, info.width, info.height)
+    Ok(DecodedImage {
+        pixels_bgra8,
+        width: info.width,
+        height: info.height,
+    })
+}
+
+pub fn decode_heic_thumbnail(file_bytes: &[u8]) -> Result<Option<DecodedImage>, ImageLoadError> {
+    heic::DecoderConfig::default()
+        .decode_thumbnail(file_bytes, heic::PixelLayout::Bgra8)
+        .map(|thumbnail| {
+            thumbnail.map(|thumbnail| DecodedImage {
+                pixels_bgra8: thumbnail.data,
+                width: thumbnail.width,
+                height: thumbnail.height,
+            })
+        })
+        .map_err(|error| ImageLoadError::HeifMetadata {
+            path: "(memory)".into(),
+            message: error.to_string(),
+        })
 }

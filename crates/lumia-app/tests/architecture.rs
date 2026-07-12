@@ -27,6 +27,40 @@ fn production_rust_modules_stay_below_hard_size_limit() {
     );
 }
 
+#[test]
+fn official_photoshop_plugin_is_declared_in_every_release_package() {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("lumia-app must be under workspace/crates");
+    let release = std::fs::read_to_string(workspace.join(".github/workflows/release.yml"))
+        .expect("release workflow");
+    assert!(
+        release
+            .matches("target/release/lumia-plugin-photoshop")
+            .count()
+            >= 3,
+        "Windows, macOS, and Linux releases must build or copy the plugin"
+    );
+    assert!(release.contains("plugins/lumia-plugin-photoshop/lumia.plugin.json"));
+
+    let wix = std::fs::read_to_string(workspace.join("crates/lumia-app/wix/main.wxs"))
+        .expect("WiX source");
+    assert!(wix.contains("lumia-plugin-photoshop.exe"));
+    assert!(wix.contains("lumia.plugin.json"));
+
+    let installer =
+        std::fs::read_to_string(workspace.join("crates/lumia-app/resources/install.sh"))
+            .expect("Linux installer");
+    assert!(installer.contains("PLUGIN_INSTALL_DIR"));
+    assert!(installer.contains("lumia.plugin.json"));
+
+    let plist = std::fs::read_to_string(workspace.join("crates/lumia-app/resources/Info.plist"))
+        .expect("macOS bundle metadata");
+    assert!(plist.contains("com.adobe.photoshop-image"));
+    assert!(plist.contains("com.ifence.lumia.photoshop-large-document"));
+}
+
 fn collect_rust_files(root: &Path, files: &mut Vec<PathBuf>) {
     let Ok(entries) = std::fs::read_dir(root) else {
         return;

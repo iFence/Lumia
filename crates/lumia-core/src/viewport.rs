@@ -46,9 +46,21 @@ impl ViewportState {
         self.fit_mode = FitMode::FitToWindow;
     }
 
+    pub fn reset_actual_size(&mut self) {
+        self.zoom = 1.0;
+        self.pan_x = 0.0;
+        self.pan_y = 0.0;
+        self.fit_mode = FitMode::ActualSize;
+    }
+
     pub fn pan_by(&mut self, dx: f32, dy: f32) {
         self.pan_x += dx;
         self.pan_y += dy;
+    }
+
+    pub fn set_pan(&mut self, x: f32, y: f32) {
+        self.pan_x = x;
+        self.pan_y = y;
     }
 }
 
@@ -92,10 +104,21 @@ mod tests {
         assert_eq!(viewport.pan_x, 10.0);
         assert_eq!(viewport.pan_y, -3.0);
 
+        viewport.set_pan(-8.0, 6.0);
+        assert_eq!(viewport.pan_x, -8.0);
+        assert_eq!(viewport.pan_y, 6.0);
+
         viewport.reset_fit();
         assert_eq!(viewport.zoom, 1.0);
         assert_eq!(viewport.pan_x, 0.0);
         assert_eq!(viewport.pan_y, 0.0);
         assert_eq!(viewport.fit_mode, FitMode::FitToWindow);
+
+        viewport.pan_by(5.0, 8.0);
+        viewport.reset_actual_size();
+        assert_eq!(viewport.zoom, 1.0);
+        assert_eq!(viewport.pan_x, 0.0);
+        assert_eq!(viewport.pan_y, 0.0);
+        assert_eq!(viewport.fit_mode, FitMode::ActualSize);
     }
 }

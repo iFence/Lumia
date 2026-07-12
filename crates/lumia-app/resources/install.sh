@@ -13,20 +13,38 @@ APPS_DIR="${HOME}/.local/share/applications"
 ICONS_DIR="${HOME}/.local/share/icons/hicolor/128x128/apps"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_SOURCE_DIR="$SCRIPT_DIR/plugins/lumia-plugin-photoshop"
+PLUGIN_INSTALL_DIR="$BIN_DIR/plugins/lumia-plugin-photoshop"
 
 install_lumia() {
     echo "Installing Lumia..."
 
+    if [ ! -f "$SCRIPT_DIR/lumia-app" ]; then
+        echo "  ! lumia-app is missing from the release archive" >&2
+        return 1
+    fi
+    if [ ! -f "$PLUGIN_SOURCE_DIR/lumia-plugin-photoshop" ]; then
+        echo "  ! Photoshop preview plugin is missing from the release archive" >&2
+        return 1
+    fi
+    if [ ! -f "$PLUGIN_SOURCE_DIR/lumia.plugin.json" ]; then
+        echo "  ! Photoshop plugin manifest is missing from the release archive" >&2
+        return 1
+    fi
+
     mkdir -p "$BIN_DIR" "$APPS_DIR" "$ICONS_DIR"
 
     # Binary
-    if [ -f "$SCRIPT_DIR/lumia-app" ]; then
-        cp "$SCRIPT_DIR/lumia-app" "$BIN_DIR/lumia-app"
-        chmod +x "$BIN_DIR/lumia-app"
-        echo "  ✓ Binary installed to $BIN_DIR/lumia-app"
-    else
-        echo "  ! lumia-app not found in current directory — skipping binary copy"
-    fi
+    cp "$SCRIPT_DIR/lumia-app" "$BIN_DIR/lumia-app"
+    chmod +x "$BIN_DIR/lumia-app"
+    echo "  ✓ Binary installed to $BIN_DIR/lumia-app"
+
+    # Official bundled plugins
+    mkdir -p "$PLUGIN_INSTALL_DIR"
+    cp "$PLUGIN_SOURCE_DIR/lumia-plugin-photoshop" "$PLUGIN_INSTALL_DIR/"
+    cp "$PLUGIN_SOURCE_DIR/lumia.plugin.json" "$PLUGIN_INSTALL_DIR/"
+    chmod +x "$PLUGIN_INSTALL_DIR/lumia-plugin-photoshop"
+    echo "  ✓ Photoshop preview plugin installed to $PLUGIN_INSTALL_DIR"
 
     # Desktop entry (with absolute path to binary)
     if [ -f "$SCRIPT_DIR/lumia.desktop" ]; then
@@ -57,6 +75,8 @@ uninstall_lumia() {
     echo "Uninstalling Lumia..."
 
     rm -f "$BIN_DIR/lumia-app"
+    rm -rf "$PLUGIN_INSTALL_DIR"
+    rmdir "$BIN_DIR/plugins" 2>/dev/null || true
     rm -f "$APPS_DIR/lumia.desktop"
     rm -f "$ICONS_DIR/lumia.png"
 

@@ -63,6 +63,15 @@ pub struct DecodePreviewParams {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DecodePreviewResult {
+    pub output: ImageOutput,
+    pub width: u32,
+    pub height: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format_name: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TransformParams {
     pub input: ImagePath,
     pub output_path: PathBuf,
@@ -124,5 +133,24 @@ mod tests {
         let json = serde_json::to_string(&manifest).unwrap();
         assert!(json.contains("decode_preview"));
         assert!(json.contains("cloud_ai"));
+    }
+
+    #[test]
+    fn decode_preview_result_serializes_output_metadata() {
+        let result = DecodePreviewResult {
+            output: ImageOutput {
+                path: "preview.png".into(),
+                media_type: Some("image/png".to_string()),
+            },
+            width: 640,
+            height: 480,
+            format_name: Some("PSD".to_string()),
+        };
+
+        let value = serde_json::to_value(result).unwrap();
+        assert_eq!(value["output"]["path"], "preview.png");
+        assert_eq!(value["width"], 640);
+        assert_eq!(value["height"], 480);
+        assert_eq!(value["format_name"], "PSD");
     }
 }

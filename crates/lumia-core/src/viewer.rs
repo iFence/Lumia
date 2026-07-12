@@ -1,13 +1,12 @@
 use std::path::Path;
 
-use crate::{CachedImage, ImageDocument, ImageSource, ViewportState};
+use crate::{ImageDocument, ImageSource, ViewportState};
 
 #[derive(Debug, Default)]
 pub struct ViewerSession {
     document: Option<ImageDocument>,
     viewport: ViewportState,
     rotation_quarter_turns: u8,
-    rotated_image: Option<CachedImage>,
 }
 
 impl ViewerSession {
@@ -15,7 +14,6 @@ impl ViewerSession {
         self.document = Some(document);
         self.viewport.reset_fit();
         self.rotation_quarter_turns = 0;
-        self.rotated_image = None;
     }
 
     pub fn document(&self) -> Option<&ImageDocument> {
@@ -45,15 +43,6 @@ impl ViewerSession {
     pub fn rotate_by(&mut self, quarter_turns: u8) {
         self.rotation_quarter_turns = (self.rotation_quarter_turns + quarter_turns) % 4;
         self.viewport.reset_fit();
-        self.rotated_image = None;
-    }
-
-    pub fn rotated_image(&self) -> Option<&CachedImage> {
-        self.rotated_image.as_ref()
-    }
-
-    pub fn set_rotated_image(&mut self, image: Option<CachedImage>) {
-        self.rotated_image = image;
     }
 
     pub fn image_path(&self) -> Option<&Path> {
@@ -64,9 +53,6 @@ impl ViewerSession {
     }
 
     pub fn display_dimensions(&self) -> Option<(u32, u32)> {
-        if let Some(rotated) = self.rotated_image() {
-            return Some((rotated.width, rotated.height));
-        }
         let metadata = self.document()?.metadata.as_ref()?;
         if self.rotation_quarter_turns % 2 == 1 {
             Some((metadata.height, metadata.width))

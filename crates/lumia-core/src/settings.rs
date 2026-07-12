@@ -101,6 +101,7 @@ impl Default for ThemeAccent {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SettingsGroup {
     General,
+    FileAssociations,
     Shortcuts,
 }
 

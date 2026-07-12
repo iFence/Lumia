@@ -13,6 +13,7 @@ use crate::STATUS_BAR_HEIGHT;
 impl LumiaApp {
     pub(crate) fn render_status_bar(
         &self,
+        window: &Window,
         palette: Palette,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
@@ -120,6 +121,7 @@ impl LumiaApp {
                         },
                     ))
                     .child(self.render_status_zoom_button(
+                        window,
                         has_image,
                         palette,
                         cx,
@@ -133,12 +135,8 @@ impl LumiaApp {
                         has_image,
                         palette,
                         cx,
-                        |this, _, _, cx| {
-                            if this.viewer.has_document() {
-                                this.viewer.viewport_mut().zoom_in();
-                                this.ui.show_zoom_menu = false;
-                                cx.notify();
-                            }
+                        |this, _, window, cx| {
+                            this.zoom_in_view(window, cx);
                         },
                     ))
                     .child(self.render_status_icon_button(
@@ -147,12 +145,8 @@ impl LumiaApp {
                         has_image,
                         palette,
                         cx,
-                        |this, _, _, cx| {
-                            if this.viewer.has_document() {
-                                this.viewer.viewport_mut().zoom_out();
-                                this.ui.show_zoom_menu = false;
-                                cx.notify();
-                            }
+                        |this, _, window, cx| {
+                            this.zoom_out_view(window, cx);
                         },
                     ))
                     .child(self.render_status_icon_button(
@@ -171,6 +165,7 @@ impl LumiaApp {
 
     fn render_status_zoom_button(
         &self,
+        window: &Window,
         enabled: bool,
         palette: Palette,
         cx: &mut Context<Self>,
@@ -193,7 +188,6 @@ impl LumiaApp {
             .rounded_sm()
             .border_1()
             .border_color(rgb(palette.border))
-            .bg(rgb(palette.button_bg))
             .text_sm()
             .text_color(rgb(text_color))
             .hover(move |style| style.bg(rgb(palette.button_hover)))
@@ -205,7 +199,10 @@ impl LumiaApp {
                     }
                 }),
             )
-            .child(format!("{:.0}%", self.viewer.viewport().zoom * 100.0))
+            .child(format!(
+                "{:.0}%",
+                self.image_display_scale(window).unwrap_or(1.0) * 100.0
+            ))
             .child(
                 Icon::new(if self.ui.show_zoom_menu {
                     IconName::ChevronDown
@@ -240,9 +237,6 @@ impl LumiaApp {
             .items_center()
             .justify_center()
             .rounded_sm()
-            .border_1()
-            .border_color(rgb(palette.border))
-            .bg(rgb(palette.button_bg))
             .hover(move |style| style.bg(rgb(palette.button_hover)))
             .on_mouse_down(
                 MouseButton::Left,

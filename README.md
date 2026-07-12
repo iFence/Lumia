@@ -15,7 +15,7 @@ Lumia is organized around four capability layers:
 | Official bundled plugins | RAW, HDR, HEIC/HEIF, professional/advanced format preview, and simple format conversion | Shipped with default builds, but implemented through the plugin protocol |
 | Optional plugins | AI stylization, background removal, super-resolution, repair, outpainting, denoising, batch watermarking, batch conversion, compression plugins, cloud model plugins, and local model plugins | Installed or enabled separately through the same process-plugin boundary |
 
-Current implementation status: single-image preview, zoom, pan, display rotation, image information, sibling-image navigation, adjacent preloading, settings, and the initial stdio JSON-RPC plugin protocol are in place. EXIF, full folder browsing UI, favorites, filtering, built-in edit tools, bundled professional-format plugins, and AI/batch plugins are product goals rather than complete features.
+Current implementation status: single-image preview, zoom, pan, display rotation, image information, sibling-image navigation, adjacent preloading, settings, the stdio JSON-RPC plugin protocol, and bundled PSD/PSB composite preview are in place. EXIF, full folder browsing UI, favorites, filtering, built-in edit tools, additional professional-format plugins, and AI/batch plugins are product goals rather than complete features.
 
 ## Installation
 
@@ -23,8 +23,8 @@ Current implementation status: single-image preview, zoom, pan, display rotation
 
 Download the latest installer (`lumia-app-*-x64.msi`) or portable archive (`lumia-portable-windows-x64.zip`) from the [Releases](https://github.com/iFence/Lumia/releases) page.
 
-- **MSI installer**: Run the `.msi` file. Lumia will be installed to `Program Files`, with Start Menu and Desktop shortcuts. Right-click any image in Explorer and choose "Open with Lumia" - no extra setup needed.
-- **Portable**: Extract the `.zip` archive and run `lumia-app.exe`. To add right-click support, run `lumia-app --register-context-menu` once.
+- **MSI installer**: Run the `.msi` file. Lumia and its official Photoshop preview plugin will be installed to `Program Files`, with Start Menu and Desktop shortcuts. In Lumia, open **Settings -> File Associations**, choose the formats you want, and apply them.
+- **Portable**: Extract the complete `.zip` archive and run `lumia-app.exe`. Keep the included `plugins` directory beside the application. To add right-click support, run `lumia-app --register-context-menu` once.
 
 ### macOS
 
@@ -41,7 +41,7 @@ tar -xzf lumia-linux-x64.tar.gz
 cd lumia-release
 ```
 
-Run the included `install.sh` script to install the binary, desktop entry, and icon:
+Run the included `install.sh` script to install the application, official plugins, desktop entry, and icon:
 
 ```bash
 ./install.sh
@@ -49,7 +49,7 @@ Run the included `install.sh` script to install the binary, desktop entry, and i
 
 This registers Lumia in your system's right-click "Open With" menu for all supported image formats. To uninstall, run `./install.sh --uninstall`.
 
-If you've downloaded the raw binary without the tarball, you can register the context menu manually:
+If you've downloaded only the raw application binary, PSD/PSB preview is unavailable because the official plugin is not present. You can still register the core viewer manually:
 
 ```bash
 lumia-app --register-context-menu      # adds .desktop entry and icon
@@ -67,9 +67,26 @@ Lumia integrates into your operating system's right-click / "Open With" menu so 
 
 | Platform | Mechanism | How to enable |
 |---|---|---|
-| **Windows** | Registry entries under `HKLM` (MSI) or `HKCU` (portable) | MSI: automatic. Portable: `lumia-app --register-context-menu` |
+| **Windows** | Per-user registry entries under `HKCU` | Settings -> File Associations, or `lumia-app --register-context-menu` |
 | **macOS** | `.app` bundle with `CFBundleDocumentTypes` in `Info.plist` | `.dmg`: drag to Applications. Portable: `lumia-app --register-context-menu` |
 | **Linux** | `.desktop` file with `MimeType` entries | `./install.sh` from the tarball, or `lumia-app --register-context-menu` |
+
+Windows 10 and 11 require the user to confirm default applications in system Settings. Lumia registers the selected formats and opens its Windows Default Apps page; it does not overwrite the protected user choice directly.
+
+## Official Bundled Plugins
+
+Official plugins are installed, upgraded, and removed together with Lumia. Users do not need to download or copy the Photoshop plugin separately. Release artifacts preserve this application-relative layout:
+
+```text
+Lumia/
+  lumia-app[.exe]
+  plugins/
+    lumia-plugin-photoshop/
+      lumia-plugin-photoshop[.exe]
+      lumia.plugin.json
+```
+
+The MSI, Windows portable ZIP, macOS app bundle, and Linux archive all contain this layout. Third-party plugin installation and arbitrary plugin-directory scanning are not implemented yet.
 
 The `--register-context-menu` command is designed for portable / development use. It never requires administrator privileges:
 
@@ -84,6 +101,7 @@ The `--register-context-menu` command is designed for portable / development use
 - `crates/lumia-plugin-api`: JSON-RPC types shared by the host and plugins.
 - `crates/lumia-plugin-host`: process plugin launcher and newline-delimited stdio transport.
 - `plugins/lumia-plugin-sample`: minimal process plugin used to validate the protocol.
+- `plugins/lumia-plugin-photoshop`: official bundled PSD/PSB composite-preview plugin.
 
 ## Architecture
 
@@ -143,7 +161,7 @@ cargo wix -p lumia-app --output target/wix/
 The MSI is intended to include:
 - Application installed to `Program Files`
 - Start Menu and Desktop shortcuts
-- File associations for registered image formats
+- Per-user file associations managed from Lumia settings
 - Clean uninstall via Windows "Apps & features"
 
 ### Releasing
@@ -163,7 +181,13 @@ GitHub Actions will build the MSI, portable zip, and platform binaries, then att
 |---|---|---|
 | Common web and desktop formats | `.jpg` `.jpeg` `.png` `.gif` `.webp` `.bmp` `.ico` `.tga` `.tif` `.tiff` | Core viewer fast path where dependencies stay lightweight |
 | Additional lightweight formats | `.avif` `.dds` `.ff` `.farbfeld` `.pbm` `.pam` `.ppm` `.pgm` `.qoi` `.svg` | Core or plugin depending on dependency and rendering cost |
-| Professional and heavy preview formats | `.hdr` `.exr` `.heic` `.heif` plus future RAW formats | Official bundled plugins by default |
+| Professional and heavy preview formats | `.hdr` `.exr` `.heic` `.heif` `.psd` `.psb` plus future RAW formats | Official bundled plugins by default; PSD/PSB composite preview is implemented |
 | Conversion and batch output formats | Project-defined per plugin | Plugin protocol |
 
-Current registered extensions include 24 extensions across 17 format families. Registration does not mean every advanced format should remain implemented inside the core app.
+Current registered extensions include 26 extensions across 18 format families. PSD/PSB support previews the stored composite image through the bundled process plugin; it does not expose layers or edit Photoshop documents. The current decoder accepts RGB, grayscale, indexed, or bitmap documents with a valid raw/RLE composite; unsupported color modes, 32-bit documents, ZIP-only composites, or missing composites fail with an explicit preview error. Registration does not mean every advanced format should remain implemented inside the core app.
+
+Build the application and bundled Photoshop plugin together with:
+
+    cargo build --release -p lumia-app -p lumia-plugin-photoshop
+
+Both executables are emitted into the same target profile directory so Lumia can discover the plugin beside the application.

@@ -2,7 +2,8 @@ use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
 use lumia_plugin_api::{
-    InitializeParams, InitializeResult, JsonRpcRequest, JsonRpcResponse, PluginManifest, RpcId,
+    InitializeParams, InitializeResult, JsonRpcRequest, JsonRpcResponse, PluginCapability,
+    PluginManifest, PluginPermission, RpcId, JSON_RPC_VERSION, PROTOCOL_VERSION,
 };
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -41,6 +42,12 @@ impl PluginProcess {
         self.request("plugin.initialize", InitializeParams::default())
     }
 
+    pub fn initialize_for(&mut self, expected: &PluginManifest) -> Result<InitializeResult> {
+        let result = self.initialize()?;
+        validate_initialize(expected, &result)?;
+        Ok(result)
+    }
+
     pub fn request<P, R>(&mut self, method: &str, params: P) -> Result<R>
     where
         P: Serialize,
@@ -62,10 +69,21 @@ impl PluginProcess {
         }
         let response: JsonRpcResponse =
             serde_json::from_str(&response_line).map_err(PluginHostError::Deserialize)?;
+        if response.jsonrpc != JSON_RPC_VERSION {
+            return Err(PluginHostError::JsonRpcVersion {
+                expected: JSON_RPC_VERSION,
+                actual: response.jsonrpc,
+            });
+        }
+        if response.id != id {
+            return Err(PluginHostError::ResponseId);
+        }
         if let Some(error) = response.error {
+            let kind = error.plugin_kind();
             return Err(PluginHostError::Rpc {
                 code: error.code,
                 message: error.message,
+                kind,
             });
         }
 
@@ -78,13 +96,90 @@ impl PluginProcess {
     }
 }
 
+pub fn validate_initialize(expected: &PluginManifest, result: &InitializeResult) -> Result<()> {
+    if result.protocol_version != PROTOCOL_VERSION {
+        return Err(PluginHostError::ProtocolMismatch {
+            expected: PROTOCOL_VERSION,
+            actual: result.protocol_version,
+        });
+    }
+    if result.manifest.id != expected.id {
+        return Err(PluginHostError::PluginIdMismatch {
+            expected: expected.id.clone(),
+            actual: result.manifest.id.clone(),
+        });
+    }
+    for capability in &expected.capabilities {
+        if !result.manifest.capabilities.contains(capability) {
+            return Err(PluginHostError::MissingCapability(*capability));
+        }
+    }
+    Ok(())
+}
+
+pub fn validate_decode_preview_manifest(manifest: &PluginManifest) -> Result<()> {
+    for capability in [PluginCapability::Probe, PluginCapability::DecodePreview] {
+        if !manifest.capabilities.contains(&capability) {
+            return Err(PluginHostError::MissingCapability(capability));
+        }
+    }
+    for permission in [
+        PluginPermission::ReadInputPath,
+        PluginPermission::WriteTemporaryOutput,
+    ] {
+        if !manifest.permissions.contains(&permission) {
+            return Err(PluginHostError::MissingPermission(permission));
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
-    use lumia_plugin_api::{InitializeParams, PROTOCOL_VERSION};
+    use super::*;
+    use lumia_plugin_api::{
+        InitializeParams, InitializeResult, PluginCapability, PluginManifest, PluginPermission,
+        PROTOCOL_VERSION,
+    };
 
     #[test]
     fn initialize_params_serialize_protocol_version() {
         let value = serde_json::to_value(InitializeParams::default()).unwrap();
         assert_eq!(value["protocol_version"], PROTOCOL_VERSION);
+    }
+
+    fn manifest() -> PluginManifest {
+        PluginManifest {
+            id: "lumia.photoshop".to_string(),
+            name: "Photoshop".to_string(),
+            version: "0.1.0".to_string(),
+            entry: "lumia-plugin-photoshop".into(),
+            capabilities: vec![PluginCapability::Probe, PluginCapability::DecodePreview],
+            permissions: vec![
+                PluginPermission::ReadInputPath,
+                PluginPermission::WriteTemporaryOutput,
+            ],
+            supported_inputs: vec!["image/vnd.adobe.photoshop".to_string()],
+            supported_outputs: vec!["image/png".to_string()],
+        }
+    }
+
+    #[test]
+    fn initialize_validation_rejects_protocol_mismatch() {
+        let expected = manifest();
+        let result = InitializeResult {
+            protocol_version: PROTOCOL_VERSION + 1,
+            manifest: expected.clone(),
+        };
+
+        assert!(validate_initialize(&expected, &result).is_err());
+    }
+
+    #[test]
+    fn preview_validation_requires_declared_permissions() {
+        let mut manifest = manifest();
+        manifest.permissions.clear();
+
+        assert!(validate_decode_preview_manifest(&manifest).is_err());
     }
 }

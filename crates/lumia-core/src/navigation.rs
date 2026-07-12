@@ -90,7 +90,7 @@ mod tests {
     fn scan_filters_sorts_and_navigates_with_wraparound() {
         let dir = temp_dir();
         std::fs::create_dir(&dir).unwrap();
-        for name in ["c.PNG", "a.jpg", "b.txt", "b.heic"] {
+        for name in ["c.PNG", "a.jpg", "b.txt", "b.heic", "d.psd", "e.PSB"] {
             std::fs::write(dir.join(name), []).unwrap();
         }
 
@@ -101,10 +101,10 @@ mod tests {
             .iter()
             .map(|path| path.file_name().unwrap().to_string_lossy().into_owned())
             .collect::<Vec<_>>();
-        assert_eq!(names, ["a.jpg", "b.heic", "c.PNG"]);
+        assert_eq!(names, ["a.jpg", "b.heic", "c.PNG", "d.psd", "e.PSB"]);
         assert_eq!(
             navigation.step_path(&current, -1),
-            Some(dir.join("c.PNG").as_path())
+            Some(dir.join("e.PSB").as_path())
         );
         assert_eq!(
             navigation.step_path(&current, 1),
