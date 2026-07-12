@@ -168,6 +168,7 @@ impl LumiaApp {
                 match raster {
                     Ok(raster) => {
                         this.large_image.install_raster(generation, raster);
+                        this.start_large_image_tile_jobs(cx);
                     }
                     Err(_error) if cancellation.is_cancelled() => return,
                     Err(error) => {

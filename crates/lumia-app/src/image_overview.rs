@@ -152,6 +152,7 @@ impl LumiaApp {
                         cx.stop_propagation();
                         this.ui.is_overview_panning = true;
                         this.pan_from_overview(event.position, window);
+                        this.refresh_large_image_tiles(window, cx);
                         cx.notify();
                     }),
                 )
@@ -159,6 +160,7 @@ impl LumiaApp {
                     cx.stop_propagation();
                     if this.ui.is_overview_panning && event.dragging() {
                         this.pan_from_overview(event.position, window);
+                        this.refresh_large_image_tiles(window, cx);
                         cx.notify();
                     }
                 }))

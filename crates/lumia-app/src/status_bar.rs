@@ -84,8 +84,8 @@ impl LumiaApp {
                         has_image,
                         palette,
                         cx,
-                        |this, _, _, cx| {
-                            this.rotate_display(3, cx);
+                        |this, _, window, cx| {
+                            this.rotate_display(3, window, cx);
                         },
                     ))
                     .child(self.render_status_icon_button(
@@ -94,8 +94,8 @@ impl LumiaApp {
                         has_image,
                         palette,
                         cx,
-                        |this, _, _, cx| {
-                            this.rotate_display(1, cx);
+                        |this, _, window, cx| {
+                            this.rotate_display(1, window, cx);
                         },
                     ))
                     .child(self.render_status_text(file_size, palette))
@@ -116,8 +116,8 @@ impl LumiaApp {
                         has_image,
                         palette,
                         cx,
-                        |this, _, _, cx| {
-                            this.toggle_fit_or_actual_size(cx);
+                        |this, _, window, cx| {
+                            this.toggle_fit_or_actual_size(window, cx);
                         },
                     ))
                     .child(self.render_status_zoom_button(

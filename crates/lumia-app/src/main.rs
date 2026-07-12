@@ -10,8 +10,8 @@ mod i18n;
 mod image_info;
 mod image_loading;
 mod image_overview;
-#[allow(dead_code)] // Tile scheduling and rendering are wired in Task 6.
 mod large_image;
+mod large_image_render;
 mod load_state;
 mod palette;
 mod persistence;
@@ -27,7 +27,6 @@ mod settings_ui;
 mod shell;
 mod single_instance;
 mod status_bar;
-#[allow(dead_code)] // Tile scheduling and rendering are wired in Task 6.
 mod tile_cache;
 mod ui_state;
 mod util;

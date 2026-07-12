@@ -193,7 +193,7 @@ impl LumiaApp {
                     cx.notify();
                 }),
             )
-            .on_mouse_move(cx.listener(|this, event: &MouseMoveEvent, _, cx| {
+            .on_mouse_move(cx.listener(|this, event: &MouseMoveEvent, window, cx| {
                 if this.ui.show_settings_panel {
                     return;
                 }
@@ -205,6 +205,7 @@ impl LumiaApp {
                         );
                     }
                     this.ui.last_mouse_position = Some(event.position);
+                    this.refresh_large_image_tiles(window, cx);
                     cx.notify();
                 }
             }));
@@ -222,7 +223,9 @@ impl LumiaApp {
                 .loads
                 .display_image(self.viewer.rotation_quarter_turns());
 
-            let image = if let Some(prepared) = prepared {
+            let image = if let Some(large_image) = self.render_large_image_content(window) {
+                large_image
+            } else if let Some(prepared) = prepared {
                 let (image_width, image_height) = prepared.dimensions();
                 let (display_w, display_h) = self
                     .scaled_image_size(window)
@@ -263,6 +266,9 @@ impl LumiaApp {
                                 .child(image),
                         ),
                 )
+                .children(self.large_image.detail_error().map(|message| {
+                    status_message("large-image-detail-error", message, palette.error_text)
+                }))
                 .children(self.render_image_overview(window, palette, cx))
                 .children(self.render_image_info_overlay())
                 .children(self.render_context_menu(palette, cx))

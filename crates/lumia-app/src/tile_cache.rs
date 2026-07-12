@@ -57,6 +57,7 @@ impl<T> TileCache<T> {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn get(&mut self, key: &TileCoordinate) -> Option<&T> {
         self.clock = self.clock.wrapping_add(1);
         let entry = self.entries.get_mut(key)?;
@@ -77,10 +78,12 @@ impl<T> TileCache<T> {
         self.entries.contains_key(key)
     }
 
+    #[cfg(test)]
     pub(crate) fn len(&self) -> usize {
         self.entries.len()
     }
 
+    #[cfg(test)]
     pub(crate) const fn used_bytes(&self) -> usize {
         self.used_bytes
     }

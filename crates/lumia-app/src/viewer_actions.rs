@@ -43,6 +43,7 @@ impl LumiaApp {
         self.prepare_manual_zoom(window);
         self.viewer.viewport_mut().zoom_in();
         self.ui.show_zoom_menu = false;
+        self.refresh_large_image_tiles(window, cx);
         cx.notify();
     }
 
@@ -50,6 +51,7 @@ impl LumiaApp {
         self.prepare_manual_zoom(window);
         self.viewer.viewport_mut().zoom_out();
         self.ui.show_zoom_menu = false;
+        self.refresh_large_image_tiles(window, cx);
         cx.notify();
     }
 
@@ -61,28 +63,30 @@ impl LumiaApp {
         }
     }
 
-    pub(crate) fn zoom_fit(&mut self, _: &ZoomFit, _: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn zoom_fit(&mut self, _: &ZoomFit, window: &mut Window, cx: &mut Context<Self>) {
         if !self.is_viewer_blocked() {
-            self.reset_fit(cx);
+            self.reset_fit(window, cx);
         }
     }
 
-    pub(crate) fn reset_fit(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn reset_fit(&mut self, window: &Window, cx: &mut Context<Self>) {
         self.viewer.viewport_mut().reset_fit();
         self.ui.show_zoom_menu = false;
+        self.refresh_large_image_tiles(window, cx);
         cx.notify();
     }
 
-    pub(crate) fn set_zoom(&mut self, zoom: f32, cx: &mut Context<Self>) {
+    pub(crate) fn set_zoom(&mut self, zoom: f32, window: &Window, cx: &mut Context<Self>) {
         if self.is_viewer_blocked() || !self.viewer.has_document() {
             return;
         }
         self.viewer.viewport_mut().set_zoom(zoom);
         self.ui.show_zoom_menu = false;
+        self.refresh_large_image_tiles(window, cx);
         cx.notify();
     }
 
-    pub(crate) fn toggle_fit_or_actual_size(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn toggle_fit_or_actual_size(&mut self, window: &Window, cx: &mut Context<Self>) {
         if self.is_viewer_blocked() || !self.viewer.has_document() {
             return;
         }
@@ -92,6 +96,7 @@ impl LumiaApp {
             self.viewer.viewport_mut().reset_fit();
         }
         self.ui.show_zoom_menu = false;
+        self.refresh_large_image_tiles(window, cx);
         cx.notify();
     }
 
@@ -106,28 +111,34 @@ impl LumiaApp {
     pub(crate) fn rotate_clockwise(
         &mut self,
         _: &RotateClockwise,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.rotate_display(1, cx);
+        self.rotate_display(1, window, cx);
     }
 
     pub(crate) fn rotate_counter_clockwise(
         &mut self,
         _: &RotateCounterClockwise,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.rotate_display(3, cx);
+        self.rotate_display(3, window, cx);
     }
 
-    pub(crate) fn rotate_display(&mut self, quarter_turns: u8, cx: &mut Context<Self>) {
+    pub(crate) fn rotate_display(
+        &mut self,
+        quarter_turns: u8,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) {
         if self.is_viewer_blocked() || !self.viewer.has_document() {
             return;
         }
         self.viewer.rotate_by(quarter_turns);
         self.ui.show_zoom_menu = false;
         self.rebuild_rotated_image();
+        self.refresh_large_image_tiles(window, cx);
         cx.notify();
     }
 

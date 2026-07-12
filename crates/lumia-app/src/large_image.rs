@@ -3,8 +3,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use lumia_core::{large_image_worker_count, PixelBudget};
 use lumia_core::{DecodeCancellation, LargeImagePolicy, LargeImageRaster, TileCoordinate};
 
+use gpui::{Context, Window};
+
+use crate::app::LumiaApp;
+use crate::large_image_render::LargeImageViewGeometry;
+use crate::load_state::PreparedImage;
 use crate::tile_cache::TileCache;
 
 const LARGE_IMAGE_TILE_CACHE_BYTES: usize = 256 * 1024 * 1024;
@@ -37,6 +43,9 @@ pub(crate) struct LargeImageSession<T> {
     pending: HashSet<TileCoordinate>,
     tiles: TileCache<T>,
     detail_error: Option<String>,
+    active_tiles: usize,
+    max_workers: usize,
+    pixel_budget: PixelBudget,
 }
 
 impl<T> Default for LargeImageSession<T> {
@@ -58,6 +67,13 @@ impl<T> LargeImageSession<T> {
             pending: HashSet::new(),
             tiles: TileCache::new(tile_cache_bytes),
             detail_error: None,
+            active_tiles: 0,
+            max_workers: large_image_worker_count(
+                std::thread::available_parallelism()
+                    .map(usize::from)
+                    .unwrap_or(1),
+            ),
+            pixel_budget: PixelBudget::new(256 * 1024 * 1024),
         }
     }
 
@@ -85,6 +101,7 @@ impl<T> LargeImageSession<T> {
         self.pending.clear();
         self.tiles.clear();
         self.detail_error = None;
+        self.active_tiles = 0;
     }
 
     pub(crate) fn matches(&self, generation: u64, path: &Path) -> bool {
@@ -121,6 +138,8 @@ impl<T> LargeImageSession<T> {
         visible: impl IntoIterator<Item = TileCoordinate>,
         prefetch: impl IntoIterator<Item = TileCoordinate>,
     ) {
+        self.visible_queue.clear();
+        self.prefetch_queue.clear();
         for coordinate in visible {
             if !self.has_or_queued(coordinate) {
                 self.visible_queue.push_back(coordinate);
@@ -141,11 +160,15 @@ impl<T> LargeImageSession<T> {
     }
 
     pub(crate) fn next_tile(&mut self) -> Option<TileCoordinate> {
+        if self.active_tiles >= self.max_workers {
+            return None;
+        }
         let coordinate = self
             .visible_queue
             .pop_front()
             .or_else(|| self.prefetch_queue.pop_front())?;
         self.pending.insert(coordinate);
+        self.active_tiles += 1;
         Some(coordinate)
     }
 
@@ -159,7 +182,9 @@ impl<T> LargeImageSession<T> {
         if self.generation != generation || self.path.is_none() {
             return false;
         }
-        self.pending.remove(&coordinate);
+        if self.pending.remove(&coordinate) {
+            self.active_tiles = self.active_tiles.saturating_sub(1);
+        }
         if let Some(tile) = tile {
             self.tiles.insert(coordinate, tile, bytes);
         }
@@ -178,6 +203,118 @@ impl<T> LargeImageSession<T> {
 
     pub(crate) fn detail_error(&self) -> Option<&str> {
         self.detail_error.as_deref()
+    }
+
+    pub(crate) fn is_active(&self, path: &Path) -> bool {
+        self.path.as_deref() == Some(path)
+    }
+
+    pub(crate) const fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    pub(crate) fn cancellation(&self) -> Option<DecodeCancellation> {
+        self.cancellation.clone()
+    }
+
+    pub(crate) fn pixel_budget(&self) -> PixelBudget {
+        self.pixel_budget.clone()
+    }
+
+    pub(crate) fn clear_tile_requests(&mut self) {
+        self.visible_queue.clear();
+        self.prefetch_queue.clear();
+    }
+}
+
+impl LumiaApp {
+    pub(crate) fn refresh_large_image_tiles(&mut self, window: &Window, cx: &mut Context<Self>) {
+        let Some(path) = self.image_path() else {
+            return;
+        };
+        if !self.large_image.is_active(path) || self.viewer.rotation_quarter_turns() != 0 {
+            self.large_image.clear_tile_requests();
+            return;
+        }
+        let Some((width, height)) = self.viewer.display_dimensions() else {
+            return;
+        };
+        let Some(scale) = self.image_display_scale(window) else {
+            return;
+        };
+        if let Some(preview) = self.loads.current_image() {
+            let (preview_width, preview_height) = preview.dimensions();
+            let preview_scale =
+                (preview_width as f32 / width as f32).min(preview_height as f32 / height as f32);
+            if scale <= preview_scale {
+                self.large_image.clear_tile_requests();
+                return;
+            }
+        }
+        let viewport = window.viewport_size();
+        let Some(geometry) = LargeImageViewGeometry::calculate(
+            width,
+            height,
+            f32::from(viewport.width),
+            f32::from(viewport.height),
+            scale,
+            self.viewer.viewport().pan_x,
+            self.viewer.viewport().pan_y,
+            self.viewer.rotation_quarter_turns(),
+        ) else {
+            return;
+        };
+        self.large_image
+            .queue_tiles(geometry.visible_tiles, geometry.prefetch_tiles);
+        self.start_large_image_tile_jobs(cx);
+    }
+
+    pub(crate) fn start_large_image_tile_jobs(&mut self, cx: &mut Context<Self>) {
+        let Some(raster) = self.large_image.raster() else {
+            return;
+        };
+        while let Some(coordinate) = self.large_image.next_tile() {
+            let generation = self.large_image.generation();
+            let Some(cancellation) = self.large_image.cancellation() else {
+                return;
+            };
+            let Some(permit) = self.large_image.pixel_budget().try_acquire(512 * 512 * 4) else {
+                return;
+            };
+            let raster = raster.clone();
+            cx.spawn(async move |this, cx| {
+                let decoded = cx
+                    .background_executor()
+                    .spawn(async move {
+                        let _permit = permit;
+                        raster
+                            .decode_tile(coordinate, 512, &cancellation)
+                            .map(|decoded| {
+                                let bytes = decoded.pixels_bgra8.len();
+                                (PreparedImage::from_decoded(decoded), bytes)
+                            })
+                    })
+                    .await;
+                let _ = this.update(cx, |this, cx| {
+                    let (tile, bytes) = match decoded {
+                        Ok((tile, bytes)) => (Some(tile), bytes),
+                        Err(error) => {
+                            this.large_image
+                                .record_detail_error(generation, error.to_string());
+                            (None, 0)
+                        }
+                    };
+                    if this
+                        .large_image
+                        .complete_tile(generation, coordinate, tile, bytes)
+                    {
+                        this.start_large_image_tile_jobs(cx);
+                        cx.notify();
+                    }
+                });
+            })
+            .detach();
+        }
     }
 }
 

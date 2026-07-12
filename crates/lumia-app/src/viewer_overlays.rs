@@ -69,8 +69,8 @@ impl LumiaApp {
             .hover(move |style| style.bg(rgb(palette.button_hover)))
             .on_mouse_down(
                 MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    this.set_zoom(zoom, cx);
+                cx.listener(move |this, _, window, cx| {
+                    this.set_zoom(zoom, window, cx);
                 }),
             )
             .child(
