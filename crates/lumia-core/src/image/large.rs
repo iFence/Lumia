@@ -1,3 +1,8 @@
+mod cache;
+mod error;
+
+pub use error::LargeImageError;
+
 const DEFAULT_MAX_TEXTURE_EDGE: u32 = 8192;
 const DEFAULT_MAX_DECODED_BYTES: u64 = 256 * 1024 * 1024;
 const DEFAULT_TILE_SIZE: u32 = 512;
