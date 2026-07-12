@@ -64,6 +64,15 @@ impl<T> TileCache<T> {
         Some(&entry.value)
     }
 
+    pub(crate) fn peek(&self, key: &TileCoordinate) -> Option<&T> {
+        self.entries.get(key).map(|entry| &entry.value)
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.entries.clear();
+        self.used_bytes = 0;
+    }
+
     pub(crate) fn contains(&self, key: &TileCoordinate) -> bool {
         self.entries.contains_key(key)
     }

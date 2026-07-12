@@ -5,6 +5,7 @@ use gpui::{Context, Window};
 use lumia_core::{FitMode, FolderNavigation, ImageDocument, ViewportState};
 
 use crate::app::LumiaApp;
+use crate::large_image::{large_image_cache_dir, should_decode_large_image};
 use crate::load_state::PreparedImage;
 use crate::professional_decode::is_photoshop_path;
 use crate::util::format_load_error;
@@ -17,11 +18,16 @@ impl LumiaApp {
         cx: &mut Context<Self>,
     ) {
         let generation = self.loads.begin_current_load();
+        self.large_image.reset();
         match ImageDocument::load_from_path(&path) {
             Ok(mut document) => {
                 let needs_heif_decode = is_heif(&path);
                 let needs_photoshop_decode = is_photoshop_path(&path);
-                let needs_async_decode = needs_heif_decode || needs_photoshop_decode;
+                let needs_large_image_decode = document.metadata.as_ref().is_some_and(|metadata| {
+                    should_decode_large_image(&path, metadata.width, metadata.height)
+                });
+                let needs_async_decode =
+                    needs_heif_decode || needs_photoshop_decode || needs_large_image_decode;
                 let heif_bytes = document.heif_bytes.take();
                 self.viewer.replace_document(document);
                 self.ui.error_message = None;
@@ -44,7 +50,16 @@ impl LumiaApp {
 
                 if needs_async_decode && self.loads.current_image().is_none() {
                     if let Some(cancellation) = self.loads.begin_decode(generation) {
-                        if needs_photoshop_decode {
+                        if needs_large_image_decode {
+                            self.large_image
+                                .begin(path.clone(), generation, cancellation.clone());
+                            self.start_current_large_image_decode(
+                                path.clone(),
+                                generation,
+                                cancellation,
+                                cx,
+                            );
+                        } else if needs_photoshop_decode {
                             self.start_current_photoshop_decode(
                                 path.clone(),
                                 generation,
@@ -74,6 +89,97 @@ impl LumiaApp {
                 self.ui.show_zoom_menu = false;
             }
         }
+    }
+
+    fn start_current_large_image_decode(
+        &mut self,
+        path: PathBuf,
+        generation: u64,
+        cancellation: lumia_core::DecodeCancellation,
+        cx: &mut Context<Self>,
+    ) {
+        cx.spawn(async move |this, cx| {
+            let preview_path = path.clone();
+            let preview_cache = large_image_cache_dir();
+            let preview_cancellation = cancellation.clone();
+            let preview = cx
+                .background_executor()
+                .spawn(async move {
+                    lumia_core::decode_large_image_preview(
+                        &preview_path,
+                        2048,
+                        2048,
+                        &preview_cache,
+                        &preview_cancellation,
+                    )
+                    .map(PreparedImage::from_decoded)
+                })
+                .await;
+
+            let should_build_raster = this
+                .update(cx, |this, cx| {
+                    if !this.loads.is_current(generation)
+                        || !this.large_image.matches(generation, &path)
+                    {
+                        return false;
+                    }
+                    match preview {
+                        Ok(preview) => {
+                            this.loads.set_current_image(generation, preview);
+                            this.large_image.mark_preview_ready(generation);
+                            this.ui.error_message = None;
+                            cx.notify();
+                            true
+                        }
+                        Err(_error) if cancellation.is_cancelled() => false,
+                        Err(error) => {
+                            this.loads.finish_decode(generation);
+                            this.ui.error_message =
+                                Some(format!("Could not decode large image: {error}"));
+                            cx.notify();
+                            false
+                        }
+                    }
+                })
+                .unwrap_or(false);
+            if !should_build_raster {
+                return;
+            }
+
+            let raster_path = path.clone();
+            let raster_cache = large_image_cache_dir();
+            let raster_cancellation = cancellation.clone();
+            let raster = cx
+                .background_executor()
+                .spawn(async move {
+                    lumia_core::build_large_image_raster(
+                        &raster_path,
+                        &raster_cache,
+                        &raster_cancellation,
+                    )
+                })
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                if !this.loads.finish_decode(generation)
+                    || !this.large_image.matches(generation, &path)
+                {
+                    return;
+                }
+                match raster {
+                    Ok(raster) => {
+                        this.large_image.install_raster(generation, raster);
+                    }
+                    Err(_error) if cancellation.is_cancelled() => return,
+                    Err(error) => {
+                        this.large_image
+                            .record_detail_error(generation, error.to_string());
+                    }
+                }
+                this.start_preload_adjacent(cx);
+                cx.notify();
+            });
+        })
+        .detach();
     }
 
     fn start_current_decode(

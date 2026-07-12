@@ -3,7 +3,9 @@ use std::path::PathBuf;
 use gpui::{App, Context, FocusHandle, Focusable, Subscription, WeakEntity, Window};
 use lumia_core::{AppSettings, FolderNavigation, ViewerSession};
 
+use crate::large_image::LargeImageSession;
 use crate::load_state::ImageLoadState;
+use crate::load_state::PreparedImage;
 use crate::persistence::load_settings;
 use crate::ui_state::UiState;
 use crate::APP_TITLE;
@@ -14,6 +16,7 @@ pub(crate) struct LumiaApp {
     pub(crate) viewer: ViewerSession,
     pub(crate) navigation: FolderNavigation,
     pub(crate) loads: ImageLoadState,
+    pub(crate) large_image: LargeImageSession<PreparedImage>,
     pub(crate) ui: UiState,
     pub(crate) settings: AppSettings,
     pub(crate) appearance_subscription: Option<Subscription>,
@@ -35,6 +38,7 @@ impl LumiaApp {
             viewer: ViewerSession::default(),
             navigation: FolderNavigation::default(),
             loads: ImageLoadState::default(),
+            large_image: LargeImageSession::default(),
             ui: UiState::default(),
             settings: load_settings(),
             appearance_subscription: None,
