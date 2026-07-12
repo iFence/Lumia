@@ -1,6 +1,12 @@
+// The disk raster is populated by the tile pipeline in the next implementation stage.
+#[allow(dead_code)]
 mod cache;
+mod decode;
 mod error;
+mod mapped;
+mod png;
 
+pub use decode::decode_large_image_preview;
 pub use error::LargeImageError;
 
 const DEFAULT_MAX_TEXTURE_EDGE: u32 = 8192;

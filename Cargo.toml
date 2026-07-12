@@ -24,6 +24,7 @@ gpui-component = { git = "https://github.com/longbridge/gpui-component" }
 gpui-component-assets = { git = "https://github.com/longbridge/gpui-component" }
 image = "0.25"
 memmap2 = "0.9.10"
+png = "0.18.1"
 lumia-core = { path = "crates/lumia-core" }
 lumia-plugin-api = { path = "crates/lumia-plugin-api" }
 lumia-plugin-host = { path = "crates/lumia-plugin-host" }
