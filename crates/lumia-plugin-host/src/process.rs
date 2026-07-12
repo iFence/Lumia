@@ -1,4 +1,6 @@
 use std::io::{BufRead, BufReader, Write};
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
 use lumia_plugin_api::{
@@ -8,6 +10,9 @@ use lumia_plugin_api::{
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{PluginHostError, Result};
+
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 pub struct PluginProcess {
     child: Child,
@@ -22,7 +27,10 @@ impl PluginProcess {
             return Err(PluginHostError::EmptyEntry);
         }
 
-        let mut child = Command::new(&manifest.entry)
+        let mut command = Command::new(&manifest.entry);
+        configure_plugin_command(&mut command);
+
+        let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
@@ -95,6 +103,14 @@ impl PluginProcess {
         self.child.id()
     }
 }
+
+#[cfg(windows)]
+fn configure_plugin_command(command: &mut Command) {
+    command.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn configure_plugin_command(_: &mut Command) {}
 
 pub fn validate_initialize(expected: &PluginManifest, result: &InitializeResult) -> Result<()> {
     if result.protocol_version != PROTOCOL_VERSION {
