@@ -8,7 +8,7 @@ use crate::app::LumiaApp;
 use crate::large_image::{large_image_cache_dir, should_decode_large_image};
 use crate::load_state::PreparedImage;
 use crate::professional_decode::is_photoshop_path;
-use crate::util::format_load_error;
+use crate::util::{format_large_image_error, format_load_error};
 use crate::{NextImage, PreviousImage};
 impl LumiaApp {
     pub(crate) fn load_image(
@@ -135,7 +135,7 @@ impl LumiaApp {
                         Err(error) => {
                             this.loads.finish_decode(generation);
                             this.ui.error_message =
-                                Some(format!("Could not decode large image: {error}"));
+                                Some(format_large_image_error(this.settings.language, &error));
                             cx.notify();
                             false
                         }
@@ -172,8 +172,10 @@ impl LumiaApp {
                     }
                     Err(_error) if cancellation.is_cancelled() => return,
                     Err(error) => {
-                        this.large_image
-                            .record_detail_error(generation, error.to_string());
+                        this.large_image.record_detail_error(
+                            generation,
+                            format_large_image_error(this.settings.language, &error),
+                        );
                     }
                 }
                 this.start_preload_adjacent(cx);

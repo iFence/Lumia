@@ -1,13 +1,24 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, thread};
 
 use gpui::{px, size, App, AppContext, Bounds, WindowBounds, WindowOptions};
 
-use crate::{app::LumiaApp, single_instance, Quit, APP_TITLE};
+use crate::{
+    app::LumiaApp, large_image::large_image_cache_dir, single_instance,
+    util::cleanup_large_image_cache, Quit, APP_TITLE,
+};
+
+const LARGE_IMAGE_DISK_CACHE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 
 pub(crate) fn run_gui(initial_path: Option<PathBuf>) -> anyhow::Result<()> {
     let Some(primary_instance) = single_instance::acquire(initial_path.as_deref())? else {
         return Ok(());
     };
+    let cache_dir = large_image_cache_dir();
+    let _ = thread::Builder::new()
+        .name("lumia-large-cache-cleanup".into())
+        .spawn(move || {
+            let _ = cleanup_large_image_cache(&cache_dir, LARGE_IMAGE_DISK_CACHE_BYTES);
+        });
 
     gpui_platform::application()
         .with_assets(gpui_component_assets::Assets)

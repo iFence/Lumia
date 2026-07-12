@@ -17,6 +17,12 @@ Lumia is organized around four capability layers:
 
 Current implementation status: single-image preview, zoom, pan, display rotation, image information, sibling-image navigation, adjacent preloading, settings, the stdio JSON-RPC plugin protocol, and bundled PSD/PSB composite preview are in place. EXIF, full folder browsing UI, favorites, filtering, built-in edit tools, additional professional-format plugins, and AI/batch plugins are product goals rather than complete features.
 
+### Very large images
+
+Common raster images that exceed Lumia's safe decoded-memory or GPU texture limits use an in-process progressive path. Lumia first creates a bounded preview, then prepares a disk-backed BGRA cache and loads only the visible 512×512 tiles as the user zooms or pans. PNG is processed row by row; formats whose current pure-Rust decoder requires a complete destination use a temporary memory-mapped file instead of a multi-gigabyte Rust heap allocation.
+
+The cache is stored under the operating system temporary directory, is capped at 8 GiB, and removes incomplete or week-old entries on startup. Very large JPEG and WebP files can temporarily require disk space close to their decoded pixel size. Very large GIF files currently display the first frame in this progressive path.
+
 ## Installation
 
 ### Windows
