@@ -87,7 +87,7 @@ lumia-plugin-sample ──> lumia-plugin-api
 ## Module Organization Rules
 
 - Each module file must have a single clear responsibility. Do NOT put unrelated code into the same file.
-- Production Rust modules must stay at or below 500 lines. Treat 300 lines as a review threshold and split by responsibility before adding substantial behavior.
+- Production Rust modules must stay at or below 500 lines. Treat 500 lines as a review threshold and split by responsibility before adding substantial behavior.
 - `lib.rs` files in library crates must contain ONLY `mod` declarations and `pub use` re-exports — no business logic.
 - `main.rs` in the binary crate should be a thin skeleton: `mod` declarations, constants, `actions!` macro, and `main()` — no business logic.
 - UI widget helpers (button factories, etc.) go in `widgets.rs`, NOT inline in render methods.
