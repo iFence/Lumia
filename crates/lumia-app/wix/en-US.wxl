@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<WixLocalization xmlns="http://schemas.microsoft.com/wix/2006/localization" Culture="en-us" Codepage="1252">
+    <String Id="ProductLanguage">1033</String>
+    <String Id="ProductCodepage">1252</String>
+    <String Id="InstallLanguage">en-US</String>
+    <String Id="DowngradeErrorMessage">A newer version of Lumia is already installed.</String>
+    <String Id="FeatureDescription">Installs Lumia and its official Photoshop preview plugin.</String>
+    <String Id="DesktopFeatureTitle">Desktop shortcut</String>
+    <String Id="DesktopFeatureDescription">Creates a shortcut on the current user's desktop.</String>
+    <String Id="ShortcutDescription">Lumia Image Viewer</String>
+    <String Id="OptionsTitle">Installation options</String>
+    <String Id="OptionsDescription">Choose the shortcuts you want Setup to create. A Start menu shortcut is always installed.</String>
+    <String Id="DesktopShortcutOption">Create a desktop shortcut</String>
+</WixLocalization>

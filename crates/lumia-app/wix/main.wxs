@@ -1,111 +1,315 @@
-<?xml version='1.0' encoding='windows-1252'?>
-
-<?if $(sys.BUILDARCH) = x64 or $(sys.BUILDARCH) = arm64 ?>
-    <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
-<?else ?>
-    <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
-<?endif ?>
-
-<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
     <Product
-        Id='*'
-        Name='Lumia'
-        UpgradeCode='07618386-59AC-4B5C-B4E1-EBE4F8AA182E'
-        Manufacturer='iFence'
-        Language='1033'
-        Codepage='1252'
-        Version='$(var.Version)'>
+        Id="*"
+        Name="Lumia"
+        UpgradeCode="07618386-59AC-4B5C-B4E1-EBE4F8AA182E"
+        Manufacturer="iFence"
+        Language="$(var.ProductLanguage)"
+        Codepage="$(var.ProductCodepage)"
+        Version="$(var.Version)">
 
         <Package
-            Id='*'
-            Keywords='Installer'
-            Manufacturer='iFence'
-            InstallerVersion='450'
-            Languages='1033'
-            Compressed='yes'
-            InstallScope='perMachine'
-            SummaryCodepage='1252'/>
+            Id="*"
+            Keywords="Installer"
+            Manufacturer="iFence"
+            InstallerVersion="450"
+            Languages="$(var.ProductLanguage)"
+            Compressed="yes"
+            InstallScope="perUser"
+            InstallPrivileges="limited"
+            SummaryCodepage="$(var.ProductCodepage)" />
 
-        <MajorUpgrade
-            Schedule='afterInstallInitialize'
-            DowngradeErrorMessage='A newer version of Lumia is already installed.'/>
-        <MediaTemplate EmbedCab='yes'/>
+        <Upgrade Id="07618386-59AC-4B5C-B4E1-EBE4F8AA182E">
+            <UpgradeVersion
+                Minimum="0.0.0"
+                IncludeMinimum="yes"
+                Maximum="$(var.Version)"
+                IncludeMaximum="yes"
+                Property="LUMIA_UPGRADE_DETECTED"
+                MigrateFeatures="yes" />
+            <UpgradeVersion
+                Minimum="$(var.Version)"
+                IncludeMinimum="no"
+                OnlyDetect="yes"
+                Property="LUMIA_NEWER_VERSION_DETECTED" />
+        </Upgrade>
+        <Condition Message="!(loc.DowngradeErrorMessage)">
+            Installed OR NOT LUMIA_NEWER_VERSION_DETECTED
+        </Condition>
+        <InstallExecuteSequence>
+            <RemoveExistingProducts After="InstallInitialize">
+                LUMIA_UPGRADE_DETECTED
+            </RemoveExistingProducts>
+        </InstallExecuteSequence>
+        <MediaTemplate EmbedCab="yes" />
 
-        <Icon Id='ApplicationIcon' SourceFile='crates\lumia-app\resources\icon.ico'/>
-        <Property Id='ARPPRODUCTICON' Value='ApplicationIcon'/>
-        <Property Id='ARPHELPLINK' Value='https://github.com/iFence/lumia'/>
+        <Icon Id="ApplicationIcon" SourceFile="crates\lumia-app\resources\icon.ico" />
+        <Property Id="ARPPRODUCTICON" Value="ApplicationIcon" />
+        <Property Id="ARPHELPLINK" Value="https://github.com/iFence/lumia" />
+        <Property Id="WIXUI_INSTALLDIR" Value="APPLICATIONFOLDER" />
+        <Property Id="LASTINSTALLDIR">
+            <RegistrySearch
+                Id="LastInstallDirSearch"
+                Root="HKCU"
+                Key="Software\Lumia\Installer"
+                Name="LastInstallDir"
+                Type="directory"
+                Win64="no" />
+        </Property>
 
-        <Directory Id='TARGETDIR' Name='SourceDir'>
-            <Directory Id='$(var.PlatformProgramFilesFolder)'>
-                <Directory Id='APPLICATIONFOLDER' Name='Lumia'>
-                    <Component Id='ApplicationExecutable' Guid='*'>
-                        <File
-                            Id='LumiaExecutable'
-                            Name='lumia-app.exe'
-                            Source='$(var.CargoTargetBinDir)\lumia-app.exe'
-                            KeyPath='yes'>
-                            <Shortcut
-                                Id='ApplicationStartMenuShortcut'
-                                Directory='ApplicationProgramsFolder'
-                                Name='Lumia'
-                                Description='Lumia Image Viewer'
-                                WorkingDirectory='APPLICATIONFOLDER'
-                                Advertise='yes'/>
-                            <Shortcut
-                                Id='ApplicationDesktopShortcut'
-                                Directory='DesktopFolder'
-                                Name='Lumia'
-                                Description='Lumia Image Viewer'
-                                WorkingDirectory='APPLICATIONFOLDER'
-                                Advertise='yes'/>
-                        </File>
-                        <RemoveFolder
-                            Id='RemoveApplicationProgramsFolder'
-                            Directory='ApplicationProgramsFolder'
-                            On='uninstall'/>
-                    </Component>
-                    <Directory Id='PluginsFolder' Name='plugins'>
-                        <Directory Id='PhotoshopPluginFolder' Name='lumia-plugin-photoshop'>
-                            <Component Id='PhotoshopPluginExecutable' Guid='*'>
-                                <File
-                                    Id='PhotoshopPluginExe'
-                                    Name='lumia-plugin-photoshop.exe'
-                                    Source='$(var.CargoTargetBinDir)\lumia-plugin-photoshop.exe'
-                                    KeyPath='yes'/>
-                            </Component>
-                            <Component Id='PhotoshopPluginManifest' Guid='*'>
-                                <File
-                                    Id='PhotoshopManifestFile'
-                                    Name='lumia.plugin.json'
-                                    Source='plugins\lumia-plugin-photoshop\lumia.plugin.json'
-                                    KeyPath='yes'/>
-                            </Component>
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="LocalAppDataFolder">
+                <Directory Id="LocalProgramsFolder" Name="Programs">
+                    <Directory Id="APPLICATIONFOLDER" Name="Lumia">
+                        <Component Id="ApplicationExecutable" Guid="C743E5F8-48D8-4C77-97DF-CFAF13D07E51">
+                            <File
+                                Id="LumiaExecutable"
+                                Name="lumia-app.exe"
+                                Source="$(var.CargoTargetBinDir)\lumia-app.exe" />
+                            <RegistryValue
+                                Root="HKCU"
+                                Key="Software\Lumia\Installer\Components"
+                                Name="ApplicationExecutable"
+                                Type="integer"
+                                Value="1"
+                                KeyPath="yes" />
+                            <RemoveFolder Id="RemoveApplicationFolder" Directory="APPLICATIONFOLDER" On="uninstall" />
+                            <RemoveFolder Id="RemoveLocalProgramsFolder" Directory="LocalProgramsFolder" On="uninstall" />
+                        </Component>
+                        <Component Id="InstallerState" Guid="*">
+                            <RegistryValue
+                                Root="HKCU"
+                                Key="Software\Lumia\Installer"
+                                Name="LastInstallDir"
+                                Type="string"
+                                Value="[APPLICATIONFOLDER]"
+                                KeyPath="yes" />
+                            <RegistryValue
+                                Root="HKCU"
+                                Key="Software\Lumia\Installer"
+                                Name="InstallLanguage"
+                                Type="string"
+                                Value="!(loc.InstallLanguage)" />
+                        </Component>
+                        <Directory Id="PluginsFolder" Name="plugins">
+                            <Directory Id="PhotoshopPluginFolder" Name="lumia-plugin-photoshop">
+                                <Component Id="PhotoshopPluginExecutable" Guid="D57E8754-5AC0-4E6C-A845-F43B6C28BF6A">
+                                    <File
+                                        Id="PhotoshopPluginExe"
+                                        Name="lumia-plugin-photoshop.exe"
+                                        Source="$(var.CargoTargetBinDir)\lumia-plugin-photoshop.exe" />
+                                    <RegistryValue
+                                        Root="HKCU"
+                                        Key="Software\Lumia\Installer\Components"
+                                        Name="PhotoshopPluginExecutable"
+                                        Type="integer"
+                                        Value="1"
+                                        KeyPath="yes" />
+                                    <RemoveFolder Id="RemovePhotoshopPluginFolder" Directory="PhotoshopPluginFolder" On="uninstall" />
+                                    <RemoveFolder Id="RemovePluginsFolder" Directory="PluginsFolder" On="uninstall" />
+                                </Component>
+                                <Component Id="PhotoshopPluginManifest" Guid="7600CE81-AE0C-48D7-9E0A-4FB7B0C83222">
+                                    <File
+                                        Id="PhotoshopManifestFile"
+                                        Name="lumia.plugin.json"
+                                        Source="plugins\lumia-plugin-photoshop\lumia.plugin.json" />
+                                    <RegistryValue
+                                        Root="HKCU"
+                                        Key="Software\Lumia\Installer\Components"
+                                        Name="PhotoshopPluginManifest"
+                                        Type="integer"
+                                        Value="1"
+                                        KeyPath="yes" />
+                                </Component>
+                            </Directory>
                         </Directory>
                     </Directory>
                 </Directory>
             </Directory>
 
-            <Directory Id='ProgramMenuFolder'>
-                <Directory Id='ApplicationProgramsFolder' Name='Lumia'/>
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="ApplicationProgramsFolder" Name="Lumia">
+                    <Component Id="StartMenuShortcut" Guid="*">
+                        <Shortcut
+                            Id="ApplicationStartMenuShortcut"
+                            Name="Lumia"
+                            Description="!(loc.ShortcutDescription)"
+                            Target="[APPLICATIONFOLDER]lumia-app.exe"
+                            WorkingDirectory="APPLICATIONFOLDER"
+                            Icon="ApplicationIcon"
+                            IconIndex="0" />
+                        <RemoveFolder
+                            Id="RemoveApplicationProgramsFolder"
+                            Directory="ApplicationProgramsFolder"
+                            On="uninstall" />
+                        <RegistryValue
+                            Root="HKCU"
+                            Key="Software\Lumia\Installer"
+                            Name="StartMenuShortcut"
+                            Type="integer"
+                            Value="1"
+                            KeyPath="yes" />
+                    </Component>
+                </Directory>
             </Directory>
 
-            <Directory Id='DesktopFolder'/>
+            <Directory Id="DesktopFolder">
+                <Component Id="DesktopShortcut" Guid="*">
+                    <Shortcut
+                        Id="ApplicationDesktopShortcut"
+                        Name="Lumia"
+                        Description="!(loc.ShortcutDescription)"
+                        Target="[APPLICATIONFOLDER]lumia-app.exe"
+                        WorkingDirectory="APPLICATIONFOLDER"
+                        Icon="ApplicationIcon"
+                        IconIndex="0" />
+                    <RegistryValue
+                        Root="HKCU"
+                        Key="Software\Lumia\Installer"
+                        Name="DesktopShortcut"
+                        Type="integer"
+                        Value="1"
+                        KeyPath="yes" />
+                </Component>
+            </Directory>
         </Directory>
 
         <Feature
-            Id='Complete'
-            Title='Lumia'
-            Description='Installs Lumia and its official Photoshop preview plugin.'
-            Level='1'
-            ConfigurableDirectory='APPLICATIONFOLDER'
-            AllowAdvertise='no'
-            Display='expand'
-            Absent='disallow'>
-            <ComponentRef Id='ApplicationExecutable'/>
-            <ComponentRef Id='PhotoshopPluginExecutable'/>
-            <ComponentRef Id='PhotoshopPluginManifest'/>
+            Id="Complete"
+            Title="Lumia"
+            Description="!(loc.FeatureDescription)"
+            Level="1"
+            ConfigurableDirectory="APPLICATIONFOLDER"
+            AllowAdvertise="no"
+            Display="expand"
+            Absent="disallow">
+            <ComponentRef Id="ApplicationExecutable" />
+            <ComponentRef Id="InstallerState" />
+            <ComponentRef Id="StartMenuShortcut" />
+            <ComponentRef Id="PhotoshopPluginExecutable" />
+            <ComponentRef Id="PhotoshopPluginManifest" />
+        </Feature>
+        <Feature
+            Id="DesktopShortcutFeature"
+            Title="!(loc.DesktopFeatureTitle)"
+            Description="!(loc.DesktopFeatureDescription)"
+            Level="2"
+            AllowAdvertise="no"
+            Display="hidden">
+            <ComponentRef Id="DesktopShortcut" />
         </Feature>
 
-        <SetProperty Id='ARPINSTALLLOCATION' Value='[APPLICATIONFOLDER]' After='CostFinalize'/>
+        <SetProperty
+            Id="APPLICATIONFOLDER"
+            Value="[LASTINSTALLDIR]"
+            After="AppSearch"
+            Sequence="both">LASTINSTALLDIR</SetProperty>
+        <SetProperty
+            Id="INSTALLDESKTOPSHORTCUT"
+            Value="1"
+            After="CostFinalize"
+            Sequence="ui">&amp;DesktopShortcutFeature=3</SetProperty>
+        <SetProperty
+            Id="ARPINSTALLLOCATION"
+            Value="[APPLICATIONFOLDER]"
+            After="CostFinalize" />
+
+        <UI Id="LumiaWixUI_InstallDir">
+            <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+            <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+            <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+
+            <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+            <Property Id="WixUI_Mode" Value="InstallDir" />
+
+            <DialogRef Id="BrowseDlg" />
+            <DialogRef Id="DiskCostDlg" />
+            <DialogRef Id="ErrorDlg" />
+            <DialogRef Id="FatalError" />
+            <DialogRef Id="FilesInUse" />
+            <DialogRef Id="MsiRMFilesInUse" />
+            <DialogRef Id="PrepareDlg" />
+            <DialogRef Id="ProgressDlg" />
+            <DialogRef Id="ResumeDlg" />
+            <DialogRef Id="UserExit" />
+
+            <Dialog Id="InstallOptionsDlg" Width="370" Height="270" Title="[ProductName] Setup">
+                <Control
+                    Id="Title"
+                    Type="Text"
+                    X="25"
+                    Y="25"
+                    Width="320"
+                    Height="20"
+                    Transparent="yes"
+                    NoPrefix="yes"
+                    Text="!(loc.OptionsTitle)" />
+                <Control
+                    Id="Description"
+                    Type="Text"
+                    X="25"
+                    Y="55"
+                    Width="320"
+                    Height="30"
+                    Transparent="yes"
+                    NoPrefix="yes"
+                    Text="!(loc.OptionsDescription)" />
+                <Control
+                    Id="DesktopShortcutCheckBox"
+                    Type="CheckBox"
+                    X="35"
+                    Y="105"
+                    Width="300"
+                    Height="18"
+                    Property="INSTALLDESKTOPSHORTCUT"
+                    CheckBoxValue="1"
+                    Text="!(loc.DesktopShortcutOption)" />
+                <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+                <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)" />
+                <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)" />
+                <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
+                    <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+                </Control>
+            </Dialog>
+
+            <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidatePath" Order="3">1</Publish>
+            <Publish Dialog="BrowseDlg" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg" Order="4"><![CDATA[NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID<>"1"]]></Publish>
+
+            <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
+
+            <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg">NOT Installed</Publish>
+            <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">Installed AND PATCH</Publish>
+
+            <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg">1</Publish>
+            <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg">LicenseAccepted = "1"</Publish>
+
+            <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg">1</Publish>
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath" Order="2">NOT WIXUI_DONTVALIDATEPATH</Publish>
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="SpawnDialog" Value="InvalidDirDlg" Order="3"><![CDATA[NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID<>"1"]]></Publish>
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="InstallOptionsDlg" Order="4">WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID="1"</Publish>
+            <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+            <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2">1</Publish>
+
+            <Publish Dialog="InstallOptionsDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg">1</Publish>
+            <Publish Dialog="InstallOptionsDlg" Control="Next" Event="AddLocal" Value="DesktopShortcutFeature" Order="1">INSTALLDESKTOPSHORTCUT="1"</Publish>
+            <Publish Dialog="InstallOptionsDlg" Control="Next" Event="Remove" Value="DesktopShortcutFeature" Order="2">INSTALLDESKTOPSHORTCUT&lt;&gt;"1"</Publish>
+            <Publish Dialog="InstallOptionsDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="3">1</Publish>
+
+            <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="InstallOptionsDlg" Order="1">NOT Installed</Publish>
+            <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2">Installed AND NOT PATCH</Publish>
+            <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="3">Installed AND PATCH</Publish>
+
+            <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg">1</Publish>
+            <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+            <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+            <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
+
+            <Property Id="ARPNOMODIFY" Value="1" />
+        </UI>
+
+        <UIRef Id="WixUI_Common" />
+        <WixVariable Id="WixUILicenseRtf" Value="crates\lumia-app\wix\License.rtf" />
     </Product>
 </Wix>

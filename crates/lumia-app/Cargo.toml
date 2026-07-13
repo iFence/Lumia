@@ -26,16 +26,7 @@ serde_json.workspace = true
 [package.metadata.wix]
 upgrade-guid = "07618386-59ac-4b5c-b4e1-ebe4f8aa182e"
 icon = "resources/icon.ico"
-language = 1033
 platform = "x64"
-
-[package.metadata.wix.start-menu]
-name = "Lumia"
-working-directory = "INSTALLDIR"
-
-[[package.metadata.wix.shortcut]]
-location = "Desktop"
-name = "Lumia"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.54"

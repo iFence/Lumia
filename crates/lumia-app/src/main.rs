@@ -92,6 +92,8 @@ fn main() -> anyhow::Result<()> {
             println!("Lumia removed from system context menu.");
             Ok(())
         }
+        #[cfg(target_os = "windows")]
+        cli::CliCommand::RepairFileAssociations => shell::repair_legacy_file_associations(),
         cli::CliCommand::OpenFile(path) => bootstrap::run_gui(Some(path)),
         cli::CliCommand::Normal => bootstrap::run_gui(None),
     }

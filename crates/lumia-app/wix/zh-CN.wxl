@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<WixLocalization xmlns="http://schemas.microsoft.com/wix/2006/localization" Culture="zh-cn" Codepage="936">
+    <String Id="ProductLanguage">2052</String>
+    <String Id="ProductCodepage">936</String>
+    <String Id="InstallLanguage">zh-CN</String>
+    <String Id="DowngradeErrorMessage">已安装更高版本的 Lumia。</String>
+    <String Id="FeatureDescription">安装 Lumia 及官方 Photoshop 预览插件。</String>
+    <String Id="DesktopFeatureTitle">桌面快捷方式</String>
+    <String Id="DesktopFeatureDescription">在当前用户的桌面创建快捷方式。</String>
+    <String Id="ShortcutDescription">Lumia 图片查看器</String>
+    <String Id="OptionsTitle">安装选项</String>
+    <String Id="OptionsDescription">选择安装程序要创建的快捷方式。开始菜单快捷方式将始终安装。</String>
+    <String Id="DesktopShortcutOption">创建桌面快捷方式</String>
+</WixLocalization>

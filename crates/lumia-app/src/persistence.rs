@@ -1,13 +1,13 @@
-use lumia_core::AppSettings;
+use lumia_core::{AppSettings, Language};
 use std::{env, fs, io, path::PathBuf};
 
 use crate::APP_TITLE;
 
 pub(crate) fn load_settings() -> AppSettings {
-    settings_path()
+    let saved = settings_path()
         .and_then(|path| fs::read_to_string(path).ok())
-        .and_then(|json| serde_json::from_str(&json).ok())
-        .unwrap_or_default()
+        .and_then(|json| serde_json::from_str(&json).ok());
+    saved.unwrap_or_else(installed_default_settings)
 }
 
 pub(crate) fn save_settings(settings: &AppSettings) -> io::Result<()> {
@@ -48,5 +48,45 @@ fn platform_config_dir() -> Option<PathBuf> {
             .map(PathBuf::from)
             .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
             .map(|path| path.join("lumia"))
+    }
+}
+
+fn installed_default_settings() -> AppSettings {
+    let mut settings = AppSettings::default();
+    #[cfg(target_os = "windows")]
+    if let Some(language) = installed_language() {
+        settings.language = language;
+    }
+    settings
+}
+
+#[cfg(target_os = "windows")]
+fn installed_language() -> Option<Language> {
+    use winreg::{enums::HKEY_CURRENT_USER, RegKey};
+
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let installer = hkcu.open_subkey(r"Software\Lumia\Installer").ok()?;
+    match installer
+        .get_value::<String, _>("InstallLanguage")
+        .ok()?
+        .as_str()
+    {
+        "zh-CN" => Some(Language::Chinese),
+        "en-US" => Some(Language::English),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn installed_defaults_change_only_language() {
+        let defaults = installed_default_settings();
+        let baseline = AppSettings::default();
+        assert_eq!(defaults.theme, baseline.theme);
+        assert_eq!(defaults.theme_accent, baseline.theme_accent);
+        assert_eq!(defaults.shortcuts, baseline.shortcuts);
     }
 }

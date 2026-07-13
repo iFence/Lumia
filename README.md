@@ -27,9 +27,10 @@ The cache is stored under the operating system temporary directory, is capped at
 
 ### Windows
 
-Download the latest installer (`lumia-app-*-x64.msi`) or portable archive (`lumia-portable-windows-x64.zip`) from the [Releases](https://github.com/iFence/Lumia/releases) page.
+Download the recommended Setup program (`Lumia-Setup-*-x64.exe`) or portable archive (`lumia-portable-windows-x64.zip`) from the [Releases](https://github.com/iFence/Lumia/releases) page.
 
-- **MSI installer**: Run the `.msi` file. Lumia and its official Photoshop preview plugin will be installed to `Program Files`, with Start Menu and Desktop shortcuts. In Lumia, open **Settings -> File Associations**, choose the formats you want, and apply them.
+- **Setup (recommended)**: Choose 简体中文 or English, then follow the installer. Lumia and its official Photoshop preview plugin are installed for the current user under `%LOCALAPPDATA%\Programs\Lumia`, so administrator permission is not normally required. A Start Menu shortcut is always created; the optional Desktop shortcut is off by default. Setup also removes a detected legacy `Program Files` installation before continuing.
+- **MSI packages**: Separate `en-US` and `zh-CN` MSI files are available for silent deployment and troubleshooting. They use the same per-user defaults, but migration from the legacy per-machine MSI must be performed with Setup or by uninstalling the old version first.
 - **Portable**: Extract the complete `.zip` archive and run `lumia-app.exe`. Keep the included `plugins` directory beside the application. To add right-click support, run `lumia-app --register-context-menu` once.
 
 ### macOS
@@ -156,19 +157,30 @@ New-Item -ItemType Directory -Force -Path $dest | Out-Null
 Expand-Archive -Path "$env:TEMP\wix314-binaries.zip" -DestinationPath $dest -Force
 ```
 
-Build the MSI:
+Build both localized MSI packages and the Setup bootstrapper:
 
 ```powershell
 $env:WIX = "$env:LOCALAPPDATA\wixtoolset"
-cargo wix -p lumia-app --output target/wix/
-# Output: target/wix/lumia-app-0.1.0-x86_64.msi
+./scripts/build-windows-installers.ps1
+# Outputs:
+# target/wix/Lumia-Setup-<version>-x64.exe
+# target/wix/Lumia-<version>-x64-en-US.msi
+# target/wix/Lumia-<version>-x64-zh-CN.msi
 ```
 
-The MSI is intended to include:
-- Application installed to `Program Files`
-- Start Menu and Desktop shortcuts
+The installers include:
+- Per-user installation under `%LOCALAPPDATA%\Programs\Lumia`
+- A required Start Menu shortcut and optional Desktop shortcut
+- English and Simplified Chinese installer UI
 - Per-user file associations managed from Lumia settings
 - Clean uninstall via Windows "Apps & features"
+
+Validate the ICO structure and generated packages with:
+
+```powershell
+./scripts/verify-windows-icon.ps1
+./scripts/verify-windows-packages.ps1 -PackageDirectory target/wix
+```
 
 ### Releasing
 
@@ -179,7 +191,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-GitHub Actions will build the MSI, portable zip, and platform binaries, then attach them to a new [Release](https://github.com/iFence/Lumia/releases).
+GitHub Actions will build the Setup EXE, both localized MSI packages, portable zip, and platform binaries, then attach them to a new [Release](https://github.com/iFence/Lumia/releases).
 
 ## Image Format Strategy
 

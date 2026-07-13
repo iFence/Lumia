@@ -110,7 +110,8 @@ pub(super) fn build_unregister_plan() -> RegistryPlan {
         "Software\\Classes\\Lumia.Image".to_string(),
         "Software\\Classes\\Applications\\lumia-app.exe".to_string(),
         "Software\\Classes\\SystemFileAssociations\\image\\shell\\Lumia".to_string(),
-        "Software\\Lumia".to_string(),
+        "Software\\Lumia\\Capabilities".to_string(),
+        "Software\\Lumia\\Associations".to_string(),
     ]);
     for extension in lumia_core::supported_image_extensions() {
         plan.delete_value(
@@ -256,5 +257,10 @@ mod tests {
             .delete_trees
             .iter()
             .all(|path| path.contains("Lumia") || path.contains("lumia-app.exe")));
+        assert!(!plan.delete_trees.contains(&r"Software\Lumia".to_string()));
+        assert!(!plan
+            .delete_trees
+            .iter()
+            .any(|path| path.contains(r"Software\Lumia\Installer")));
     }
 }

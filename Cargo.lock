@@ -3587,6 +3587,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumia-setup"
+version = "0.1.1"
+dependencies = [
+ "anyhow",
+ "windows-sys 0.61.2",
+ "winreg 0.54.0",
+ "winres",
+]
+
+[[package]]
 name = "lyon"
 version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"

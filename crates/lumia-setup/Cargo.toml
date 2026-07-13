@@ -1,0 +1,19 @@
+[package]
+name = "lumia-setup"
+version = "0.1.1"
+authors = ["iFence"]
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+build = "build.rs"
+
+[dependencies]
+anyhow.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys.workspace = true
+winreg = "0.54"
+
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1"

@@ -11,6 +11,7 @@ const MAX_THUMBNAIL_WIDTH: f32 = 220.0;
 const MAX_THUMBNAIL_HEIGHT: f32 = 150.0;
 const PANEL_PADDING: f32 = 8.0;
 const PANEL_MARGIN: f32 = 12.0;
+const OVERFLOW_TOLERANCE: f32 = 0.5;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct OverviewGeometry {
@@ -52,7 +53,8 @@ impl OverviewGeometry {
             || display_height <= 0.0
             || window_width <= 0.0
             || window_height <= 0.0
-            || (display_width <= window_width && display_height <= window_height)
+            || (display_width <= window_width + OVERFLOW_TOLERANCE
+                && display_height <= window_height + OVERFLOW_TOLERANCE)
         {
             return None;
         }
@@ -242,6 +244,9 @@ mod tests {
     #[test]
     fn overview_only_appears_when_scaled_image_overflows() {
         assert!(OverviewGeometry::calculate(800.0, 600.0, 1000.0, 800.0, 0.0, 0.0, 12.0).is_none());
+        assert!(
+            OverviewGeometry::calculate(1000.25, 800.0, 1000.0, 800.0, 0.0, 0.0, 12.0,).is_none()
+        );
         assert!(
             OverviewGeometry::calculate(1200.0, 600.0, 1000.0, 800.0, 0.0, 0.0, 12.0).is_some()
         );

@@ -70,6 +70,68 @@ pub(super) fn unregister() -> anyhow::Result<()> {
     result
 }
 
+pub(super) fn repair_legacy_associations(exe_path: &Path) -> anyhow::Result<()> {
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let Ok(associations) = hkcu.open_subkey(ASSOCIATIONS_KEY) else {
+        return Ok(());
+    };
+    if associations.get_value::<u32, _>("Configured").ok() != Some(1) {
+        return Ok(());
+    }
+    let selected_extensions = associations
+        .get_value::<Vec<String>, _>("SelectedExtensions")
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|extension| lumia_core::is_supported_image_extension(extension))
+        .collect::<BTreeSet<_>>();
+    let command = open_command(exe_path);
+    let icon = format!("\"{}\",0", exe_path.to_string_lossy());
+    let mut repaired = false;
+
+    for (path, name, replacement) in [
+        (
+            r"Software\Classes\Lumia.Image\DefaultIcon",
+            "",
+            icon.as_str(),
+        ),
+        (
+            r"Software\Classes\Lumia.Image\shell\open\command",
+            "",
+            command.as_str(),
+        ),
+        (
+            r"Software\Classes\Applications\lumia-app.exe\DefaultIcon",
+            "",
+            icon.as_str(),
+        ),
+        (
+            r"Software\Classes\Applications\lumia-app.exe\shell\open\command",
+            "",
+            command.as_str(),
+        ),
+        (
+            r"Software\Lumia\Capabilities",
+            "ApplicationIcon",
+            icon.as_str(),
+        ),
+    ] {
+        repaired |= repair_registry_string(&hkcu, path, name, replacement)?;
+    }
+
+    for extension in selected_extensions {
+        let context_menu =
+            format!(r"Software\Classes\SystemFileAssociations\.{extension}\shell\Lumia");
+        repaired |= repair_registry_string(&hkcu, &context_menu, "Icon", &icon)?;
+        repaired |=
+            repair_registry_string(&hkcu, &format!(r"{context_menu}\command"), "", &command)?;
+    }
+
+    if repaired {
+        notify_associations_changed();
+    }
+    Ok(())
+}
+
 pub(super) fn open_default_apps_settings() -> anyhow::Result<()> {
     let operation = wide_null("open");
     let uri = wide_null("ms-settings:defaultapps?registeredAppUser=Lumia");
@@ -147,6 +209,33 @@ fn registry_string(root: &RegKey, path: &str, name: &str) -> Option<String> {
     root.open_subkey(path).ok()?.get_value(name).ok()
 }
 
+fn repair_registry_string(
+    root: &RegKey,
+    path: &str,
+    name: &str,
+    replacement: &str,
+) -> anyhow::Result<bool> {
+    let Some(existing) = registry_string(root, path, name) else {
+        return Ok(false);
+    };
+    if !is_legacy_program_files_reference(&existing) {
+        return Ok(false);
+    }
+    let key = root
+        .open_subkey_with_flags(path, KEY_SET_VALUE)
+        .with_context(|| format!("open legacy registry key {path}"))?;
+    key.set_value(name, &replacement)
+        .with_context(|| format!("repair registry value {path}\\{name}"))?;
+    Ok(true)
+}
+
+fn is_legacy_program_files_reference(value: &str) -> bool {
+    let normalized = value.replace('/', r"\").to_lowercase();
+    let is_program_files =
+        normalized.contains(r"\program files\") || normalized.contains(r"\program files (x86)\");
+    is_program_files && normalized.contains(r"\lumia\lumia-app.exe")
+}
+
 fn notify_associations_changed() {
     unsafe {
         SHChangeNotify(
@@ -163,4 +252,25 @@ fn wide_null(value: &str) -> Vec<u16> {
         .encode_wide()
         .chain(std::iter::once(0))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_legacy_program_files_reference;
+
+    #[test]
+    fn recognizes_only_legacy_program_files_lumia_paths() {
+        assert!(is_legacy_program_files_reference(
+            r#""C:\Program Files\Lumia\lumia-app.exe" "%1""#
+        ));
+        assert!(is_legacy_program_files_reference(
+            r#""C:\Program Files (x86)\Lumia\lumia-app.exe",0"#
+        ));
+        assert!(!is_legacy_program_files_reference(
+            r#""C:\Users\Ada\AppData\Local\Programs\Lumia\lumia-app.exe" "%1""#
+        ));
+        assert!(!is_legacy_program_files_reference(
+            r#""C:\Program Files\Other\lumia-app.exe" "%1""#
+        ));
+    }
 }
