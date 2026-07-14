@@ -19,6 +19,7 @@ mod plugin_catalog;
 mod preferences;
 mod professional_decode;
 mod render;
+mod settings_about;
 #[cfg(target_os = "windows")]
 mod settings_associations;
 mod settings_general;

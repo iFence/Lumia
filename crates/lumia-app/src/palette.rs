@@ -81,9 +81,9 @@ impl Palette {
 
 fn accent_color(accent: ThemeAccent) -> u32 {
     match accent {
-        ThemeAccent::Blue => 0x4f8cff,
-        ThemeAccent::Green => 0x35b46d,
-        ThemeAccent::Orange => 0xff9a3c,
+        ThemeAccent::Blue => 0x2389da,
+        ThemeAccent::Green => 0x2a9d8f,
+        ThemeAccent::Orange => 0xf2a900,
         ThemeAccent::Rose => 0xe56b8c,
     }
 }
@@ -122,5 +122,18 @@ impl LumiaApp {
             self.settings.theme_accent,
             window.appearance(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accent_colors_use_named_palette_values() {
+        assert_eq!(accent_color(ThemeAccent::Blue), 0x2389da);
+        assert_eq!(accent_color(ThemeAccent::Green), 0x2a9d8f);
+        assert_eq!(accent_color(ThemeAccent::Orange), 0xf2a900);
+        assert_eq!(accent_color(ThemeAccent::Rose), 0xe56b8c);
     }
 }

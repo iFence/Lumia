@@ -206,16 +206,27 @@ impl LumiaApp {
                 this.select_settings_group(SettingsGroup::FileAssociations, cx);
             },
         ));
-        sidebar.child(settings_group_button(
-            "settings-group-shortcuts",
-            tr(language, TextKey::Shortcuts),
-            self.ui.active_settings_group == SettingsGroup::Shortcuts,
-            palette,
-            cx,
-            |this, _, _, cx| {
-                this.select_settings_group(SettingsGroup::Shortcuts, cx);
-            },
-        ))
+        sidebar
+            .child(settings_group_button(
+                "settings-group-shortcuts",
+                tr(language, TextKey::Shortcuts),
+                self.ui.active_settings_group == SettingsGroup::Shortcuts,
+                palette,
+                cx,
+                |this, _, _, cx| {
+                    this.select_settings_group(SettingsGroup::Shortcuts, cx);
+                },
+            ))
+            .child(settings_group_button(
+                "settings-group-about",
+                tr(language, TextKey::About),
+                self.ui.active_settings_group == SettingsGroup::About,
+                palette,
+                cx,
+                |this, _, _, cx| {
+                    this.select_settings_group(SettingsGroup::About, cx);
+                },
+            ))
     }
 
     pub(crate) fn render_settings_content(
@@ -242,6 +253,7 @@ impl LumiaApp {
             SettingsGroup::Shortcuts => self
                 .render_shortcuts_settings(palette, cx)
                 .into_any_element(),
+            SettingsGroup::About => self.render_about_settings(palette).into_any_element(),
         }
     }
 }

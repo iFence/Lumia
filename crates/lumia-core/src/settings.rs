@@ -103,6 +103,7 @@ pub enum SettingsGroup {
     General,
     FileAssociations,
     Shortcuts,
+    About,
 }
 
 #[cfg(test)]
