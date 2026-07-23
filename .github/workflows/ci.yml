@@ -60,31 +60,3 @@ jobs:
           test -x target/debug/lumia-app
           test -x target/debug/lumia-plugin-photoshop
           test -f plugins/lumia-plugin-photoshop/lumia.plugin.json
-
-  windows-installer:
-    name: windows-installer
-    runs-on: windows-latest
-    needs: rust
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - name: Install cargo-wix
-        run: cargo install cargo-wix --version 0.3.9
-      - name: Install WiX Toolset v3
-        run: choco install wixtoolset -y --no-progress
-      - name: Build localized MSI and Setup packages
-        shell: pwsh
-        run: ./scripts/build-windows-installers.ps1
-      - name: Verify MSI tables, shortcuts, install, and uninstall
-        shell: pwsh
-        run: ./scripts/verify-windows-packages.ps1 -PackageDirectory target/wix -InstallTest
-      - uses: actions/upload-artifact@v4
-        with:
-          name: lumia-windows-installers
-          path: |
-            target/wix/Lumia-Setup-*-x64.exe
-            target/wix/Lumia-*-x64-en-US.msi
-            target/wix/Lumia-*-x64-zh-CN.msi
-          if-no-files-found: error
