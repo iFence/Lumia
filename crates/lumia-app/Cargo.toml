@@ -34,3 +34,10 @@ windows-sys.workspace = true
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
+
+# macOS-only: set the Dock icon at runtime so the app shows a proper icon
+# even when launched as a bare binary (Windows embeds one via winres).
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = "0.3"
+objc2-foundation = "0.3"

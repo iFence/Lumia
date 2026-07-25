@@ -24,6 +24,7 @@ pub(crate) fn run_gui(initial_path: Option<PathBuf>) -> anyhow::Result<()> {
         .with_assets(CustomAssets)
         .run(move |cx: &mut App| {
             gpui_component::init(cx);
+            set_macos_dock_icon();
             cx.on_action(|_: &Quit, cx| cx.quit());
 
             let bounds = Bounds::centered(None, size(px(1200.0), px(800.0)), cx);
@@ -50,4 +51,28 @@ pub(crate) fn run_gui(initial_path: Option<PathBuf>) -> anyhow::Result<()> {
         });
 
     Ok(())
+}
+
+/// On macOS a bare binary launched outside a `.app` bundle shows the generic
+/// "exec" Dock icon. Windows embeds its icon at build time via `winres`; the
+/// equivalent for macOS is to set the application icon image at runtime through
+/// AppKit. This keeps the proper Lumia icon in the Dock regardless of how the
+/// binary is launched.
+#[cfg(target_os = "macos")]
+fn set_macos_dock_icon() {
+    use objc2::{AnyThread, MainThreadMarker};
+    use objc2_app_kit::{NSApplication, NSImage};
+    use objc2_foundation::NSData;
+
+    let Some(mtm) = MainThreadMarker::new() else {
+        return;
+    };
+    let bytes = include_bytes!("../resources/logo.png");
+    let data = NSData::with_bytes(bytes);
+    if let Some(image) = NSImage::initWithData(NSImage::alloc(), &data) {
+        let app = NSApplication::sharedApplication(mtm);
+        unsafe {
+            app.setApplicationIconImage(Some(&image));
+        }
+    }
 }
