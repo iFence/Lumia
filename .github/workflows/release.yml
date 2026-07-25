@@ -59,33 +59,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Build release binaries
-        run: cargo build --release -p lumia-app -p lumia-plugin-photoshop
-      - name: Create .app bundle
+      - name: Build .app bundle and .dmg
+        run: ./scripts/build-macos-installer.sh
+      - name: Verify bundle and plugin
         run: |
-          APP_DIR="target/Lumia.app/Contents"
-          mkdir -p "$APP_DIR/MacOS"
-          mkdir -p "$APP_DIR/Resources"
-          cp target/release/lumia-app "$APP_DIR/MacOS/"
-          PLUGIN_DIR="$APP_DIR/MacOS/plugins/lumia-plugin-photoshop"
-          mkdir -p "$PLUGIN_DIR"
-          cp target/release/lumia-plugin-photoshop "$PLUGIN_DIR/"
-          cp plugins/lumia-plugin-photoshop/lumia.plugin.json "$PLUGIN_DIR/"
-          chmod +x "$PLUGIN_DIR/lumia-plugin-photoshop"
+          test -f target/Lumia.app/Contents/MacOS/lumia-app
+          PLUGIN_DIR="target/Lumia.app/Contents/MacOS/plugins/lumia-plugin-photoshop"
           test -x "$PLUGIN_DIR/lumia-plugin-photoshop"
           test -f "$PLUGIN_DIR/lumia.plugin.json"
-          cp crates/lumia-app/resources/Info.plist "$APP_DIR/"
-          cp crates/lumia-app/resources/icon.png "$APP_DIR/Resources/"
-      - name: Create .dmg
-        run: |
-          hdiutil create -volname Lumia \
-            -srcfolder target/Lumia.app \
-            -ov -format UDZO \
-            target/Lumia-macos-arm64.dmg
+          test -f target/Lumia.app/Contents/Resources/App.icns
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: target/Lumia-macos-arm64.dmg
+          files: target/Lumia-macos-*.dmg
           fail_on_unmatched: true
 
   linux-release:

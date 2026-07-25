@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Build Lumia for macOS and assemble a distributable .app bundle and
+# a drag-to-install .dmg. Mirrors scripts/build-windows-installers.ps1.
+#
+# Usage:
+#   ./scripts/build-macos-installer.sh            Build Lumia.app + Lumia-macos-*.dmg
+#   ./scripts/build-macos-installer.sh --no-dmg  Skip the .dmg step
+
+NO_DMG=0
+if [ "${1:-}" = "--no-dmg" ]; then
+    NO_DMG=1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$ROOT_DIR"
+
+APP_NAME="Lumia"
+BUNDLE_ID="com.ifence.lumia"
+TARGET_DIR="target"
+APP_DIR="$TARGET_DIR/$APP_NAME.app"
+CONTENTS_DIR="$APP_DIR/Contents"
+MACOS_DIR="$CONTENTS_DIR/MacOS"
+RESOURCES_DIR="$CONTENTS_DIR/Resources"
+PLUGIN_DIR="$MACOS_DIR/plugins/lumia-plugin-photoshop"
+
+echo "Building release binaries..."
+cargo build --release -p lumia-app -p lumia-plugin-photoshop
+
+echo "Assembling $APP_NAME.app..."
+rm -rf "$APP_DIR"
+mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$PLUGIN_DIR"
+
+cp "target/release/lumia-app" "$MACOS_DIR/"
+cp "target/release/lumia-plugin-photoshop" "$PLUGIN_DIR/"
+cp "plugins/lumia-plugin-photoshop/lumia.plugin.json" "$PLUGIN_DIR/"
+chmod +x "$MACOS_DIR/lumia-app" "$PLUGIN_DIR/lumia-plugin-photoshop"
+
+# Icon: App.icns is committed in resources and referenced by Info.plist
+# via CFBundleIconFile, so the bundle shows the proper Dock/Finder icon.
+if [ -f "crates/lumia-app/resources/App.icns" ]; then
+    cp "crates/lumia-app/resources/App.icns" "$RESOURCES_DIR/App.icns"
+    echo "  ✓ Icon installed to $RESOURCES_DIR/App.icns"
+else
+    echo "  ! App.icns not found — bundle will use the default icon" >&2
+fi
+
+cp "crates/lumia-app/resources/Info.plist" "$CONTENTS_DIR/"
+
+if [ "$NO_DMG" -eq 1 ]; then
+    echo "Done. $APP_DIR is ready."
+    exit 0
+fi
+
+echo "Creating .dmg..."
+DMG_NAME="$APP_NAME-macos-$(uname -m).dmg"
+STAGING="$(mktemp -d)"
+ln -s /Applications "$STAGING/Applications"
+cp -R "$APP_DIR" "$STAGING/"
+hdiutil create -volname "$APP_NAME" -srcfolder "$STAGING" -ov -format UDZO "$TARGET_DIR/$DMG_NAME"
+rm -rf "$STAGING"
+
+echo "Done. $APP_DIR and $TARGET_DIR/$DMG_NAME are ready."
