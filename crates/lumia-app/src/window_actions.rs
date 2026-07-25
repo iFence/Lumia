@@ -89,7 +89,9 @@ impl LumiaApp {
         let viewport_height = f32::from(viewport_size.height);
         let x = f32::from(event.position.x);
         let y = f32::from(event.position.y);
-        let in_status_bar_zone = viewport_height - y <= STATUS_BAR_HEIGHT + 24.0;
+        // The status bar is pinned visible by default, so it is never
+        // auto-hidden. Only the zoom menu is dismissed when the pointer
+        // leaves its hover zone.
         let in_zoom_menu_zone = self.ui.show_zoom_menu && {
             let menu_left = viewport_width - ZOOM_MENU_RIGHT - ZOOM_MENU_WIDTH;
             let menu_right = viewport_width - ZOOM_MENU_RIGHT;
@@ -101,12 +103,8 @@ impl LumiaApp {
                 && y >= menu_top - ZOOM_MENU_HOVER_MARGIN
                 && y <= menu_bottom + ZOOM_MENU_HOVER_MARGIN
         };
-        let should_show = in_status_bar_zone || in_zoom_menu_zone;
-        if self.ui.show_status_bar != should_show {
-            self.ui.show_status_bar = should_show;
-            if !should_show {
-                self.ui.show_zoom_menu = false;
-            }
+        if self.ui.show_zoom_menu && !in_zoom_menu_zone {
+            self.ui.show_zoom_menu = false;
             cx.notify();
         }
     }

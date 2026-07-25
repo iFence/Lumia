@@ -38,7 +38,7 @@ impl Default for UiState {
             file_associations: FileAssociationUiState::default(),
             recording_shortcut: None,
             show_zoom_menu: false,
-            show_status_bar: false,
+            show_status_bar: true,
         }
     }
 }
