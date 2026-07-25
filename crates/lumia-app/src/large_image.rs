@@ -56,6 +56,17 @@ impl<T> Default for LargeImageSession<T> {
 
 impl<T> LargeImageSession<T> {
     pub(crate) fn new(tile_cache_bytes: usize) -> Self {
+        Self::with_worker_cap(
+            tile_cache_bytes,
+            large_image_worker_count(
+                std::thread::available_parallelism()
+                    .map(usize::from)
+                    .unwrap_or(1),
+            ),
+        )
+    }
+
+    fn with_worker_cap(tile_cache_bytes: usize, max_workers: usize) -> Self {
         Self {
             path: None,
             generation: 0,
@@ -68,11 +79,7 @@ impl<T> LargeImageSession<T> {
             tiles: TileCache::new(tile_cache_bytes),
             detail_error: None,
             active_tiles: 0,
-            max_workers: large_image_worker_count(
-                std::thread::available_parallelism()
-                    .map(usize::from)
-                    .unwrap_or(1),
-            ),
+            max_workers,
             pixel_budget: PixelBudget::new(256 * 1024 * 1024),
         }
     }
@@ -368,7 +375,7 @@ mod tests {
 
     #[test]
     fn visible_tiles_are_queued_before_prefetch_without_duplicates() {
-        let mut session = LargeImageSession::<u8>::new(16);
+        let mut session: LargeImageSession<u8> = LargeImageSession::with_worker_cap(16, usize::MAX);
         session.begin(PathBuf::from("image.png"), 7, DecodeCancellation::default());
         let a = TileCoordinate::new(0, 0, 0);
         let b = TileCoordinate::new(0, 1, 0);
