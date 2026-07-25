@@ -273,8 +273,8 @@ impl LumiaApp {
             return;
         };
         let adjacent = self.navigation.adjacent_paths(&current_path);
-        self.loads
-            .retain_cache(std::iter::once(current_path).chain(adjacent.iter().cloned()));
+        let retained = std::iter::once(current_path).chain(adjacent.iter().cloned());
+        self.loads.set_retained_window(retained);
         self.loads.prepare_preloads(
             adjacent
                 .into_iter()
