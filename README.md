@@ -1,5 +1,9 @@
 # Lumia
 
+<p align="center">
+  <img src="crates/lumia-app/resources/logo.png" alt="Lumia Logo" width="256">
+</p>
+
 Lumia is a small, polished, high-performance, cross-platform image viewer built with Rust, GPUI, and `gpui-component`.
 
 The product goal is a viewer that opens quickly, stays low-memory, and remains stable while serving both everyday image browsing and professional preview workflows for photographers, UI designers, and engineers. The core app owns the desktop shell, viewer state, fast navigation, and plugin host. Heavier capabilities are isolated behind process plugins so they can evolve without slowing down or destabilizing the core viewer.

@@ -48,8 +48,6 @@ impl LumiaApp {
             cx.notify();
         }));
         app.rebuild_keybindings(cx);
-        window.toggle_fullscreen();
-        app.ui.is_fullscreen = true;
 
         if let Some(path) = initial_path {
             app.load_image(path, Some(window), cx);

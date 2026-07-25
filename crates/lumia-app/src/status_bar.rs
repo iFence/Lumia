@@ -109,9 +109,9 @@ impl LumiaApp {
                     .child(self.render_status_icon_button(
                         "status-fit-toggle",
                         if self.viewer.viewport().fit_mode == FitMode::FitToWindow {
-                            IconName::Minimize
+                            Icon::default().path("custom/fit-to-window.svg")
                         } else {
-                            IconName::Maximize
+                            Icon::default().path("custom/actual-size.svg")
                         },
                         has_image,
                         palette,
@@ -190,7 +190,7 @@ impl LumiaApp {
             .border_color(rgb(palette.border))
             .text_sm()
             .text_color(rgb(text_color))
-            .hover(move |style| style.bg(rgb(palette.button_hover)))
+            .hover(move |style| style.bg(rgb(palette.status_hover)))
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(move |this, event, window, cx| {
@@ -217,7 +217,7 @@ impl LumiaApp {
     fn render_status_icon_button(
         &self,
         id: &'static str,
-        icon: IconName,
+        icon: impl Into<Icon>,
         enabled: bool,
         palette: Palette,
         cx: &mut Context<Self>,
@@ -237,7 +237,7 @@ impl LumiaApp {
             .items_center()
             .justify_center()
             .rounded_sm()
-            .hover(move |style| style.bg(rgb(palette.button_hover)))
+            .hover(move |style| style.bg(rgb(palette.status_hover)))
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(move |this, event, window, cx| {

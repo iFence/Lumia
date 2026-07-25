@@ -3,8 +3,8 @@ use std::{path::PathBuf, thread};
 use gpui::{px, size, App, AppContext, Bounds, WindowBounds, WindowOptions};
 
 use crate::{
-    app::LumiaApp, large_image::large_image_cache_dir, single_instance,
-    util::cleanup_large_image_cache, Quit, APP_TITLE,
+    app::LumiaApp, custom_icons::CustomAssets, large_image::large_image_cache_dir,
+    single_instance, util::cleanup_large_image_cache, Quit, APP_TITLE,
 };
 
 const LARGE_IMAGE_DISK_CACHE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
@@ -21,7 +21,7 @@ pub(crate) fn run_gui(initial_path: Option<PathBuf>) -> anyhow::Result<()> {
         });
 
     gpui_platform::application()
-        .with_assets(gpui_component_assets::Assets)
+        .with_assets(CustomAssets)
         .run(move |cx: &mut App| {
             gpui_component::init(cx);
             cx.on_action(|_: &Quit, cx| cx.quit());

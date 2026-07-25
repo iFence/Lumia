@@ -3,6 +3,7 @@
 mod app;
 mod bootstrap;
 mod cli;
+mod custom_icons;
 #[cfg(target_os = "windows")]
 mod file_association_actions;
 mod file_association_state;
