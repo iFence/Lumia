@@ -3,8 +3,8 @@ use std::{path::PathBuf, thread};
 use gpui::{px, size, App, AppContext, Bounds, WindowBounds, WindowOptions};
 
 use crate::{
-    app::LumiaApp, custom_icons::CustomAssets, large_image::large_image_cache_dir,
-    single_instance, util::cleanup_large_image_cache, Quit, APP_TITLE,
+    app::LumiaApp, custom_icons::CustomAssets, large_image::large_image_cache_dir, single_instance,
+    util::cleanup_large_image_cache, Quit, APP_TITLE,
 };
 
 const LARGE_IMAGE_DISK_CACHE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
