@@ -16,13 +16,38 @@ impl LumiaApp {
     }
 
     pub(crate) fn open_file_dialog(&mut self, cx: &mut Context<Self>, window: Option<&mut Window>) {
-        if let Some(path) = rfd::FileDialog::new()
-            .add_filter("Images", supported_image_extensions())
-            .pick_file()
-        {
-            self.load_image(path, window, cx);
-            cx.notify();
-        }
+        // Capture the window handle so we can still update the title after the
+        // (now asynchronous) dialog resolves. `pick_file()` runs a blocking
+        // `NSOpenPanel::runModal` on the main thread; invoking it directly from
+        // a GPUI event handler nests a modal run loop inside GPUI's own run
+        // loop, which crashes on macOS. Offloading it to the background
+        // executor lets rfd dispatch the panel onto the main run loop safely.
+        let window_handle = window.map(|window| window.window_handle());
+        let handle = self.self_handle.clone();
+        cx.spawn(async move |_this, cx| {
+            let picked = cx
+                .background_executor()
+                .spawn(async move {
+                    rfd::FileDialog::new()
+                        .add_filter("Images", supported_image_extensions())
+                        .pick_file()
+                })
+                .await;
+            let Some(path) = picked else { return };
+            let _ = handle.update(cx, |this, cx| {
+                this.load_image(path, None, cx);
+                cx.notify();
+            });
+            if let Some(window_handle) = window_handle {
+                let title = handle
+                    .update(cx, |this, _| this.window_title.clone())
+                    .unwrap_or_default();
+                let _ = window_handle.update(cx, |_, window, _| {
+                    window.set_window_title(&title);
+                });
+            }
+        })
+        .detach();
     }
 
     pub(crate) fn zoom_in(&mut self, _: &ZoomIn, window: &mut Window, cx: &mut Context<Self>) {
