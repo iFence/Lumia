@@ -1,6 +1,6 @@
 use gpui::{
     div, px, rgb, AnyElement, Context, InteractiveElement, IntoElement, MouseButton,
-    MouseDownEvent, ParentElement, Styled, Window,
+    MouseDownEvent, ParentElement, Rgba, Styled, Window,
 };
 use gpui_component::{Icon, IconName};
 use lumia_core::FitMode;
@@ -49,7 +49,12 @@ impl LumiaApp {
             .px_4()
             .border_t_1()
             .border_color(rgb(palette.border))
-            .bg(rgb(palette.toolbar_bg))
+            .bg(Rgba {
+                r: ((palette.toolbar_bg >> 16) & 0xff) as f32 / 255.0,
+                g: ((palette.toolbar_bg >> 8) & 0xff) as f32 / 255.0,
+                b: (palette.toolbar_bg & 0xff) as f32 / 255.0,
+                a: palette.toolbar_bg_alpha,
+            })
             .child(
                 div()
                     .flex()
@@ -179,7 +184,7 @@ impl LumiaApp {
 
         div()
             .id("status-zoom-menu-button")
-            .h(px(28.0))
+            .h(px(24.0))
             .px_2()
             .flex()
             .items_center()
@@ -231,8 +236,8 @@ impl LumiaApp {
 
         div()
             .id(id)
-            .w(px(32.0))
-            .h(px(28.0))
+            .w(px(28.0))
+            .h(px(24.0))
             .flex()
             .items_center()
             .justify_center()

@@ -41,7 +41,7 @@ use gpui::{actions, Action};
 use lumia_core::{Language, ThemeAccent, ThemeMode};
 use serde::Deserialize;
 
-pub(crate) const STATUS_BAR_HEIGHT: f32 = 44.0;
+pub(crate) const STATUS_BAR_HEIGHT: f32 = 36.0;
 pub(crate) const ZOOM_MENU_WIDTH: f32 = 132.0;
 pub(crate) const ZOOM_MENU_RIGHT: f32 = 48.0;
 pub(crate) const ZOOM_MENU_BOTTOM_GAP: f32 = 8.0;

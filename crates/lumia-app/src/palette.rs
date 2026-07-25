@@ -7,6 +7,7 @@ use crate::app::LumiaApp;
 pub(crate) struct Palette {
     pub(crate) viewer_bg: u32,
     pub(crate) toolbar_bg: u32,
+    pub(crate) toolbar_bg_alpha: f32,
     pub(crate) panel_bg: u32,
     pub(crate) sidebar_bg: u32,
     pub(crate) subtle_bg: u32,
@@ -39,6 +40,7 @@ impl Palette {
         Self {
             viewer_bg: 0x202020,
             toolbar_bg: 0x181818,
+            toolbar_bg_alpha: 0.72,
             panel_bg: 0x252525,
             sidebar_bg: 0x202020,
             subtle_bg: 0x2c2c2c,
@@ -63,6 +65,7 @@ impl Palette {
         Self {
             viewer_bg: 0xf4f4f4,
             toolbar_bg: 0xffffff,
+            toolbar_bg_alpha: 0.72,
             panel_bg: 0xffffff,
             sidebar_bg: 0xf2f2f2,
             subtle_bg: 0xf5f5f5,
