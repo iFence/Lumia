@@ -171,6 +171,7 @@ impl LumiaApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.stop_slideshow(cx);
         if !self.can_edit_current_image() {
             return;
         }

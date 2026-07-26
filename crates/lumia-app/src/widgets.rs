@@ -22,6 +22,17 @@ pub(crate) fn context_menu_item(
     cx: &mut Context<LumiaApp>,
     on_click: impl Fn(&mut LumiaApp, &MouseDownEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
 ) -> gpui::AnyElement {
+    context_menu_item_enabled(id, label, true, palette, cx, on_click)
+}
+
+pub(crate) fn context_menu_item_enabled(
+    id: &'static str,
+    label: &'static str,
+    enabled: bool,
+    palette: Palette,
+    cx: &mut Context<LumiaApp>,
+    on_click: impl Fn(&mut LumiaApp, &MouseDownEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
+) -> gpui::AnyElement {
     div()
         .id(id)
         .w_full()
@@ -29,15 +40,22 @@ pub(crate) fn context_menu_item(
         .px_3()
         .flex()
         .items_center()
-        .cursor_pointer()
-        .hover(move |style| style.bg(rgb(palette.button_hover)))
-        .on_mouse_down(
-            MouseButton::Left,
-            cx.listener(move |this, event, window, cx| {
-                cx.stop_propagation();
-                on_click(this, event, window, cx);
-            }),
-        )
+        .text_color(rgb(if enabled {
+            palette.text
+        } else {
+            palette.muted_text
+        }))
+        .when(enabled, |item| {
+            item.cursor_pointer()
+                .hover(move |style| style.bg(rgb(palette.button_hover)))
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(move |this, event, window, cx| {
+                        cx.stop_propagation();
+                        on_click(this, event, window, cx);
+                    }),
+                )
+        })
         .child(label)
         .into_any_element()
 }

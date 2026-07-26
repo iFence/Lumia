@@ -9,6 +9,8 @@ use lumia_core::Language;
 pub(crate) enum TextKey {
     Settings,
     Open,
+    Slideshow,
+    StopSlideshow,
     About,
     Version,
     Quit,
@@ -99,6 +101,8 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
         Language::English => match key {
             TextKey::Settings => "Settings",
             TextKey::Open => "Open",
+            TextKey::Slideshow => "Slideshow",
+            TextKey::StopSlideshow => "Stop slideshow",
             TextKey::About => "About",
             TextKey::Version => "Version",
             TextKey::Quit => "Quit",
@@ -188,6 +192,8 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
         Language::Chinese => match key {
             TextKey::Settings => "设置",
             TextKey::Open => "打开",
+            TextKey::Slideshow => "幻灯片播放",
+            TextKey::StopSlideshow => "停止幻灯片播放",
             TextKey::About => "关于",
             TextKey::Version => "版本",
             TextKey::Quit => "退出",

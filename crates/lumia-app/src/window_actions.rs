@@ -31,6 +31,9 @@ impl LumiaApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.stop_slideshow(cx) {
+            return;
+        }
         if self.is_viewer_blocked() {
             return;
         }
@@ -55,6 +58,7 @@ impl LumiaApp {
     }
 
     pub(crate) fn open_settings_panel(&mut self, cx: &mut Context<Self>) {
+        self.stop_slideshow(cx);
         self.ui.show_settings_panel = true;
         self.ui.active_settings_group = SettingsGroup::General;
         self.ui.file_associations.initialized = false;

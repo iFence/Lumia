@@ -32,6 +32,7 @@ mod settings_shortcuts;
 mod settings_ui;
 mod shell;
 mod single_instance;
+mod slideshow;
 mod status_bar;
 mod tile_cache;
 mod ui_state;

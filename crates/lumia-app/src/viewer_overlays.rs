@@ -7,14 +7,14 @@ use gpui_component::{Icon, IconName};
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
 use crate::palette::Palette;
-use crate::widgets::{context_menu_item, CONTEXT_MENU_ITEM_HEIGHT};
+use crate::widgets::{context_menu_item, context_menu_item_enabled, CONTEXT_MENU_ITEM_HEIGHT};
 use crate::{
     EDIT_PANEL_WIDTH, STATUS_BAR_HEIGHT, STATUS_MENU_BOTTOM, ZOOM_MENU_ITEM_HEIGHT,
     ZOOM_MENU_RIGHT, ZOOM_MENU_WIDTH,
 };
 
 const CONTEXT_MENU_WIDTH: f32 = 156.0;
-const CONTEXT_MENU_HEIGHT: f32 = 2.0 + 8.0 + 5.0 * CONTEXT_MENU_ITEM_HEIGHT + 2.0 * 9.0;
+const CONTEXT_MENU_HEIGHT: f32 = 2.0 + 8.0 + 6.0 * CONTEXT_MENU_ITEM_HEIGHT + 2.0 * 9.0;
 const CONTEXT_MENU_MARGIN: f32 = 8.0;
 
 impl LumiaApp {
@@ -132,6 +132,13 @@ impl LumiaApp {
         cx: &mut Context<Self>,
     ) -> Option<impl IntoElement> {
         let language = self.settings.language;
+        let slideshow_active = self.slideshow.is_active();
+        let slideshow_enabled = slideshow_active || self.can_start_slideshow();
+        let slideshow_label = if slideshow_active {
+            TextKey::StopSlideshow
+        } else {
+            TextKey::Slideshow
+        };
 
         self.ui.context_menu_position.map(|position| {
             div()
@@ -164,6 +171,16 @@ impl LumiaApp {
                     cx,
                     |this, _, window, cx| {
                         this.open_url_dialog(window, cx);
+                    },
+                ))
+                .child(context_menu_item_enabled(
+                    "slideshow-menu-item",
+                    tr(language, slideshow_label),
+                    slideshow_enabled,
+                    palette,
+                    cx,
+                    |this, _, window, cx| {
+                        this.toggle_slideshow(window, cx);
                     },
                 ))
                 .child(div().h(px(1.0)).my_1().bg(rgb(palette.border)))
@@ -223,7 +240,7 @@ mod tests {
         );
         assert_eq!(
             clamp_menu_coordinate(590.0, 600.0, CONTEXT_MENU_HEIGHT, STATUS_BAR_HEIGHT),
-            388.0
+            360.0
         );
     }
 

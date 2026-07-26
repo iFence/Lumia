@@ -25,6 +25,7 @@ impl LumiaApp {
     }
 
     pub(crate) fn open_file_dialog(&mut self, cx: &mut Context<Self>, window: Option<&mut Window>) {
+        self.stop_slideshow(cx);
         // Capture the window handle so we can still update the title after the
         // (now asynchronous) dialog resolves. `pick_file()` runs a blocking
         // `NSOpenPanel::runModal` on the main thread; invoking it directly from
@@ -63,6 +64,7 @@ impl LumiaApp {
         if self.is_viewer_blocked() {
             return;
         }
+        self.stop_slideshow(cx);
         self.ui.context_menu_position = None;
         cx.notify();
         let language = self.settings.language;
