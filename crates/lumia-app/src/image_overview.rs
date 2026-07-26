@@ -210,12 +210,12 @@ impl LumiaApp {
 
     fn overview_geometry(&self, window: &Window) -> Option<OverviewGeometry> {
         let (display_width, display_height) = self.scaled_image_size(window)?;
-        let window_size = window.viewport_size();
+        let (viewer_width, viewer_height) = self.viewer_available_size(window);
         OverviewGeometry::calculate(
             display_width,
             display_height,
-            f32::from(window_size.width),
-            f32::from(window_size.height),
+            viewer_width,
+            viewer_height,
             self.viewer.viewport().pan_x,
             self.viewer.viewport().pan_y,
             self.overview_bottom_offset(),
@@ -223,7 +223,7 @@ impl LumiaApp {
     }
 
     fn overview_bottom_offset(&self) -> f32 {
-        if self.ui.show_status_bar || self.ui.show_zoom_menu {
+        if !self.ui.status_bar_locked && (self.ui.show_status_bar || self.ui.show_zoom_menu) {
             STATUS_BAR_HEIGHT + PANEL_MARGIN
         } else {
             PANEL_MARGIN

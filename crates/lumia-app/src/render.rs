@@ -60,7 +60,7 @@ impl Render for LumiaApp {
                     .children(self.render_edit_panel(palette, cx)),
             )
             .children(
-                (self.ui.show_status_bar || self.ui.show_zoom_menu)
+                (self.ui.status_bar_locked || self.ui.show_status_bar || self.ui.show_zoom_menu)
                     .then(|| self.render_status_bar(window, palette, cx)),
             )
             .children(self.render_settings_panel(window, palette, cx))
@@ -182,12 +182,12 @@ impl LumiaApp {
             )
             .on_mouse_down(
                 MouseButton::Right,
-                cx.listener(|this, event: &MouseDownEvent, _, cx| {
+                cx.listener(|this, event: &MouseDownEvent, window, cx| {
                     if this.is_viewer_blocked() {
                         return;
                     }
                     this.ui.context_menu_position =
-                        Some(gpui::point(event.position.x, event.position.y));
+                        Some(this.clamped_context_menu_position(event.position, window));
                     this.ui.is_panning = false;
                     this.ui.last_mouse_position = None;
                     cx.notify();
@@ -226,7 +226,7 @@ impl LumiaApp {
                 .child(status_message("error-state", message, palette.error_text))
                 .children(self.render_image_info_overlay(window))
                 .children(self.render_context_menu(palette, cx))
-        } else if self.image_path().is_some() {
+        } else if let Some(path) = self.image_path() {
             // HEIC pixels are decoded directly into a stable GPUI RenderImage.
             // Cloning this Arc is constant-time and avoids copying or hashing
             // the full pixel buffer during every render.
@@ -254,7 +254,11 @@ impl LumiaApp {
                 )
                 .into_any_element()
             } else {
-                div().into_any_element()
+                img(path.to_path_buf())
+                    .max_w_full()
+                    .max_h_full()
+                    .object_fit(ObjectFit::Contain)
+                    .into_any_element()
             };
 
             let display_size = self.scaled_image_size(window);

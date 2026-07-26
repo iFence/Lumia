@@ -13,6 +13,8 @@ use gpui_component::{
 use crate::app::LumiaApp;
 use crate::palette::Palette;
 
+pub(crate) const CONTEXT_MENU_ITEM_HEIGHT: f32 = 28.0;
+
 pub(crate) fn context_menu_item(
     id: &'static str,
     label: &'static str,
@@ -23,8 +25,10 @@ pub(crate) fn context_menu_item(
     div()
         .id(id)
         .w_full()
+        .h(px(CONTEXT_MENU_ITEM_HEIGHT))
         .px_3()
-        .py_1()
+        .flex()
+        .items_center()
         .cursor_pointer()
         .hover(move |style| style.bg(rgb(palette.button_hover)))
         .on_mouse_down(

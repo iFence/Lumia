@@ -20,6 +20,7 @@ pub(crate) struct UiState {
     pub(crate) recording_shortcut: Option<ShortcutId>,
     pub(crate) show_zoom_menu: bool,
     pub(crate) show_status_bar: bool,
+    pub(crate) status_bar_locked: bool,
 }
 
 impl Default for UiState {
@@ -38,7 +39,8 @@ impl Default for UiState {
             file_associations: FileAssociationUiState::default(),
             recording_shortcut: None,
             show_zoom_menu: false,
-            show_status_bar: true,
+            show_status_bar: false,
+            status_bar_locked: false,
         }
     }
 }

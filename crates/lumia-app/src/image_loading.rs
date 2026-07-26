@@ -127,6 +127,9 @@ impl LumiaApp {
                             cancellation.clone(),
                             cx,
                         );
+                    } else if is_svg(&path) {
+                        this.loads.finish_decode(generation);
+                        this.ui.error_message = None;
                     } else {
                         this.start_current_static_decode(
                             path.clone(),
@@ -375,4 +378,22 @@ fn is_gif(path: &Path) -> bool {
     path.extension()
         .and_then(|extension| extension.to_str())
         .is_some_and(|extension| extension.eq_ignore_ascii_case("gif"))
+}
+
+fn is_svg(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("svg"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn svg_paths_bypass_raster_decode_case_insensitively() {
+        assert!(is_svg(Path::new("vector.svg")));
+        assert!(is_svg(Path::new("vector.SVG")));
+        assert!(!is_svg(Path::new("vector.png")));
+    }
 }

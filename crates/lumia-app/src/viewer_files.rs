@@ -4,8 +4,8 @@ use gpui::{Context, Window};
 use lumia_core::{FitMode, ViewportState};
 
 use crate::app::LumiaApp;
-use crate::EDIT_PANEL_WIDTH;
 use crate::{NextImage, PreviousImage};
+use crate::{EDIT_PANEL_WIDTH, STATUS_BAR_HEIGHT};
 
 impl LumiaApp {
     pub(crate) fn current_image_index(&self) -> Option<usize> {
@@ -100,14 +100,7 @@ impl LumiaApp {
 
     pub(crate) fn image_display_scale(&self, window: &Window) -> Option<f32> {
         let (image_width, image_height) = self.viewer.display_dimensions()?;
-        let viewport_size = window.viewport_size();
-        let panel_width = if self.editing.mode.is_some() {
-            EDIT_PANEL_WIDTH
-        } else {
-            0.0
-        };
-        let available_width = (f32::from(viewport_size.width) - panel_width).max(1.0);
-        let available_height = f32::from(viewport_size.height).max(1.0);
+        let (available_width, available_height) = self.viewer_available_size(window);
         Some(display_scale(
             image_width,
             image_height,
@@ -116,6 +109,38 @@ impl LumiaApp {
             self.viewer.viewport(),
         ))
     }
+
+    pub(crate) fn viewer_available_size(&self, window: &Window) -> (f32, f32) {
+        let viewport_size = window.viewport_size();
+        let panel_width = if self.editing.mode.is_some() {
+            EDIT_PANEL_WIDTH
+        } else {
+            0.0
+        };
+        available_viewer_size(
+            f32::from(viewport_size.width),
+            f32::from(viewport_size.height),
+            panel_width,
+            self.ui.status_bar_locked,
+        )
+    }
+}
+
+fn available_viewer_size(
+    viewport_width: f32,
+    viewport_height: f32,
+    panel_width: f32,
+    status_bar_locked: bool,
+) -> (f32, f32) {
+    let status_bar_height = if status_bar_locked {
+        STATUS_BAR_HEIGHT
+    } else {
+        0.0
+    };
+    (
+        (viewport_width - panel_width).max(1.0),
+        (viewport_height - status_bar_height).max(1.0),
+    )
 }
 
 fn display_scale(
@@ -147,5 +172,17 @@ mod tests {
 
         viewport.reset_actual_size();
         assert_eq!(display_scale(2000, 1000, 1000.0, 800.0, &viewport), 1.0);
+    }
+
+    #[test]
+    fn locked_status_bar_reserves_viewer_height() {
+        assert_eq!(
+            available_viewer_size(1200.0, 800.0, 0.0, false),
+            (1200.0, 800.0)
+        );
+        assert_eq!(
+            available_viewer_size(1200.0, 800.0, EDIT_PANEL_WIDTH, true),
+            (880.0, 764.0)
+        );
     }
 }

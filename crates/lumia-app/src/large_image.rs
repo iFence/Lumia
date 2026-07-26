@@ -281,12 +281,12 @@ impl LumiaApp {
                 return;
             }
         }
-        let viewport = window.viewport_size();
+        let (viewport_width, viewport_height) = self.viewer_available_size(window);
         let Some(geometry) = LargeImageViewGeometry::calculate(
             width,
             height,
-            f32::from(viewport.width),
-            f32::from(viewport.height),
+            viewport_width,
+            viewport_height,
             scale,
             self.viewer.viewport().pan_x,
             self.viewer.viewport().pan_y,

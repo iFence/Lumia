@@ -1,3 +1,4 @@
+use gpui::prelude::FluentBuilder;
 use gpui::{
     div, px, rgb, AnyElement, Context, InteractiveElement, IntoElement, ParentElement, Styled,
 };
@@ -45,7 +46,11 @@ impl LumiaApp {
                 .id("edit-panel")
                 .w(px(EDIT_PANEL_WIDTH))
                 .h_full()
-                .pb(px(STATUS_BAR_HEIGHT))
+                .when(
+                    !self.ui.status_bar_locked
+                        && (self.ui.show_status_bar || self.ui.show_zoom_menu),
+                    |panel| panel.pb(px(STATUS_BAR_HEIGHT)),
+                )
                 .flex_none()
                 .flex()
                 .flex_col()

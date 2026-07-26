@@ -17,6 +17,12 @@ impl AssetSource for CustomAssets {
             "custom/lock-aspect-ratio.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../resources/icons/lock-aspect-ratio.svg"
             )))),
+            "custom/status-bar-lock.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../resources/icons/status-bar-lock.svg"
+            )))),
+            "custom/status-bar-unlock.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../resources/icons/status-bar-unlock.svg"
+            )))),
             other => gpui_component_assets::Assets.load(other),
         }
     }
@@ -27,6 +33,8 @@ impl AssetSource for CustomAssets {
                 "custom/actual-size.svg".into(),
                 "custom/fit-to-window.svg".into(),
                 "custom/lock-aspect-ratio.svg".into(),
+                "custom/status-bar-lock.svg".into(),
+                "custom/status-bar-unlock.svg".into(),
             ])
         } else {
             gpui_component_assets::Assets.list(path)

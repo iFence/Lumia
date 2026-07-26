@@ -1,19 +1,56 @@
 use gpui::{
-    div, px, rgb, AnyElement, Context, InteractiveElement, IntoElement, MouseButton, ParentElement,
-    Styled,
+    div, point, px, rgb, AnyElement, Context, InteractiveElement, IntoElement, MouseButton,
+    ParentElement, Pixels, Point, Styled, Window,
 };
 use gpui_component::{Icon, IconName};
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
 use crate::palette::Palette;
-use crate::widgets::context_menu_item;
+use crate::widgets::{context_menu_item, CONTEXT_MENU_ITEM_HEIGHT};
 use crate::{
-    STATUS_BAR_HEIGHT, ZOOM_MENU_BOTTOM_GAP, ZOOM_MENU_ITEM_HEIGHT, ZOOM_MENU_RIGHT,
-    ZOOM_MENU_WIDTH,
+    EDIT_PANEL_WIDTH, STATUS_BAR_HEIGHT, STATUS_MENU_BOTTOM, ZOOM_MENU_ITEM_HEIGHT,
+    ZOOM_MENU_RIGHT, ZOOM_MENU_WIDTH,
 };
 
+const CONTEXT_MENU_WIDTH: f32 = 156.0;
+const CONTEXT_MENU_HEIGHT: f32 = 2.0 + 8.0 + 5.0 * CONTEXT_MENU_ITEM_HEIGHT + 2.0 * 9.0;
+const CONTEXT_MENU_MARGIN: f32 = 8.0;
+
 impl LumiaApp {
+    pub(crate) fn clamped_context_menu_position(
+        &self,
+        pointer: Point<Pixels>,
+        window: &Window,
+    ) -> Point<Pixels> {
+        let viewport = window.viewport_size();
+        let right_inset = if self.editing.mode.is_some() {
+            EDIT_PANEL_WIDTH
+        } else {
+            0.0
+        };
+        let bottom_inset =
+            if self.ui.status_bar_locked || self.ui.show_status_bar || self.ui.show_zoom_menu {
+                STATUS_BAR_HEIGHT
+            } else {
+                0.0
+            };
+        point(
+            px(clamp_menu_coordinate(
+                f32::from(pointer.x),
+                f32::from(viewport.width),
+                CONTEXT_MENU_WIDTH,
+                right_inset,
+            )),
+            px(clamp_menu_coordinate(
+                f32::from(pointer.y),
+                f32::from(viewport.height),
+                CONTEXT_MENU_HEIGHT,
+                bottom_inset,
+            )),
+        )
+    }
+
     pub(crate) fn render_zoom_menu(
         &self,
         palette: Palette,
@@ -29,7 +66,7 @@ impl LumiaApp {
                 .id("status-zoom-menu")
                 .absolute()
                 .right(px(ZOOM_MENU_RIGHT))
-                .bottom(px(STATUS_BAR_HEIGHT + ZOOM_MENU_BOTTOM_GAP))
+                .bottom(px(STATUS_MENU_BOTTOM))
                 .w(px(ZOOM_MENU_WIDTH))
                 .py_2()
                 .rounded_md()
@@ -102,7 +139,7 @@ impl LumiaApp {
                 .absolute()
                 .left(position.x)
                 .top(position.y)
-                .w(px(156.0))
+                .w(px(CONTEXT_MENU_WIDTH))
                 .py_1()
                 .rounded_md()
                 .bg(rgb(palette.panel_bg))
@@ -161,5 +198,44 @@ impl LumiaApp {
                     },
                 ))
         })
+    }
+}
+
+fn clamp_menu_coordinate(
+    pointer: f32,
+    viewport_extent: f32,
+    menu_extent: f32,
+    trailing_inset: f32,
+) -> f32 {
+    let maximum = (viewport_extent - trailing_inset - menu_extent - CONTEXT_MENU_MARGIN).max(0.0);
+    pointer.clamp(CONTEXT_MENU_MARGIN.min(maximum), maximum)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn context_menu_coordinate_stays_inside_trailing_edge() {
+        assert_eq!(
+            clamp_menu_coordinate(790.0, 800.0, CONTEXT_MENU_WIDTH, 0.0),
+            636.0
+        );
+        assert_eq!(
+            clamp_menu_coordinate(590.0, 600.0, CONTEXT_MENU_HEIGHT, STATUS_BAR_HEIGHT),
+            388.0
+        );
+    }
+
+    #[test]
+    fn context_menu_coordinate_preserves_safe_positions_and_small_viewports() {
+        assert_eq!(
+            clamp_menu_coordinate(240.0, 800.0, CONTEXT_MENU_WIDTH, 0.0),
+            240.0
+        );
+        assert_eq!(
+            clamp_menu_coordinate(10.0, 100.0, CONTEXT_MENU_WIDTH, 0.0),
+            0.0
+        );
     }
 }

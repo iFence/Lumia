@@ -3,7 +3,7 @@ use lumia_core::SettingsGroup;
 
 use crate::app::LumiaApp;
 use crate::{
-    ExitFullscreen, ToggleFullscreen, ToggleImageInfo, STATUS_BAR_HEIGHT, ZOOM_MENU_BOTTOM_GAP,
+    ExitFullscreen, ToggleFullscreen, ToggleImageInfo, STATUS_BAR_HEIGHT, STATUS_MENU_BOTTOM,
     ZOOM_MENU_HEIGHT, ZOOM_MENU_HOVER_MARGIN, ZOOM_MENU_RIGHT, ZOOM_MENU_WIDTH,
 };
 
@@ -88,23 +88,58 @@ impl LumiaApp {
         let viewport_height = f32::from(viewport_size.height);
         let x = f32::from(event.position.x);
         let y = f32::from(event.position.y);
-        // The status bar is pinned visible by default, so it is never
-        // auto-hidden. Only the zoom menu is dismissed when the pointer
-        // leaves its hover zone.
         let in_zoom_menu_zone = self.ui.show_zoom_menu && {
             let menu_left = viewport_width - ZOOM_MENU_RIGHT - ZOOM_MENU_WIDTH;
             let menu_right = viewport_width - ZOOM_MENU_RIGHT;
-            let menu_top =
-                viewport_height - STATUS_BAR_HEIGHT - ZOOM_MENU_BOTTOM_GAP - ZOOM_MENU_HEIGHT;
-            let menu_bottom = viewport_height - STATUS_BAR_HEIGHT;
+            let menu_top = viewport_height - STATUS_MENU_BOTTOM - ZOOM_MENU_HEIGHT;
             x >= menu_left - ZOOM_MENU_HOVER_MARGIN
                 && x <= menu_right + ZOOM_MENU_HOVER_MARGIN
                 && y >= menu_top - ZOOM_MENU_HOVER_MARGIN
-                && y <= menu_bottom + ZOOM_MENU_HOVER_MARGIN
+                && y <= viewport_height
         };
+        let show_status_bar = should_show_status_bar(
+            self.ui.status_bar_locked,
+            y,
+            viewport_height,
+            in_zoom_menu_zone,
+        );
+        let mut changed = false;
+        if self.ui.show_status_bar != show_status_bar {
+            self.ui.show_status_bar = show_status_bar;
+            changed = true;
+        }
         if self.ui.show_zoom_menu && !in_zoom_menu_zone {
             self.ui.show_zoom_menu = false;
+            changed = true;
+        }
+        if changed {
             cx.notify();
         }
+    }
+}
+
+fn should_show_status_bar(
+    locked: bool,
+    pointer_y: f32,
+    viewport_height: f32,
+    in_zoom_menu_zone: bool,
+) -> bool {
+    locked || in_zoom_menu_zone || pointer_y >= (viewport_height - STATUS_BAR_HEIGHT).max(0.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unlocked_status_bar_only_appears_in_bottom_hover_zone() {
+        assert!(!should_show_status_bar(false, 700.0, 800.0, false));
+        assert!(should_show_status_bar(false, 764.0, 800.0, false));
+        assert!(should_show_status_bar(false, 700.0, 800.0, true));
+    }
+
+    #[test]
+    fn locked_status_bar_remains_visible() {
+        assert!(should_show_status_bar(true, 0.0, 800.0, false));
     }
 }

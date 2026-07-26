@@ -1,8 +1,9 @@
+use gpui::prelude::FluentBuilder;
 use gpui::{
     div, px, rgb, AnyElement, Context, InteractiveElement, IntoElement, MouseButton,
     MouseDownEvent, ParentElement, Rgba, StatefulInteractiveElement, Styled, Window,
 };
-use gpui_component::{Icon, IconName};
+use gpui_component::{tooltip::Tooltip, Icon, IconName};
 use lumia_core::FitMode;
 
 use crate::app::LumiaApp;
@@ -11,7 +12,7 @@ use crate::i18n::{tr, TextKey};
 use crate::palette::Palette;
 use crate::util::format_file_size;
 use crate::widgets::edit_menu_item;
-use crate::STATUS_BAR_HEIGHT;
+use crate::{STATUS_BAR_HEIGHT, STATUS_CONTROL_HEIGHT, ZOOM_BUTTON_WIDTH};
 
 impl LumiaApp {
     pub(crate) fn render_status_bar(
@@ -39,10 +40,10 @@ impl LumiaApp {
             .unwrap_or_else(|| "--".to_string());
         div()
             .id("status-bar")
-            .absolute()
-            .left_0()
-            .right_0()
-            .bottom_0()
+            .when(!self.ui.status_bar_locked, |bar| {
+                bar.absolute().left_0().right_0().bottom_0()
+            })
+            .flex_none()
             .h(px(STATUS_BAR_HEIGHT))
             .w_full()
             .flex()
@@ -166,9 +167,56 @@ impl LumiaApp {
                         |this, _, window, cx| {
                             this.toggle_window_fullscreen(window, cx);
                         },
-                    )),
+                    ))
+                    .child(self.render_status_lock_button(palette, cx)),
             )
             .children(self.render_zoom_menu(palette, cx))
+    }
+
+    fn render_status_lock_button(&self, palette: Palette, cx: &mut Context<Self>) -> AnyElement {
+        let locked = self.ui.status_bar_locked;
+        let language = self.settings.language;
+        let tooltip = tr(
+            language,
+            if locked {
+                TextKey::UnlockStatusBar
+            } else {
+                TextKey::LockStatusBar
+            },
+        );
+        let icon_path = if locked {
+            "custom/status-bar-lock.svg"
+        } else {
+            "custom/status-bar-unlock.svg"
+        };
+
+        div()
+            .id("status-bar-lock")
+            .w(px(28.0))
+            .h(px(24.0))
+            .flex()
+            .items_center()
+            .justify_center()
+            .rounded_sm()
+            .cursor_pointer()
+            .hover(move |style| style.bg(rgb(palette.status_hover)))
+            .tooltip(move |window, cx| Tooltip::new(tooltip).build(window, cx))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|this, _, _, cx| {
+                    this.ui.status_bar_locked = !this.ui.status_bar_locked;
+                    this.ui.show_status_bar = true;
+                    this.ui.context_menu_position = None;
+                    cx.notify();
+                }),
+            )
+            .child(
+                Icon::default()
+                    .path(icon_path)
+                    .size(px(16.0))
+                    .text_color(rgb(palette.text)),
+            )
+            .into_any_element()
     }
 
     fn render_status_zoom_button(
@@ -187,8 +235,8 @@ impl LumiaApp {
 
         div()
             .id("status-zoom-menu-button")
-            .h(px(24.0))
-            .px_2()
+            .w(px(ZOOM_BUTTON_WIDTH))
+            .h(px(STATUS_CONTROL_HEIGHT))
             .flex()
             .items_center()
             .justify_center()
@@ -273,7 +321,7 @@ impl LumiaApp {
         div()
             .id("status-dimensions")
             .relative()
-            .h(px(24.0))
+            .h(px(STATUS_CONTROL_HEIGHT))
             .px_2()
             .flex()
             .items_center()
@@ -302,7 +350,7 @@ impl LumiaApp {
                     .id("status-dimensions-menu")
                     .absolute()
                     .left_0()
-                    .bottom(px(24.0))
+                    .bottom(px(STATUS_CONTROL_HEIGHT))
                     .w(px(184.0))
                     .p_1()
                     .rounded_md()

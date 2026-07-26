@@ -117,12 +117,12 @@ impl LumiaApp {
 
         let (image_width, image_height) = self.viewer.display_dimensions()?;
         let scale = self.image_display_scale(window)?;
-        let viewport = window.viewport_size();
+        let (viewport_width, viewport_height) = self.viewer_available_size(window);
         let geometry = LargeImageViewGeometry::calculate(
             image_width,
             image_height,
-            f32::from(viewport.width),
-            f32::from(viewport.height),
+            viewport_width,
+            viewport_height,
             scale,
             self.viewer.viewport().pan_x,
             self.viewer.viewport().pan_y,

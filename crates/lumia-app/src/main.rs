@@ -47,10 +47,12 @@ use lumia_core::{Language, ThemeAccent, ThemeMode};
 use serde::Deserialize;
 
 pub(crate) const STATUS_BAR_HEIGHT: f32 = 36.0;
+pub(crate) const STATUS_CONTROL_HEIGHT: f32 = 24.0;
+pub(crate) const STATUS_MENU_BOTTOM: f32 = (STATUS_BAR_HEIGHT + STATUS_CONTROL_HEIGHT) / 2.0;
 pub(crate) const EDIT_PANEL_WIDTH: f32 = 320.0;
-pub(crate) const ZOOM_MENU_WIDTH: f32 = 132.0;
+pub(crate) const ZOOM_BUTTON_WIDTH: f32 = 80.0;
+pub(crate) const ZOOM_MENU_WIDTH: f32 = 148.0;
 pub(crate) const ZOOM_MENU_RIGHT: f32 = 48.0;
-pub(crate) const ZOOM_MENU_BOTTOM_GAP: f32 = 8.0;
 pub(crate) const ZOOM_MENU_ITEM_HEIGHT: f32 = 28.0;
 pub(crate) const ZOOM_MENU_HEIGHT: f32 = 16.0 + 9.0 * ZOOM_MENU_ITEM_HEIGHT;
 pub(crate) const ZOOM_MENU_HOVER_MARGIN: f32 = 12.0;
