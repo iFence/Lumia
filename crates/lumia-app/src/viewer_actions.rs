@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use gpui::{px, AppContext, Context, ParentElement, Styled, Window};
-use gpui_component::dialog::{DialogDescription, DialogTitle};
+use gpui_component::dialog::{DialogButtonProps, DialogDescription, DialogTitle};
 use gpui_component::input::{Input, InputState};
 use gpui_component::v_flex;
 use gpui_component::WindowExt;
@@ -64,6 +64,8 @@ impl LumiaApp {
         if self.is_viewer_blocked() {
             return;
         }
+        self.ui.context_menu_position = None;
+        cx.notify();
         let language = self.settings.language;
         let url_input = cx.new(|cx| {
             InputState::new(window, cx).placeholder(tr(language, TextKey::OpenUrlPlaceholder))
@@ -79,6 +81,13 @@ impl LumiaApp {
                 .title(tr(language, TextKey::OpenUrlDialogTitle))
                 .close_button(true)
                 .overlay_closable(true)
+                .button_props(
+                    DialogButtonProps::default()
+                        .show_cancel(true)
+                        .ok_text(tr(language, TextKey::Confirm))
+                        .cancel_text(tr(language, TextKey::Cancel)),
+                )
+                .on_cancel(|_, _, _| true)
                 .on_ok({
                     let url_input = url_input_for_ok;
                     let self_handle = self_handle.clone();
