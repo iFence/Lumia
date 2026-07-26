@@ -94,7 +94,7 @@ impl LumiaApp {
                     move |_, _window, cx| {
                         let url = url_input.read(cx).value().trim().to_string();
                         if !url.starts_with("http://") && !url.starts_with("https://") {
-                            self_handle.update(cx, |this, cx| {
+                            let _ = self_handle.update(cx, |this, cx| {
                                 this.ui.error_message = Some(
                                     tr(this.settings.language, TextKey::OpenUrlInvalid).into(),
                                 );

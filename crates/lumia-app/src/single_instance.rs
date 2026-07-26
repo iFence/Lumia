@@ -118,6 +118,7 @@ mod tests {
 
     use super::*;
 
+    #[cfg(target_os = "windows")]
     const FORWARD_TEST_PATH_ENV: &str = "LUMIA_SINGLE_INSTANCE_TEST_PATH";
 
     #[test]

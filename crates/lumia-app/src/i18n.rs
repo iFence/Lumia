@@ -1,5 +1,10 @@
 use lumia_core::Language;
 
+// Some variants are only constructed on specific platforms (e.g. the file
+// association strings are only referenced from the Windows-gated settings UI),
+// but all variants are matched exhaustively in `tr`, so dead-code analysis
+// cannot see them as used on other platforms.
+#[allow(dead_code)]
 #[derive(Clone, Copy)]
 pub(crate) enum TextKey {
     Settings,

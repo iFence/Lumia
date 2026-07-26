@@ -1,5 +1,8 @@
-use lumia_core::{AppSettings, Language};
+use lumia_core::AppSettings;
 use std::{env, fs, io, path::PathBuf};
+
+#[cfg(target_os = "windows")]
+use lumia_core::Language;
 
 use crate::APP_TITLE;
 
@@ -52,12 +55,18 @@ fn platform_config_dir() -> Option<PathBuf> {
 }
 
 fn installed_default_settings() -> AppSettings {
-    let mut settings = AppSettings::default();
     #[cfg(target_os = "windows")]
-    if let Some(language) = installed_language() {
-        settings.language = language;
+    {
+        let mut settings = AppSettings::default();
+        if let Some(language) = installed_language() {
+            settings.language = language;
+        }
+        settings
     }
-    settings
+    #[cfg(not(target_os = "windows"))]
+    {
+        AppSettings::default()
+    }
 }
 
 #[cfg(target_os = "windows")]

@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use gpui::{Pixels, Point};
 use lumia_core::{SettingsGroup, ShortcutId};
 
+#[cfg(target_os = "windows")]
 use crate::file_association_state::FileAssociationUiState;
 
 pub(crate) struct UiState {
@@ -16,6 +17,7 @@ pub(crate) struct UiState {
     pub(crate) last_mouse_position: Option<Point<Pixels>>,
     pub(crate) show_settings_panel: bool,
     pub(crate) active_settings_group: SettingsGroup,
+    #[cfg(target_os = "windows")]
     pub(crate) file_associations: FileAssociationUiState,
     pub(crate) recording_shortcut: Option<ShortcutId>,
     pub(crate) show_zoom_menu: bool,
@@ -35,6 +37,7 @@ impl Default for UiState {
             last_mouse_position: None,
             show_settings_panel: false,
             active_settings_group: SettingsGroup::General,
+            #[cfg(target_os = "windows")]
             file_associations: FileAssociationUiState::default(),
             recording_shortcut: None,
             show_zoom_menu: false,

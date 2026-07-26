@@ -7,6 +7,7 @@ mod common_decode;
 mod custom_icons;
 #[cfg(target_os = "windows")]
 mod file_association_actions;
+#[cfg(target_os = "windows")]
 mod file_association_state;
 mod i18n;
 mod image_info;
