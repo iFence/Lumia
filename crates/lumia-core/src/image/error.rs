@@ -26,4 +26,8 @@ pub enum ImageLoadError {
         #[source]
         source: std::io::Error,
     },
+    #[error("image decode was cancelled")]
+    Cancelled,
+    #[error("decoded image requires {bytes} bytes, exceeding the {limit} byte limit")]
+    MemoryLimit { bytes: u64, limit: u64 },
 }

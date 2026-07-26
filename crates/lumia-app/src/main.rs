@@ -3,6 +3,7 @@
 mod app;
 mod bootstrap;
 mod cli;
+mod common_decode;
 mod custom_icons;
 #[cfg(target_os = "windows")]
 mod file_association_actions;
@@ -33,6 +34,7 @@ mod tile_cache;
 mod ui_state;
 mod util;
 mod viewer_actions;
+mod viewer_files;
 mod viewer_overlays;
 mod widgets;
 mod window_actions;

@@ -1,3 +1,4 @@
+use lumia_core::ThemeMode;
 #[cfg(target_os = "windows")]
 use std::collections::BTreeSet;
 
@@ -23,6 +24,14 @@ pub(crate) fn register_context_menu() -> anyhow::Result<()> {
 /// Remove Lumia from the operating-system context menu.
 pub(crate) fn unregister_context_menu() -> anyhow::Result<()> {
     platform::unregister()
+}
+
+pub(crate) fn apply_native_theme(theme: ThemeMode) {
+    #[cfg(target_os = "macos")]
+    macos::apply_native_theme(theme);
+
+    #[cfg(not(target_os = "macos"))]
+    let _ = theme;
 }
 
 #[cfg(target_os = "windows")]

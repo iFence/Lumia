@@ -25,12 +25,15 @@ impl<T> TileCache<T> {
         }
     }
 
-    pub(crate) fn insert(&mut self, key: TileCoordinate, value: T, bytes: usize) {
+    pub(crate) fn insert(&mut self, key: TileCoordinate, value: T, bytes: usize) -> Vec<T> {
+        let mut evicted = Vec::new();
         if bytes > self.max_bytes {
-            return;
+            evicted.push(value);
+            return evicted;
         }
         if let Some(previous) = self.entries.remove(&key) {
             self.used_bytes -= previous.bytes;
+            evicted.push(previous.value);
         }
         self.clock = self.clock.wrapping_add(1);
         self.used_bytes += bytes;
@@ -53,8 +56,10 @@ impl<T> TileCache<T> {
             };
             if let Some(removed) = self.entries.remove(&oldest) {
                 self.used_bytes -= removed.bytes;
+                evicted.push(removed.value);
             }
         }
+        evicted
     }
 
     #[cfg(test)]
@@ -69,9 +74,10 @@ impl<T> TileCache<T> {
         self.entries.get(key).map(|entry| &entry.value)
     }
 
-    pub(crate) fn clear(&mut self) {
-        self.entries.clear();
+    pub(crate) fn clear(&mut self) -> Vec<T> {
+        let values = self.entries.drain().map(|(_, entry)| entry.value).collect();
         self.used_bytes = 0;
+        values
     }
 
     pub(crate) fn contains(&self, key: &TileCoordinate) -> bool {

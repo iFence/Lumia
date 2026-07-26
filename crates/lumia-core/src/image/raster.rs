@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::{decode_heic, DecodedImage, ImageLoadError};
+use super::{decode_heic, DecodeCancellation, DecodePolicy, DecodedImage, ImageLoadError};
 
 pub fn decoded_image_from_rgba(
     mut rgba: Vec<u8>,
@@ -24,7 +24,25 @@ pub fn decoded_image_from_rgba(
 pub fn load_decoded_image_from_path(
     path: impl AsRef<Path>,
 ) -> Result<DecodedImage, ImageLoadError> {
+    load_decoded_image_from_path_with_policy(
+        path,
+        DecodePolicy {
+            max_output_bytes: u64::MAX,
+            max_alloc_bytes: 512 * 1024 * 1024,
+        },
+        &DecodeCancellation::default(),
+    )
+}
+
+pub fn load_decoded_image_from_path_with_policy(
+    path: impl AsRef<Path>,
+    policy: DecodePolicy,
+    cancellation: &DecodeCancellation,
+) -> Result<DecodedImage, ImageLoadError> {
     let path = path.as_ref();
+    if cancellation.is_cancelled() {
+        return Err(ImageLoadError::Cancelled);
+    }
     let extension = path
         .extension()
         .and_then(|extension| extension.to_str())
@@ -35,27 +53,73 @@ pub fn load_decoded_image_from_path(
             path: path.to_path_buf(),
             source,
         })?;
-        return decode_heic(&file_bytes);
+        if cancellation.is_cancelled() {
+            return Err(ImageLoadError::Cancelled);
+        }
+        let decoded = decode_heic(&file_bytes)?;
+        validate_output_size(decoded.width, decoded.height, policy.max_output_bytes)?;
+        return Ok(decoded);
     }
 
-    let reader = image::ImageReader::open(path).map_err(|source| ImageLoadError::Io {
+    let dimension_reader = image::ImageReader::open(path).map_err(|source| ImageLoadError::Io {
         path: path.to_path_buf(),
         source,
     })?;
-    let reader = reader
+    let dimension_reader =
+        dimension_reader
+            .with_guessed_format()
+            .map_err(|source| ImageLoadError::Io {
+                path: path.to_path_buf(),
+                source,
+            })?;
+    let (width, height) =
+        dimension_reader
+            .into_dimensions()
+            .map_err(|source| ImageLoadError::Metadata {
+                path: path.to_path_buf(),
+                source,
+            })?;
+    validate_output_size(width, height, policy.max_output_bytes)?;
+    if cancellation.is_cancelled() {
+        return Err(ImageLoadError::Cancelled);
+    }
+
+    let mut reader = image::ImageReader::open(path)
+        .map_err(|source| ImageLoadError::Io {
+            path: path.to_path_buf(),
+            source,
+        })?
         .with_guessed_format()
         .map_err(|source| ImageLoadError::Io {
             path: path.to_path_buf(),
             source,
         })?;
+    let mut limits = image::Limits::default();
+    limits.max_alloc = Some(policy.max_alloc_bytes);
+    reader.limits(limits);
     let image = reader.decode().map_err(|source| ImageLoadError::Metadata {
         path: path.to_path_buf(),
         source,
     })?;
+    if cancellation.is_cancelled() {
+        return Err(ImageLoadError::Cancelled);
+    }
     let rgba = image.to_rgba8();
     let width = rgba.width();
     let height = rgba.height();
     decoded_image_from_rgba(rgba.into_raw(), width, height)
+}
+
+fn validate_output_size(width: u32, height: u32, limit: u64) -> Result<(), ImageLoadError> {
+    let bytes = u64::from(width)
+        .checked_mul(u64::from(height))
+        .and_then(|pixels| pixels.checked_mul(4))
+        .unwrap_or(u64::MAX);
+    if bytes > limit {
+        Err(ImageLoadError::MemoryLimit { bytes, limit })
+    } else {
+        Ok(())
+    }
 }
 
 pub fn rotate_decoded_image(
@@ -157,5 +221,17 @@ mod tests {
 
         let reversed = rotate_decoded_image(&decoded, 2).unwrap();
         assert_eq!(reversed.pixels_bgra8, [2, 0, 0, 255, 1, 0, 0, 255]);
+    }
+
+    #[test]
+    fn output_size_policy_rejects_oversized_decode() {
+        assert!(matches!(
+            validate_output_size(2, 2, 15),
+            Err(ImageLoadError::MemoryLimit {
+                bytes: 16,
+                limit: 15
+            })
+        ));
+        assert!(validate_output_size(2, 2, 16).is_ok());
     }
 }

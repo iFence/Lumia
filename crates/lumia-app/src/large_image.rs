@@ -13,7 +13,7 @@ use crate::large_image_render::LargeImageViewGeometry;
 use crate::load_state::PreparedImage;
 use crate::tile_cache::TileCache;
 
-const LARGE_IMAGE_TILE_CACHE_BYTES: usize = 256 * 1024 * 1024;
+const LARGE_IMAGE_TILE_CACHE_BYTES: usize = 64 * 1024 * 1024;
 
 pub(crate) fn should_decode_large_image(path: &Path, width: u32, height: u32) -> bool {
     let excluded = path
@@ -46,6 +46,8 @@ pub(crate) struct LargeImageSession<T> {
     active_tiles: usize,
     max_workers: usize,
     pixel_budget: PixelBudget,
+    retired_tiles: Vec<T>,
+    raster_building: bool,
 }
 
 impl<T> Default for LargeImageSession<T> {
@@ -80,7 +82,9 @@ impl<T> LargeImageSession<T> {
             detail_error: None,
             active_tiles: 0,
             max_workers,
-            pixel_budget: PixelBudget::new(256 * 1024 * 1024),
+            pixel_budget: PixelBudget::new(16 * 1024 * 1024),
+            retired_tiles: Vec::new(),
+            raster_building: false,
         }
     }
 
@@ -106,9 +110,10 @@ impl<T> LargeImageSession<T> {
         self.visible_queue.clear();
         self.prefetch_queue.clear();
         self.pending.clear();
-        self.tiles.clear();
+        self.retired_tiles.extend(self.tiles.clear());
         self.detail_error = None;
         self.active_tiles = 0;
+        self.raster_building = false;
     }
 
     pub(crate) fn matches(&self, generation: u64, path: &Path) -> bool {
@@ -132,8 +137,21 @@ impl<T> LargeImageSession<T> {
             return false;
         }
         self.raster = Some(raster);
+        self.raster_building = false;
         self.detail_error = None;
         true
+    }
+
+    pub(crate) fn begin_raster_build(&mut self) -> bool {
+        if self.path.is_none() || self.raster.is_some() || self.raster_building {
+            return false;
+        }
+        self.raster_building = true;
+        true
+    }
+
+    pub(crate) fn finish_raster_build(&mut self) {
+        self.raster_building = false;
     }
 
     pub(crate) fn raster(&self) -> Option<LargeImageRaster> {
@@ -193,9 +211,14 @@ impl<T> LargeImageSession<T> {
             self.active_tiles = self.active_tiles.saturating_sub(1);
         }
         if let Some(tile) = tile {
-            self.tiles.insert(coordinate, tile, bytes);
+            self.retired_tiles
+                .extend(self.tiles.insert(coordinate, tile, bytes));
         }
         true
+    }
+
+    pub(crate) fn drain_retired_tiles(&mut self) -> impl Iterator<Item = T> + '_ {
+        self.retired_tiles.drain(..)
     }
 
     pub(crate) fn tile(&self, coordinate: &TileCoordinate) -> Option<&T> {
@@ -278,6 +301,9 @@ impl LumiaApp {
 
     pub(crate) fn start_large_image_tile_jobs(&mut self, cx: &mut Context<Self>) {
         let Some(raster) = self.large_image.raster() else {
+            if self.large_image.begin_raster_build() {
+                self.start_large_image_raster_build(cx);
+            }
             return;
         };
         while let Some(coordinate) = self.large_image.next_tile() {
@@ -315,6 +341,10 @@ impl LumiaApp {
                         .large_image
                         .complete_tile(generation, coordinate, tile, bytes)
                     {
+                        let retired = this.large_image.drain_retired_tiles().collect::<Vec<_>>();
+                        for image in retired {
+                            cx.drop_image(image.render_image(), None);
+                        }
                         this.start_large_image_tile_jobs(cx);
                         cx.notify();
                     }
@@ -388,6 +418,17 @@ mod tests {
     }
 
     #[test]
+    fn full_raster_build_is_started_only_on_demand() {
+        let mut session = LargeImageSession::<u8>::new(16);
+        session.begin(PathBuf::from("image.png"), 7, DecodeCancellation::default());
+        assert!(session.raster().is_none());
+        assert!(session.begin_raster_build());
+        assert!(!session.begin_raster_build());
+        session.finish_raster_build();
+        assert!(session.begin_raster_build());
+    }
+
+    #[test]
     fn failed_tile_keeps_preview_and_successful_tiles_obey_lru_budget() {
         let mut session = LargeImageSession::new(8);
         session.begin(PathBuf::from("image.png"), 3, DecodeCancellation::default());
@@ -400,5 +441,6 @@ mod tests {
         assert!(session.complete_tile(3, b, Some(2_u8), 8));
         assert!(session.tile(&a).is_none());
         assert_eq!(session.tile(&b), Some(&2));
+        assert_eq!(session.drain_retired_tiles().collect::<Vec<_>>(), vec![1]);
     }
 }

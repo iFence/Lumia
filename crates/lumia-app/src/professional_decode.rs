@@ -15,7 +15,7 @@ use crate::i18n::{tr, TextKey};
 use crate::load_state::PreparedImage;
 use crate::plugin_catalog::photoshop_manifest;
 
-const MAX_PREVIEW_SIDE: u32 = 8192;
+const MAX_PREVIEW_SIDE: u32 = 4096;
 
 pub(crate) fn is_photoshop_path(path: &Path) -> bool {
     path.extension()
@@ -50,9 +50,10 @@ impl LumiaApp {
                             document.metadata = Some(preview.metadata);
                         }
                         this.loads.set_current_image(generation, preview.image);
+                        this.release_retired_images(cx);
                         this.ui.error_message = None;
                         if this.viewer.rotation_quarter_turns() != 0 {
-                            this.rebuild_rotated_image();
+                            this.rebuild_rotated_image(cx);
                         }
                     }
                     Err(error) => {

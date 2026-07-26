@@ -9,6 +9,7 @@ rust-version.workspace = true
 [dependencies]
 heic.workspace = true
 image.workspace = true
+gif.workspace = true
 memmap2.workspace = true
 png.workspace = true
 serde.workspace = true

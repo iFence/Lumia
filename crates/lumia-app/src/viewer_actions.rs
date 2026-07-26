@@ -162,12 +162,12 @@ impl LumiaApp {
         }
         self.viewer.rotate_by(quarter_turns);
         self.ui.show_zoom_menu = false;
-        self.rebuild_rotated_image();
+        self.rebuild_rotated_image(cx);
         self.refresh_large_image_tiles(window, cx);
         cx.notify();
     }
 
-    pub(crate) fn rebuild_rotated_image(&mut self) {
+    pub(crate) fn rebuild_rotated_image(&mut self, cx: &mut Context<Self>) {
         self.loads.set_rotated_image(None);
         let turns = self.viewer.rotation_quarter_turns();
         if turns == 0 {
@@ -191,5 +191,6 @@ impl LumiaApp {
         }
         .map(PreparedImage::from_decoded);
         self.loads.set_rotated_image(rotated);
+        self.release_retired_images(cx);
     }
 }

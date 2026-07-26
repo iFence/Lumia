@@ -1,3 +1,4 @@
+mod animation;
 mod document;
 mod error;
 mod formats;
@@ -20,12 +21,15 @@ pub use large::{
 };
 pub use large::{checked_bgra8_len, ImagePixelRect, LargeImagePolicy, TileCoordinate, TileLevel};
 pub use raster::{
-    decoded_image_from_rgba, load_decoded_image_from_path, rotate_bgra8, rotate_decoded_image,
+    decoded_image_from_rgba, load_decoded_image_from_path,
+    load_decoded_image_from_path_with_policy, rotate_bgra8, rotate_decoded_image,
 };
 pub use types::{
-    ColorDescription, DecodeCancellation, DecodedImage, ImageDocument, ImageMetadata, ImageSource,
-    PixelFormat, TransferFunction,
+    ColorDescription, DecodeCancellation, DecodePolicy, DecodedAnimationFrame, DecodedImage,
+    ImageDocument, ImageFileMetadata, ImageMetadata, ImageProbe, ImageSource, PixelFormat,
+    TransferFunction,
 };
 
 #[cfg(test)]
 mod tests;
+pub use animation::stream_gif_frames;

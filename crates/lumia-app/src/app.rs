@@ -20,6 +20,8 @@ pub(crate) struct LumiaApp {
     pub(crate) ui: UiState,
     pub(crate) settings: AppSettings,
     pub(crate) appearance_subscription: Option<Subscription>,
+    pub(crate) activation_subscription: Option<Subscription>,
+    pub(crate) window_active: bool,
     pub(crate) window_title: String,
 }
 
@@ -32,6 +34,8 @@ impl LumiaApp {
         let focus_handle = cx.focus_handle();
         window.focus(&focus_handle, cx);
 
+        let settings = load_settings();
+        crate::shell::apply_native_theme(settings.theme);
         let mut app = Self {
             self_handle: WeakEntity::new_invalid(),
             focus_handle,
@@ -40,13 +44,20 @@ impl LumiaApp {
             loads: ImageLoadState::default(),
             large_image: LargeImageSession::default(),
             ui: UiState::default(),
-            settings: load_settings(),
+            settings,
             appearance_subscription: None,
+            activation_subscription: None,
+            window_active: window.is_window_active(),
             window_title: APP_TITLE.to_string(),
         };
         app.appearance_subscription = Some(cx.observe_window_appearance(window, |_, _, cx| {
             cx.notify();
         }));
+        app.activation_subscription =
+            Some(cx.observe_window_activation(window, |app, window, cx| {
+                app.window_active = window.is_window_active();
+                cx.notify();
+            }));
         app.rebuild_keybindings(cx);
 
         if let Some(path) = initial_path {

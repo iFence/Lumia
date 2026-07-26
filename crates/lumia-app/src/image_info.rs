@@ -1,5 +1,4 @@
 use gpui::{div, px, rgb, InteractiveElement, IntoElement, ParentElement, Styled};
-use std::fs;
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
@@ -69,13 +68,13 @@ impl LumiaApp {
             ));
         }
 
-        if let Ok(file_metadata) = fs::metadata(path) {
+        if let Some(file_metadata) = self.loads.file_metadata() {
             lines.push(format!(
                 "{}: {}",
                 tr(language, TextKey::ImageInfoFileSize),
-                format_file_size(file_metadata.len())
+                format_file_size(file_metadata.size_bytes)
             ));
-            if let Ok(modified) = file_metadata.modified() {
+            if let Some(modified) = file_metadata.modified {
                 lines.push(format!(
                     "{}: {}",
                     tr(language, TextKey::ImageInfoModified),

@@ -30,9 +30,9 @@ impl LumiaApp {
             .map(|metadata| format!("{}x{}", metadata.width, metadata.height))
             .unwrap_or_else(|| "--".to_string());
         let file_size = self
-            .image_path()
-            .and_then(|path| std::fs::metadata(path).ok())
-            .map(|metadata| format_file_size(metadata.len()))
+            .loads
+            .file_metadata()
+            .map(|metadata| format_file_size(metadata.size_bytes))
             .unwrap_or_else(|| "--".to_string());
         div()
             .id("status-bar")

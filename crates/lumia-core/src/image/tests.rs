@@ -82,3 +82,21 @@ fn load_from_path_accepts_plugin_preview_documents_without_core_decode() {
         fs::remove_file(path).expect("remove plugin image");
     }
 }
+
+#[test]
+fn probe_records_file_size_with_image_metadata() {
+    let png = temp_path("probe.png");
+    fs::write(&png, ONE_BY_ONE_PNG).expect("write temp png");
+
+    let probe = ImageDocument::probe_from_path(&png).expect("probe png");
+    assert_eq!(probe.file.size_bytes, ONE_BY_ONE_PNG.len() as u64);
+    assert_eq!(
+        probe
+            .document
+            .metadata
+            .as_ref()
+            .map(|metadata| (metadata.width, metadata.height)),
+        Some((1, 1))
+    );
+    fs::remove_file(png).expect("remove temp png");
+}

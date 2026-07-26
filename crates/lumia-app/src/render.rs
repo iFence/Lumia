@@ -215,7 +215,7 @@ impl LumiaApp {
                 .child(status_message("error-state", message, palette.error_text))
                 .children(self.render_image_info_overlay())
                 .children(self.render_context_menu(palette, cx))
-        } else if let Some(path) = self.image_path() {
+        } else if self.image_path().is_some() {
             // HEIC pixels are decoded directly into a stable GPUI RenderImage.
             // Cloning this Arc is constant-time and avoids copying or hashing
             // the full pixel buffer during every render.
@@ -236,19 +236,14 @@ impl LumiaApp {
                     .object_fit(ObjectFit::Contain)
                     .into_any_element()
             } else if self.loads.is_decoding() {
-                div().into_any_element()
-            } else if let Some((width, height)) = self.scaled_image_size(window) {
-                img(path.to_path_buf())
-                    .w(px(width))
-                    .h(px(height))
-                    .object_fit(ObjectFit::Contain)
-                    .into_any_element()
+                status_message(
+                    "loading-image",
+                    tr(self.settings.language, TextKey::LoadingImage),
+                    palette.muted_text,
+                )
+                .into_any_element()
             } else {
-                img(path.to_path_buf())
-                    .max_w_full()
-                    .max_h_full()
-                    .object_fit(ObjectFit::Contain)
-                    .into_any_element()
+                div().into_any_element()
             };
 
             viewer

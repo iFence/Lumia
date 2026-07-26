@@ -3542,6 +3542,7 @@ dependencies = [
 name = "lumia-core"
 version = "0.1.0"
 dependencies = [
+ "gif 0.14.1",
  "heic",
  "image",
  "memmap2",

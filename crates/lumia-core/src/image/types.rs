@@ -4,6 +4,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
+use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
 /// Decoded pixels in BGRA8 byte order.
@@ -12,6 +13,39 @@ pub struct DecodedImage {
     pub pixels_bgra8: Vec<u8>,
     pub width: u32,
     pub height: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DecodePolicy {
+    pub max_output_bytes: u64,
+    pub max_alloc_bytes: u64,
+}
+
+impl Default for DecodePolicy {
+    fn default() -> Self {
+        Self {
+            max_output_bytes: 96 * 1024 * 1024,
+            max_alloc_bytes: 192 * 1024 * 1024,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImageFileMetadata {
+    pub size_bytes: u64,
+    pub modified: Option<SystemTime>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImageProbe {
+    pub document: ImageDocument,
+    pub file: ImageFileMetadata,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecodedAnimationFrame {
+    pub image: DecodedImage,
+    pub delay: Duration,
 }
 
 #[derive(Debug, Clone, Default)]

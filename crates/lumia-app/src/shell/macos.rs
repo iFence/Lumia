@@ -1,5 +1,26 @@
 use std::path::{Path, PathBuf};
 
+use lumia_core::ThemeMode;
+
+pub(super) fn apply_native_theme(theme: ThemeMode) {
+    use objc2::MainThreadMarker;
+    use objc2_app_kit::{
+        NSAppearance, NSAppearanceNameAqua, NSAppearanceNameDarkAqua, NSApplication,
+    };
+
+    let Some(mtm) = MainThreadMarker::new() else {
+        return;
+    };
+    // AppKit owns these named appearance constants for the process lifetime.
+    let (light_name, dark_name) = unsafe { (NSAppearanceNameAqua, NSAppearanceNameDarkAqua) };
+    let appearance = match theme {
+        ThemeMode::Light => NSAppearance::appearanceNamed(light_name),
+        ThemeMode::Dark => NSAppearance::appearanceNamed(dark_name),
+        ThemeMode::FollowSystem => None,
+    };
+    NSApplication::sharedApplication(mtm).setAppearance(appearance.as_deref());
+}
+
 pub(super) fn register(exe_path: &Path) -> anyhow::Result<()> {
     use std::os::unix::fs::PermissionsExt;
 

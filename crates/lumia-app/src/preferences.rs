@@ -17,6 +17,7 @@ impl LumiaApp {
 
     pub(crate) fn set_theme(&mut self, theme: ThemeMode, cx: &mut Context<Self>) {
         self.settings.theme = theme;
+        crate::shell::apply_native_theme(theme);
         let _ = save_settings(&self.settings);
         cx.notify();
     }

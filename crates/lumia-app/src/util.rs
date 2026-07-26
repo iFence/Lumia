@@ -70,6 +70,10 @@ pub(crate) fn format_load_error(error: &ImageLoadError) -> String {
         ImageLoadError::Metadata { .. }
         | ImageLoadError::HeifMetadata { .. }
         | ImageLoadError::Io { .. } => "Could not read image metadata".to_string(),
+        ImageLoadError::Cancelled => "Image loading was cancelled".to_string(),
+        ImageLoadError::MemoryLimit { .. } => {
+            "This image exceeds the configured memory limit".to_string()
+        }
     }
 }
 
