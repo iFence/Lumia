@@ -24,6 +24,7 @@ pub(crate) fn run_gui(initial_path: Option<PathBuf>) -> anyhow::Result<()> {
         .with_assets(CustomAssets)
         .run(move |cx: &mut App| {
             gpui_component::init(cx);
+            #[cfg(target_os = "macos")]
             set_macos_dock_icon();
             cx.on_action(|_: &Quit, cx| cx.quit());
 

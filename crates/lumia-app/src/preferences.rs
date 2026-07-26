@@ -61,34 +61,34 @@ impl LumiaApp {
         let mut bindings = Vec::new();
 
         if let Some(key) = shortcuts.get(&ShortcutId::OpenFile) {
-            bindings.push(KeyBinding::new(key.as_str(), OpenFile, None));
+            bindings.push(KeyBinding::new(key.as_str(), OpenFile, Some("Lumia")));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::ZoomIn) {
-            bindings.push(KeyBinding::new(key.as_str(), ZoomIn, None));
+            bindings.push(KeyBinding::new(key.as_str(), ZoomIn, Some("Lumia")));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::ZoomOut) {
-            bindings.push(KeyBinding::new(key.as_str(), ZoomOut, None));
+            bindings.push(KeyBinding::new(key.as_str(), ZoomOut, Some("Lumia")));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::ZoomFit) {
-            bindings.push(KeyBinding::new(key.as_str(), ZoomFit, None));
+            bindings.push(KeyBinding::new(key.as_str(), ZoomFit, Some("Lumia")));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::ToggleFullscreen) {
-            bindings.push(KeyBinding::new(key.as_str(), ToggleFullscreen, None));
+            bindings.push(KeyBinding::new(key.as_str(), ToggleFullscreen, Some("Lumia")));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::ExitFullscreen) {
-            bindings.push(KeyBinding::new(key.as_str(), ExitFullscreen, None));
+            bindings.push(KeyBinding::new(key.as_str(), ExitFullscreen, Some("Lumia")));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::ToggleImageInfo) {
-            bindings.push(KeyBinding::new(key.as_str(), ToggleImageInfo, None));
+            bindings.push(KeyBinding::new(key.as_str(), ToggleImageInfo, Some("Lumia")));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::NextImage) {
-            bindings.push(KeyBinding::new(key.as_str(), NextImage, None));
+            bindings.push(KeyBinding::new(key.as_str(), NextImage, Some("Lumia")));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::PreviousImage) {
-            bindings.push(KeyBinding::new(key.as_str(), PreviousImage, None));
+            bindings.push(KeyBinding::new(key.as_str(), PreviousImage, Some("Lumia")));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::Quit) {
-            bindings.push(KeyBinding::new(key.as_str(), Quit, None));
+            bindings.push(KeyBinding::new(key.as_str(), Quit, Some("Lumia")));
         }
         cx.bind_keys(bindings);
     }

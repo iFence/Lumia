@@ -99,6 +99,36 @@ fn main() -> anyhow::Result<()> {
         #[cfg(target_os = "windows")]
         cli::CliCommand::RepairFileAssociations => shell::repair_legacy_file_associations(),
         cli::CliCommand::OpenFile(path) => bootstrap::run_gui(Some(path)),
-        cli::CliCommand::Normal => bootstrap::run_gui(None),
+        cli::CliCommand::Normal => {
+            #[cfg(target_os = "windows")]
+            ensure_file_associations_on_first_launch();
+            bootstrap::run_gui(None)
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn ensure_file_associations_on_first_launch() {
+    match shell::query_file_associations() {
+        Ok(snapshot) if snapshot.configured => {}
+        _ => {
+            let extensions = lumia_core::supported_image_extensions()
+                .iter()
+                .map(|ext| (*ext).to_string())
+                .collect::<std::collections::BTreeSet<_>>();
+            if let Err(err) = shell::apply_file_associations(&extensions) {
+                log_windows_error("first_launch_file_associations", &err);
+            }
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn log_windows_error(context: &str, error: &anyhow::Error) {
+    let message = format!("[{context}] {error}\n");
+    if let Ok(temp) = std::env::var("TEMP") {
+        let dir = std::path::PathBuf::from(temp).join("Lumia");
+        let _ = std::fs::create_dir_all(&dir);
+        let _ = std::fs::write(dir.join("debug.log"), message);
     }
 }
