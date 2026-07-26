@@ -1,4 +1,4 @@
-use gpui::{div, px, rgb, InteractiveElement, IntoElement, ParentElement, Styled};
+use gpui::{div, px, rgb, InteractiveElement, IntoElement, ParentElement, Styled, Window};
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
@@ -6,7 +6,7 @@ use crate::util::{format_file_size, format_modified_time};
 use lumia_core::Language;
 
 impl LumiaApp {
-    pub(crate) fn render_image_info_overlay(&self) -> Option<impl IntoElement> {
+    pub(crate) fn render_image_info_overlay(&self, window: &Window) -> Option<impl IntoElement> {
         (self.ui.show_image_info && self.image_path().is_some()).then(|| {
             let language = self.settings.language;
             div()
@@ -23,14 +23,14 @@ impl LumiaApp {
                 .text_xs()
                 .shadow_md()
                 .children(
-                    self.image_info_lines(language)
+                    self.image_info_lines(language, window)
                         .into_iter()
                         .map(|line| div().child(line)),
                 )
         })
     }
 
-    pub(crate) fn image_info_lines(&self, language: Language) -> Vec<String> {
+    pub(crate) fn image_info_lines(&self, language: Language, window: &Window) -> Vec<String> {
         let Some(path) = self.image_path() else {
             return Vec::new();
         };
@@ -86,7 +86,7 @@ impl LumiaApp {
         lines.push(format!(
             "{}: {:.0}%",
             tr(language, TextKey::ImageInfoZoom),
-            self.viewer.viewport().zoom * 100.0
+            self.image_display_scale(window).unwrap_or(1.0) * 100.0
         ));
         lines.push(format!(
             "{}: {}",

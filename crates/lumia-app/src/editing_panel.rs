@@ -221,8 +221,10 @@ impl LumiaApp {
                             .flex()
                             .items_center()
                             .gap_2()
+                            .child(div().text_xs().child("W"))
                             .child(div().flex_1().child(Input::new(&width)))
                             .child(lock)
+                            .child(div().text_xs().child("H"))
                             .child(div().flex_1().child(Input::new(&height)))
                             .child(div().text_xs().child("px"))
                     })),
