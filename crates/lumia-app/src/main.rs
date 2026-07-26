@@ -1,5 +1,7 @@
 #![windows_subsystem = "windows"]
 
+mod annotation_export;
+mod annotation_overlay;
 mod app;
 mod bootstrap;
 mod cli;
@@ -22,6 +24,9 @@ mod palette;
 mod persistence;
 mod platform_open;
 mod plugin_catalog;
+mod plugin_controls;
+mod plugin_panel;
+mod plugin_state;
 mod preferences;
 mod professional_decode;
 mod render;
@@ -51,6 +56,7 @@ pub(crate) const STATUS_BAR_HEIGHT: f32 = 36.0;
 pub(crate) const STATUS_CONTROL_HEIGHT: f32 = 24.0;
 pub(crate) const STATUS_MENU_BOTTOM: f32 = (STATUS_BAR_HEIGHT + STATUS_CONTROL_HEIGHT) / 2.0;
 pub(crate) const EDIT_PANEL_WIDTH: f32 = 320.0;
+pub(crate) const PLUGIN_PANEL_WIDTH: f32 = 288.0;
 pub(crate) const ZOOM_BUTTON_WIDTH: f32 = 80.0;
 pub(crate) const ZOOM_MENU_WIDTH: f32 = 148.0;
 pub(crate) const ZOOM_MENU_RIGHT: f32 = 48.0;

@@ -43,6 +43,10 @@ jobs:
           }
           Compress-Archive -Path "$root/*" -DestinationPath target/lumia-portable-windows-x64.zip
 
+      - name: Package optional Annotation plugin
+        shell: pwsh
+        run: ./scripts/package-annotation-plugin.ps1
+
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -51,6 +55,7 @@ jobs:
             target/wix/Lumia-*-x64-en-US.msi
             target/wix/Lumia-*-x64-zh-CN.msi
             target/lumia-portable-windows-x64.zip
+            target/Lumia-Annotation-windows-x64.zip
           fail_on_unmatched: true
 
   macos-release:
@@ -68,10 +73,14 @@ jobs:
           test -x "$PLUGIN_DIR/lumia-plugin-photoshop"
           test -f "$PLUGIN_DIR/lumia.plugin.json"
           test -f target/Lumia.app/Contents/Resources/App.icns
+      - name: Package optional Annotation plugin
+        run: ./scripts/package-annotation-plugin.sh macos "$(uname -m)"
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: target/Lumia-macos-*.dmg
+          files: |
+            target/Lumia-macos-*.dmg
+            target/Lumia-Annotation-macos-*.tar.gz
           fail_on_unmatched: true
 
   linux-release:
@@ -119,8 +128,12 @@ jobs:
             grep -q "./plugins/lumia-plugin-photoshop/lumia.plugin.json"
           tar -tzf target/lumia-linux-x64.tar.gz |
             grep -q "./lumia-mime.xml"
+      - name: Package optional Annotation plugin
+        run: ./scripts/package-annotation-plugin.sh linux x64
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: target/lumia-linux-x64.tar.gz
+          files: |
+            target/lumia-linux-x64.tar.gz
+            target/Lumia-Annotation-linux-x64.tar.gz
           fail_on_unmatched: true

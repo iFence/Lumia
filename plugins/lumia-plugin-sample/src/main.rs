@@ -61,6 +61,9 @@ fn handle_line(line: &str) -> JsonRpcResponse {
                 "is_hdr": false
             }),
         ),
+        "plugin.shutdown" => {
+            JsonRpcResponse::result(request.id, json!(lumia_plugin_api::EmptyResult::default()))
+        }
         method => JsonRpcResponse::error(request.id, -32601, format!("unknown method: {method}")),
     }
 }
@@ -78,5 +81,7 @@ fn manifest() -> PluginManifest {
         ],
         supported_inputs: vec!["image/png".to_string(), "image/jpeg".to_string()],
         supported_outputs: vec!["image/png".to_string()],
+        contributions: Default::default(),
+        assets: Vec::new(),
     }
 }

@@ -5,7 +5,9 @@ pub enum PluginHostError {
     #[error("plugin entry is empty")]
     EmptyEntry,
     #[error("failed to spawn plugin: {0}")]
-    Spawn(#[from] std::io::Error),
+    Spawn(#[source] std::io::Error),
+    #[error("plugin I/O failed: {0}")]
+    Io(#[from] std::io::Error),
     #[error("plugin stdin is unavailable")]
     MissingStdin,
     #[error("plugin stdout is unavailable")]
@@ -16,6 +18,10 @@ pub enum PluginHostError {
     Deserialize(#[source] serde_json::Error),
     #[error("plugin closed stdout")]
     Closed,
+    #[error("plugin response exceeded the host limit or was not valid UTF-8")]
+    InvalidResponseBody,
+    #[error("plugin response timed out after {seconds} seconds")]
+    ResponseTimeout { seconds: u64 },
     #[error("plugin returned json-rpc version {actual}, expected {expected}")]
     JsonRpcVersion {
         expected: &'static str,
@@ -31,6 +37,10 @@ pub enum PluginHostError {
     MissingCapability(PluginCapability),
     #[error("plugin does not declare required permission {0:?}")]
     MissingPermission(PluginPermission),
+    #[error("invalid plugin manifest: {0}")]
+    InvalidManifest(String),
+    #[error("invalid plugin UI model: {0}")]
+    InvalidUiModel(String),
     #[error("plugin returned rpc error {code}: {message}")]
     Rpc {
         code: i64,

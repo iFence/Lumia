@@ -69,6 +69,9 @@ fn handle_line(line: &str) -> JsonRpcResponse {
                 Err(_) => JsonRpcResponse::error(request.id, -32602, "invalid decode parameters"),
             }
         }
+        "plugin.shutdown" => {
+            JsonRpcResponse::result(request.id, json!(lumia_plugin_api::EmptyResult::default()))
+        }
         method => JsonRpcResponse::error(request.id, -32601, format!("unknown method: {method}")),
     }
 }
@@ -104,6 +107,8 @@ pub(crate) fn manifest() -> PluginManifest {
         ],
         supported_inputs: vec!["image/vnd.adobe.photoshop".to_string()],
         supported_outputs: vec!["image/png".to_string()],
+        contributions: Default::default(),
+        assets: Vec::new(),
     }
 }
 

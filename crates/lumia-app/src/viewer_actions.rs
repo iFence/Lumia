@@ -247,7 +247,11 @@ impl LumiaApp {
         if self.is_viewer_blocked() || !self.viewer.has_document() {
             return;
         }
+        let previous_dimensions = self.viewer.display_dimensions();
         self.viewer.rotate_by(quarter_turns);
+        if let Some((width, height)) = previous_dimensions {
+            self.annotations.rotate_by(quarter_turns, width, height);
+        }
         self.ui.show_zoom_menu = false;
         self.rebuild_rotated_image(Some(window), cx);
         self.refresh_large_image_tiles(window, cx);

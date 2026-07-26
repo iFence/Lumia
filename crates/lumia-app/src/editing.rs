@@ -175,6 +175,7 @@ impl LumiaApp {
         if !self.can_edit_current_image() {
             return;
         }
+        self.close_plugin_session(cx);
         let Some((width, height)) = self.viewer.display_dimensions() else {
             return;
         };

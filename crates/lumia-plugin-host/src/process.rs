@@ -2,10 +2,13 @@ use std::io::{BufRead, BufReader, Write};
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
+use std::thread;
+use std::time::Duration;
 
 use lumia_plugin_api::{
-    InitializeParams, InitializeResult, JsonRpcRequest, JsonRpcResponse, PluginCapability,
-    PluginManifest, PluginPermission, RpcId, JSON_RPC_VERSION, PROTOCOL_VERSION,
+    EmptyResult, InitializeParams, InitializeResult, JsonRpcRequest, JsonRpcResponse,
+    PluginCapability, PluginManifest, PluginPermission, RpcId, JSON_RPC_VERSION, PROTOCOL_VERSION,
 };
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -13,11 +16,14 @@ use crate::{PluginHostError, Result};
 
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+const MAX_RPC_RESPONSE_BYTES: usize = 1024 * 1024;
+const CONTROL_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5);
+const TASK_RESPONSE_TIMEOUT: Duration = Duration::from_secs(120);
 
 pub struct PluginProcess {
     child: Child,
     stdin: ChildStdin,
-    stdout: BufReader<ChildStdout>,
+    responses: Receiver<std::io::Result<String>>,
     next_id: u64,
 }
 
@@ -34,20 +40,38 @@ impl PluginProcess {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
-            .spawn()?;
-        let stdin = child.stdin.take().ok_or(PluginHostError::MissingStdin)?;
-        let stdout = child.stdout.take().ok_or(PluginHostError::MissingStdout)?;
+            .spawn()
+            .map_err(PluginHostError::Spawn)?;
+        let Some(stdin) = child.stdin.take() else {
+            terminate_child(&mut child);
+            return Err(PluginHostError::MissingStdin);
+        };
+        let Some(stdout) = child.stdout.take() else {
+            terminate_child(&mut child);
+            return Err(PluginHostError::MissingStdout);
+        };
+        let responses = match spawn_response_reader(stdout) {
+            Ok(responses) => responses,
+            Err(error) => {
+                terminate_child(&mut child);
+                return Err(error);
+            }
+        };
 
         Ok(Self {
             child,
             stdin,
-            stdout: BufReader::new(stdout),
+            responses,
             next_id: 1,
         })
     }
 
     pub fn initialize(&mut self) -> Result<InitializeResult> {
-        self.request("plugin.initialize", InitializeParams::default())
+        self.request_with_timeout(
+            "plugin.initialize",
+            InitializeParams::default(),
+            CONTROL_RESPONSE_TIMEOUT,
+        )
     }
 
     pub fn initialize_for(&mut self, expected: &PluginManifest) -> Result<InitializeResult> {
@@ -57,6 +81,19 @@ impl PluginProcess {
     }
 
     pub fn request<P, R>(&mut self, method: &str, params: P) -> Result<R>
+    where
+        P: Serialize,
+        R: DeserializeOwned,
+    {
+        self.request_with_timeout(method, params, TASK_RESPONSE_TIMEOUT)
+    }
+
+    pub fn request_with_timeout<P, R>(
+        &mut self,
+        method: &str,
+        params: P,
+        timeout: Duration,
+    ) -> Result<R>
     where
         P: Serialize,
         R: DeserializeOwned,
@@ -71,19 +108,43 @@ impl PluginProcess {
         self.stdin.write_all(line.as_bytes())?;
         self.stdin.flush()?;
 
-        let mut response_line = String::new();
-        if self.stdout.read_line(&mut response_line)? == 0 {
-            return Err(PluginHostError::Closed);
-        }
-        let response: JsonRpcResponse =
-            serde_json::from_str(&response_line).map_err(PluginHostError::Deserialize)?;
+        let response_line = match self.responses.recv_timeout(timeout) {
+            Ok(Ok(line)) => line,
+            Ok(Err(error)) if error.kind() == std::io::ErrorKind::InvalidData => {
+                self.terminate();
+                return Err(PluginHostError::InvalidResponseBody);
+            }
+            Ok(Err(error)) => {
+                self.terminate();
+                return Err(error.into());
+            }
+            Err(RecvTimeoutError::Timeout) => {
+                self.terminate();
+                return Err(PluginHostError::ResponseTimeout {
+                    seconds: timeout.as_secs(),
+                });
+            }
+            Err(RecvTimeoutError::Disconnected) => {
+                self.terminate();
+                return Err(PluginHostError::Closed);
+            }
+        };
+        let response: JsonRpcResponse = match serde_json::from_str(&response_line) {
+            Ok(response) => response,
+            Err(error) => {
+                self.terminate();
+                return Err(PluginHostError::Deserialize(error));
+            }
+        };
         if response.jsonrpc != JSON_RPC_VERSION {
+            self.terminate();
             return Err(PluginHostError::JsonRpcVersion {
                 expected: JSON_RPC_VERSION,
                 actual: response.jsonrpc,
             });
         }
         if response.id != id {
+            self.terminate();
             return Err(PluginHostError::ResponseId);
         }
         if let Some(error) = response.error {
@@ -95,12 +156,36 @@ impl PluginProcess {
             });
         }
 
-        serde_json::from_value(response.result.unwrap_or_default())
-            .map_err(PluginHostError::Deserialize)
+        match serde_json::from_value(response.result.unwrap_or_default()) {
+            Ok(result) => Ok(result),
+            Err(error) => {
+                self.terminate();
+                Err(PluginHostError::Deserialize(error))
+            }
+        }
     }
 
     pub fn child_id(&self) -> u32 {
         self.child.id()
+    }
+
+    pub fn shutdown(mut self) -> Result<()> {
+        let _: EmptyResult = self.request_with_timeout(
+            "plugin.shutdown",
+            EmptyResult::default(),
+            CONTROL_RESPONSE_TIMEOUT,
+        )?;
+        Ok(())
+    }
+
+    pub fn terminate(&mut self) {
+        terminate_child(&mut self.child);
+    }
+}
+
+impl Drop for PluginProcess {
+    fn drop(&mut self) {
+        terminate_child(&mut self.child);
     }
 }
 
@@ -111,6 +196,72 @@ fn configure_plugin_command(command: &mut Command) {
 
 #[cfg(not(windows))]
 fn configure_plugin_command(_: &mut Command) {}
+
+fn terminate_child(child: &mut Child) {
+    if child.try_wait().ok().flatten().is_none() {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+}
+
+fn spawn_response_reader(stdout: ChildStdout) -> Result<Receiver<std::io::Result<String>>> {
+    let (sender, receiver) = mpsc::sync_channel(1);
+    thread::Builder::new()
+        .name("lumia-plugin-response".into())
+        .spawn(move || {
+            let mut reader = BufReader::new(stdout);
+            loop {
+                match read_bounded_line(&mut reader, MAX_RPC_RESPONSE_BYTES) {
+                    Ok(Some(line)) => {
+                        if sender.send(Ok(line)).is_err() {
+                            break;
+                        }
+                    }
+                    Ok(None) => break,
+                    Err(error) => {
+                        let _ = sender.send(Err(error));
+                        break;
+                    }
+                }
+            }
+        })
+        .map_err(PluginHostError::Spawn)?;
+    Ok(receiver)
+}
+
+fn read_bounded_line(
+    reader: &mut impl BufRead,
+    maximum_bytes: usize,
+) -> std::io::Result<Option<String>> {
+    let mut bytes = Vec::new();
+    loop {
+        let available = reader.fill_buf()?;
+        if available.is_empty() {
+            if bytes.is_empty() {
+                return Ok(None);
+            }
+            break;
+        }
+        let take = available
+            .iter()
+            .position(|byte| *byte == b'\n')
+            .map_or(available.len(), |position| position + 1);
+        if bytes.len().saturating_add(take) > maximum_bytes {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "plugin response is too large",
+            ));
+        }
+        bytes.extend_from_slice(&available[..take]);
+        reader.consume(take);
+        if bytes.last() == Some(&b'\n') {
+            break;
+        }
+    }
+    String::from_utf8(bytes)
+        .map(Some)
+        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))
+}
 
 pub fn validate_initialize(expected: &PluginManifest, result: &InitializeResult) -> Result<()> {
     if result.protocol_version != PROTOCOL_VERSION {
@@ -177,6 +328,8 @@ mod tests {
             ],
             supported_inputs: vec!["image/vnd.adobe.photoshop".to_string()],
             supported_outputs: vec!["image/png".to_string()],
+            contributions: Default::default(),
+            assets: Vec::new(),
         }
     }
 
@@ -197,5 +350,17 @@ mod tests {
         manifest.permissions.clear();
 
         assert!(validate_decode_preview_manifest(&manifest).is_err());
+    }
+
+    #[test]
+    fn response_reader_enforces_line_limit() {
+        let mut valid = std::io::Cursor::new(b"{\"ok\":true}\n".as_slice());
+        assert_eq!(
+            read_bounded_line(&mut valid, 32).unwrap().as_deref(),
+            Some("{\"ok\":true}\n")
+        );
+
+        let mut oversized = std::io::Cursor::new(b"123456\n".as_slice());
+        assert!(read_bounded_line(&mut oversized, 4).is_err());
     }
 }

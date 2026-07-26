@@ -19,7 +19,7 @@ Lumia is organized around four capability layers:
 | Official bundled plugins | RAW, HDR, HEIC/HEIF, professional/advanced format preview, and simple format conversion | Shipped with default builds, but implemented through the plugin protocol |
 | Optional plugins | AI stylization, background removal, super-resolution, repair, outpainting, denoising, batch watermarking, batch conversion, compression plugins, cloud model plugins, and local model plugins | Installed or enabled separately through the same process-plugin boundary |
 
-Current implementation status: single-image preview, zoom, pan, display rotation, image information, sibling-image navigation, adjacent preloading, settings, the stdio JSON-RPC plugin protocol, and bundled PSD/PSB composite preview are in place. EXIF, full folder browsing UI, favorites, filtering, built-in edit tools, additional professional-format plugins, and AI/batch plugins are product goals rather than complete features.
+Current implementation status: single-image preview, zoom, pan, display rotation, image information, sibling-image navigation, adjacent preloading, settings, lightweight crop/resize copy export, the stdio JSON-RPC plugin protocol, bundled PSD/PSB composite preview, and declarative plugin UI contributions are in place. EXIF, full folder browsing UI, favorites, filtering, additional professional-format plugins, and AI/batch plugins are product goals rather than complete features.
 
 ### Very large images
 
@@ -99,7 +99,21 @@ Lumia/
       lumia.plugin.json
 ```
 
-The MSI, Windows portable ZIP, macOS app bundle, and Linux archive all contain this layout. Third-party plugin installation and arbitrary plugin-directory scanning are not implemented yet.
+The MSI, Windows portable ZIP, macOS app bundle, and Linux archive all contain this layout.
+
+## Optional Annotation Plugin
+
+The official Annotation plugin is released as a separate package. Without it, Lumia contributes no annotation row to the image context menu and creates no annotation panel. Once installed and Lumia is restarted, right-click an image and choose **Annotate / 标注** to open the host-rendered panel, place icon markers, undo or redo changes, and export a PNG, JPEG, or WebP copy without changing the source image.
+
+Extract the platform package from the GitHub Release and copy its `lumia-plugin-annotation` directory into:
+
+| Platform | Plugin directory |
+|---|---|
+| Windows | `%APPDATA%\Lumia\plugins\` |
+| macOS | `~/Library/Application Support/Lumia/plugins/` |
+| Linux | `$XDG_DATA_HOME/lumia/plugins/`, or `~/.local/share/lumia/plugins/` by default |
+
+Lumia discovers plugins only at startup. The current phase scans these fixed directories but loads only known official plugin IDs whose Ed25519 manifest signature, relative paths, and SHA-256 asset hashes validate. Arbitrary third-party plugin installation is not enabled yet.
 
 The `--register-context-menu` command is designed for portable / development use. It never requires administrator privileges:
 
@@ -115,12 +129,15 @@ The `--register-context-menu` command is designed for portable / development use
 - `crates/lumia-plugin-host`: process plugin launcher and newline-delimited stdio transport.
 - `plugins/lumia-plugin-sample`: minimal process plugin used to validate the protocol.
 - `plugins/lumia-plugin-photoshop`: official bundled PSD/PSB composite-preview plugin.
+- `plugins/lumia-plugin-annotation`: optional official icon-annotation plugin and signed package metadata.
 
 ## Architecture
 
 The core application should remain the fast path for opening and browsing images. Common viewer state belongs in `lumia-core`; UI and event handling belong in `lumia-app`; plugin wire types belong in `lumia-plugin-api`; plugin process management belongs in `lumia-plugin-host`.
 
 Image payloads cross the plugin boundary by path and metadata, not by base64 or JSON-inline pixel buffers. Official bundled plugins and third-party plugins use the same manifest, permission, and JSON-RPC protocol. This keeps professional formats, AI, cloud integrations, batch processing, and heavy native dependencies outside the core process.
+
+UI-capable plugins contribute commands, context-menu rows, panels, controls, and canvas-tool declarations as bounded protocol data. Plugins cannot inject GPUI elements or arbitrary HTML. Lumia renders every contribution, owns pointer-rate canvas interaction, validates returned panel models, and terminates timed-out or malformed sessions.
 
 `lumia-core` currently contains HEIC/HEIF decode support as a transition bridge. New heavy or professional format support should be designed as official bundled plugins unless a future ADR explicitly moves a narrow capability into core.
 
@@ -197,7 +214,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-GitHub Actions will build the Setup EXE, both localized MSI packages, portable zip, and platform binaries, then attach them to a new [Release](https://github.com/iFence/Lumia/releases).
+GitHub Actions will build the Setup EXE, both localized MSI packages, portable zip, platform binaries, and separate signed Annotation plugin archives, then attach them to a new [Release](https://github.com/iFence/Lumia/releases).
 
 ## Image Format Strategy
 

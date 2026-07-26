@@ -68,6 +68,54 @@ fn official_photoshop_plugin_is_declared_in_every_release_package() {
 }
 
 #[test]
+fn annotation_plugin_is_packaged_separately_with_integrity_metadata() {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("lumia-app must be under workspace/crates");
+    let release = std::fs::read_to_string(workspace.join(".github/workflows/release.yml"))
+        .expect("release workflow");
+    for artifact in [
+        "Lumia-Annotation-windows-x64.zip",
+        "Lumia-Annotation-macos-*.tar.gz",
+        "Lumia-Annotation-linux-x64.tar.gz",
+    ] {
+        assert!(release.contains(artifact), "missing {artifact}");
+    }
+
+    let unix_packager =
+        std::fs::read_to_string(workspace.join("scripts/package-annotation-plugin.sh"))
+            .expect("Unix Annotation packager");
+    let windows_packager =
+        std::fs::read_to_string(workspace.join("scripts/package-annotation-plugin.ps1"))
+            .expect("Windows Annotation packager");
+    for required in ["lumia.plugin.json", "lumia.plugin.sig", "assets"] {
+        assert!(
+            unix_packager.contains(required),
+            "Unix package misses {required}"
+        );
+        assert!(
+            windows_packager.contains(required),
+            "Windows package misses {required}"
+        );
+    }
+
+    let wix = std::fs::read_to_string(workspace.join("crates/lumia-app/wix/main.wxs"))
+        .expect("WiX source");
+    assert!(
+        !wix.contains("lumia-plugin-annotation"),
+        "optional Annotation plugin must not enter the base MSI"
+    );
+    let macos_installer =
+        std::fs::read_to_string(workspace.join("scripts/build-macos-installer.sh"))
+            .expect("macOS installer");
+    assert!(
+        !macos_installer.contains("lumia-plugin-annotation"),
+        "optional Annotation plugin must not enter the base app bundle"
+    );
+}
+
+#[test]
 fn release_metadata_declares_file_association_resources() {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()

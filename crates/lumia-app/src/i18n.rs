@@ -94,6 +94,11 @@ pub(crate) enum TextKey {
     EditInvalidSize,
     EditCropHint,
     EditResizeHint,
+    AnnotationPlaceHint,
+    AnnotationNotReady,
+    AnnotationPixelsUnavailable,
+    AnnotationExported,
+    AnnotationChooseFormat,
 }
 
 pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
@@ -188,6 +193,11 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::EditInvalidSize => "Enter a valid size up to 96 MiB",
             TextKey::EditCropHint => "Drag the selection or its corners on the image",
             TextKey::EditResizeHint => "The original remains visible while the copy is resized",
+            TextKey::AnnotationPlaceHint => "Click the image to place an icon; Shift-drag to pan",
+            TextKey::AnnotationNotReady => "The displayed image is not ready to export",
+            TextKey::AnnotationPixelsUnavailable => "The displayed image pixels are unavailable",
+            TextKey::AnnotationExported => "Exported to",
+            TextKey::AnnotationChooseFormat => "Choose a PNG, JPEG, or WebP file name",
         },
         Language::Chinese => match key {
             TextKey::Settings => "设置",
@@ -279,6 +289,11 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::EditInvalidSize => "请输入有效尺寸，输出不得超过 96 MiB",
             TextKey::EditCropHint => "在图片上拖动选区或四角控制点",
             TextKey::EditResizeHint => "左侧保持显示原图，导出时生成修改尺寸后的副本",
+            TextKey::AnnotationPlaceHint => "点击图片放置图标；按住 Shift 拖动可平移",
+            TextKey::AnnotationNotReady => "当前显示的图片尚未准备好，无法导出",
+            TextKey::AnnotationPixelsUnavailable => "无法读取当前显示图片的像素",
+            TextKey::AnnotationExported => "已导出到",
+            TextKey::AnnotationChooseFormat => "请选择 PNG、JPEG 或 WebP 文件名",
         },
     }
 }

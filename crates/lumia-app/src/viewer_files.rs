@@ -5,7 +5,7 @@ use lumia_core::{FitMode, ViewportState};
 
 use crate::app::LumiaApp;
 use crate::{NextImage, PreviousImage};
-use crate::{EDIT_PANEL_WIDTH, STATUS_BAR_HEIGHT};
+use crate::{EDIT_PANEL_WIDTH, PLUGIN_PANEL_WIDTH, STATUS_BAR_HEIGHT};
 
 impl LumiaApp {
     pub(crate) fn current_image_index(&self) -> Option<usize> {
@@ -114,6 +114,8 @@ impl LumiaApp {
         let viewport_size = window.viewport_size();
         let panel_width = if self.editing.mode.is_some() {
             EDIT_PANEL_WIDTH
+        } else if self.plugins.active.is_some() {
+            PLUGIN_PANEL_WIDTH
         } else {
             0.0
         };

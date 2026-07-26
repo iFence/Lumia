@@ -37,8 +37,8 @@ jobs:
       - run: cargo fmt --check
       - run: cargo check --workspace --all-targets
       - run: cargo test --workspace
-      - name: Build application and bundled plugin
-        run: cargo build -p lumia-app -p lumia-plugin-photoshop
+      - name: Build application and plugins
+        run: cargo build -p lumia-app -p lumia-plugin-photoshop -p lumia-plugin-annotation
       - name: Verify Windows bundled binaries
         if: runner.os == 'Windows'
         shell: pwsh
@@ -52,9 +52,17 @@ jobs:
           if (-not (Test-Path plugins/lumia-plugin-photoshop/lumia.plugin.json)) {
             throw "Photoshop plugin manifest is missing"
           }
+          if (-not (Test-Path target/debug/lumia-plugin-annotation.exe)) {
+            throw "Annotation plugin binary is missing"
+          }
+          if (-not (Test-Path plugins/lumia-plugin-annotation/lumia.plugin.sig)) {
+            throw "Annotation plugin signature is missing"
+          }
       - name: Verify Unix bundled binaries
         if: runner.os != 'Windows'
         run: |
           test -x target/debug/lumia-app
           test -x target/debug/lumia-plugin-photoshop
           test -f plugins/lumia-plugin-photoshop/lumia.plugin.json
+          test -x target/debug/lumia-plugin-annotation
+          test -f plugins/lumia-plugin-annotation/lumia.plugin.sig

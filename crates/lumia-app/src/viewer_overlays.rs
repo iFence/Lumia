@@ -7,6 +7,7 @@ use gpui_component::{Icon, IconName};
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
 use crate::palette::Palette;
+use crate::plugin_panel::language_code;
 use crate::widgets::{context_menu_item, context_menu_item_enabled, CONTEXT_MENU_ITEM_HEIGHT};
 use crate::{
     EDIT_PANEL_WIDTH, STATUS_BAR_HEIGHT, STATUS_MENU_BOTTOM, ZOOM_MENU_ITEM_HEIGHT,
@@ -14,7 +15,6 @@ use crate::{
 };
 
 const CONTEXT_MENU_WIDTH: f32 = 156.0;
-const CONTEXT_MENU_HEIGHT: f32 = 2.0 + 8.0 + 6.0 * CONTEXT_MENU_ITEM_HEIGHT + 2.0 * 9.0;
 const CONTEXT_MENU_MARGIN: f32 = 8.0;
 
 impl LumiaApp {
@@ -24,8 +24,18 @@ impl LumiaApp {
         window: &Window,
     ) -> Point<Pixels> {
         let viewport = window.viewport_size();
+        let plugin_item_count = self
+            .plugins
+            .context_menu_items(
+                language_code(self.settings.language),
+                self.viewer.has_document(),
+                self.plugin_canvas_available(),
+            )
+            .len();
         let right_inset = if self.editing.mode.is_some() {
             EDIT_PANEL_WIDTH
+        } else if self.plugins.active.is_some() {
+            crate::PLUGIN_PANEL_WIDTH
         } else {
             0.0
         };
@@ -45,7 +55,7 @@ impl LumiaApp {
             px(clamp_menu_coordinate(
                 f32::from(pointer.y),
                 f32::from(viewport.height),
-                CONTEXT_MENU_HEIGHT,
+                context_menu_height(plugin_item_count),
                 bottom_inset,
             )),
         )
@@ -139,6 +149,12 @@ impl LumiaApp {
         } else {
             TextKey::Slideshow
         };
+        let plugin_items = self.plugins.context_menu_items(
+            language_code(self.settings.language),
+            self.viewer.has_document(),
+            self.plugin_canvas_available(),
+        );
+        let plugin_elements = self.render_plugin_context_menu_items(plugin_items, palette, cx);
 
         self.ui.context_menu_position.map(|position| {
             div()
@@ -183,6 +199,7 @@ impl LumiaApp {
                         this.toggle_slideshow(window, cx);
                     },
                 ))
+                .children(plugin_elements)
                 .child(div().h(px(1.0)).my_1().bg(rgb(palette.border)))
                 .child(context_menu_item(
                     "settings-menu-item",
@@ -218,6 +235,10 @@ impl LumiaApp {
     }
 }
 
+fn context_menu_height(plugin_item_count: usize) -> f32 {
+    2.0 + 8.0 + (6 + plugin_item_count) as f32 * CONTEXT_MENU_ITEM_HEIGHT + 2.0 * 9.0
+}
+
 fn clamp_menu_coordinate(
     pointer: f32,
     viewport_extent: f32,
@@ -239,7 +260,7 @@ mod tests {
             636.0
         );
         assert_eq!(
-            clamp_menu_coordinate(590.0, 600.0, CONTEXT_MENU_HEIGHT, STATUS_BAR_HEIGHT),
+            clamp_menu_coordinate(590.0, 600.0, context_menu_height(0), STATUS_BAR_HEIGHT),
             360.0
         );
     }
@@ -253,6 +274,14 @@ mod tests {
         assert_eq!(
             clamp_menu_coordinate(10.0, 100.0, CONTEXT_MENU_WIDTH, 0.0),
             0.0
+        );
+    }
+
+    #[test]
+    fn context_menu_height_grows_with_plugin_contributions() {
+        assert_eq!(
+            context_menu_height(2) - context_menu_height(0),
+            2.0 * CONTEXT_MENU_ITEM_HEIGHT
         );
     }
 }

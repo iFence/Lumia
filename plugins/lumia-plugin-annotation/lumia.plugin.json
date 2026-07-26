@@ -1,0 +1,72 @@
+{
+  "id": "lumia.annotation",
+  "name": "Lumia Annotation",
+  "version": "0.1.0",
+  "entry": "lumia-plugin-annotation",
+  "capabilities": ["ui_contributions", "canvas_overlay"],
+  "permissions": [],
+  "supported_inputs": [],
+  "supported_outputs": ["image/png", "image/jpeg", "image/webp"],
+  "contributions": {
+    "commands": [
+      {
+        "id": "annotation.open",
+        "label": {
+          "fallback": "Annotate",
+          "translations": { "zh-CN": "标注" }
+        },
+        "icon": { "type": "annotation" },
+        "requires_document": true
+      }
+    ],
+    "viewer_context_menu": [
+      {
+        "id": "annotation.context_menu",
+        "command_id": "annotation.open",
+        "group": 10,
+        "order": 10
+      }
+    ],
+    "right_panels": [
+      {
+        "id": "annotation.panel",
+        "command_id": "annotation.open",
+        "title": {
+          "fallback": "Annotation",
+          "translations": { "zh-CN": "标注" }
+        }
+      }
+    ],
+    "canvas_tools": [
+      {
+        "id": "annotation.icon_stamp",
+        "label": {
+          "fallback": "Icon marker",
+          "translations": { "zh-CN": "图标标记" }
+        },
+        "icon": { "type": "annotation" },
+        "kind": "icon_stamp"
+      }
+    ]
+  },
+  "assets": [
+    {
+      "id": "pin",
+      "path": "assets/pin.svg",
+      "media_type": "image/svg+xml",
+      "sha256": "345b2cfa374dad30c7f61487d198bb20f9da4defa4ab0144657b9dddd3c01b62"
+    },
+    {
+      "id": "star",
+      "path": "assets/star.svg",
+      "media_type": "image/svg+xml",
+      "sha256": "9cc7c304e9ee302f7b0f21347b8ac1e4941a56457a2fc2ccf74772b6a9ce47f0"
+    },
+    {
+      "id": "check",
+      "path": "assets/check.svg",
+      "media_type": "image/svg+xml",
+      "sha256": "b6055ccaf4ec4a3712a643578eb915921ca8c2d233fc734240905c99c131774b"
+    }
+  ]
+}

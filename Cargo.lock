@@ -3533,12 +3533,15 @@ version = "0.1.1"
 dependencies = [
  "anyhow",
  "async-channel",
+ "base64",
  "chrono",
+ "dirs",
  "futures",
  "gpui",
  "gpui-component",
  "gpui-component-assets",
  "gpui_platform",
+ "hex",
  "http_client",
  "image",
  "lumia-core",
@@ -3550,8 +3553,10 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "reqwest_client",
  "rfd",
+ "ring",
  "serde",
  "serde_json",
+ "sha2",
  "url",
  "windows-sys 0.61.2",
  "winreg 0.54.0",
@@ -3571,6 +3576,14 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "uuid",
+]
+
+[[package]]
+name = "lumia-plugin-annotation"
+version = "0.1.0"
+dependencies = [
+ "lumia-plugin-api",
+ "serde_json",
 ]
 
 [[package]]

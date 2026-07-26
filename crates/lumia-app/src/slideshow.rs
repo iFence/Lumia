@@ -53,6 +53,7 @@ impl LumiaApp {
             return;
         }
 
+        self.close_plugin_session(cx);
         let generation = self.slideshow.start();
         self.ui.context_menu_position = None;
         cx.notify();

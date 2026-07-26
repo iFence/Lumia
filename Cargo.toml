@@ -6,6 +6,7 @@ members = [
     "crates/lumia-plugin-host",
     "crates/lumia-setup",
     "plugins/lumia-plugin-photoshop",
+    "plugins/lumia-plugin-annotation",
     "plugins/lumia-plugin-sample",
 ]
 resolver = "2"
@@ -18,15 +19,19 @@ rust-version = "1.95"
 [workspace.dependencies]
 anyhow = "1.0.95"
 async-channel = "2.5"
+base64 = "0.22"
 chrono = "0.4"
+dirs = "6.0"
 gpui = { git = "https://github.com/zed-industries/zed" }
 gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["font-kit"] }
 gpui-component = { git = "https://github.com/longbridge/gpui-component" }
 gpui-component-assets = { git = "https://github.com/longbridge/gpui-component" }
 http_client = { git = "https://github.com/zed-industries/zed" }
 reqwest_client = { git = "https://github.com/zed-industries/zed" }
+ring = "0.17"
 futures = "0.3"
 image = "0.25"
+hex = "0.4"
 gif = "0.14"
 memmap2 = "0.9.10"
 png = "0.18.1"
@@ -37,6 +42,7 @@ heic = { version = "0.1.6", features = ["parallel"] }
 rfd = "0.15"
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.135"
+sha2 = "0.10"
 thiserror = "2.0.11"
 url = "2.5"
 uuid = { version = "1.11.0", features = ["serde", "v7"] }

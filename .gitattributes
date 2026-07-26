@@ -1,1 +1,5 @@
 *.rs text eol=lf
+plugins/*/lumia.plugin.json text eol=lf
+plugins/*/lumia.plugin.sig text eol=lf
+plugins/*/assets/*.svg text eol=lf
+*.sh text eol=lf

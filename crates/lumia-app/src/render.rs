@@ -57,7 +57,8 @@ impl Render for LumiaApp {
                     .flex()
                     .overflow_hidden()
                     .child(self.render_viewer(window, palette, cx))
-                    .children(self.render_edit_panel(palette, cx)),
+                    .children(self.render_edit_panel(palette, cx))
+                    .children(self.render_plugin_panel(palette, cx)),
             )
             .children(
                 (self.ui.status_bar_locked || self.ui.show_status_bar || self.ui.show_zoom_menu)
@@ -154,12 +155,18 @@ impl LumiaApp {
             }))
             .on_mouse_down(
                 MouseButton::Left,
-                cx.listener(|this, event: &MouseDownEvent, _, cx| {
+                cx.listener(|this, event: &MouseDownEvent, window, cx| {
                     if this.is_viewer_blocked() {
                         return;
                     }
                     if this.ui.context_menu_position.take().is_some() {
                         cx.notify();
+                        return;
+                    }
+                    if this.plugins.active.is_some()
+                        && !event.modifiers.shift
+                        && this.place_annotation_at(event.position, window, cx)
+                    {
                         return;
                     }
                     if this.viewer.has_document() {
@@ -271,7 +278,8 @@ impl LumiaApp {
                 .left(px(self.viewer.viewport().pan_x))
                 .top(px(self.viewer.viewport().pan_y))
                 .child(image)
-                .children(crop_overlay);
+                .children(crop_overlay)
+                .children(self.render_annotation_overlay(display_size, palette));
             if let Some((width, height)) = display_size {
                 image_frame = image_frame.w(px(width)).h(px(height));
             }
