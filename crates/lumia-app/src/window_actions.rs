@@ -57,11 +57,8 @@ impl LumiaApp {
     pub(crate) fn open_settings_panel(&mut self, cx: &mut Context<Self>) {
         self.ui.show_settings_panel = true;
         self.ui.active_settings_group = SettingsGroup::General;
-        #[cfg(target_os = "windows")]
-        {
-            self.ui.file_associations.initialized = false;
-            self.ui.file_associations.feedback = None;
-        }
+        self.ui.file_associations.initialized = false;
+        self.ui.file_associations.feedback = None;
         self.ui.context_menu_position = None;
         cx.notify();
     }
@@ -74,7 +71,6 @@ impl LumiaApp {
 
     pub(crate) fn select_settings_group(&mut self, group: SettingsGroup, cx: &mut Context<Self>) {
         self.ui.active_settings_group = group;
-        #[cfg(target_os = "windows")]
         if group == SettingsGroup::FileAssociations && !self.ui.file_associations.initialized {
             self.initialize_file_associations(cx);
         }

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="image/x-dds">
+    <comment>DirectDraw Surface image</comment>
+    <glob pattern="*.dds"/>
+  </mime-type>
+  <mime-type type="image/x-exr">
+    <comment>OpenEXR image</comment>
+    <glob pattern="*.exr"/>
+  </mime-type>
+  <mime-type type="image/x-farbfeld">
+    <comment>Farbfeld image</comment>
+    <glob pattern="*.ff"/>
+    <glob pattern="*.farbfeld"/>
+  </mime-type>
+  <mime-type type="image/x-qoi">
+    <comment>Quite OK Image</comment>
+    <glob pattern="*.qoi"/>
+  </mime-type>
+  <mime-type type="image/x-tga">
+    <comment>Truevision TGA image</comment>
+    <glob pattern="*.tga"/>
+  </mime-type>
+  <mime-type type="image/vnd.adobe.photoshop">
+    <comment>Adobe Photoshop document</comment>
+    <glob pattern="*.psd"/>
+    <glob pattern="*.psb"/>
+  </mime-type>
+</mime-info>

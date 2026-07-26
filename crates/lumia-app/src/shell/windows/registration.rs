@@ -27,6 +27,7 @@ pub(super) struct RegistryPlan {
 
 pub(super) fn build_apply_plan(
     exe_path: &Path,
+    registered_extensions: &BTreeSet<String>,
     selected_extensions: &BTreeSet<String>,
 ) -> RegistryPlan {
     let mut plan = RegistryPlan::default();
@@ -77,7 +78,7 @@ pub(super) fn build_apply_plan(
         let context_menu =
             format!("Software\\Classes\\SystemFileAssociations\\.{extension}\\shell\\Lumia");
 
-        if selected_extensions.contains(*extension) {
+        if registered_extensions.contains(*extension) {
             plan.set_string(&open_with, PROG_ID, "");
             plan.set_string(&supported_types, &extension_with_dot, "");
             plan.set_string(capabilities, &extension_with_dot, PROG_ID);
@@ -176,6 +177,7 @@ mod tests {
         let plan = build_apply_plan(
             Path::new(r"C:\Program Files\Lumia\lumia-app.exe"),
             &selected(&["jpg", "jpeg", "png"]),
+            &selected(&["jpg", "jpeg", "png"]),
         );
 
         assert!(plan.set_values.iter().any(|value| {
@@ -193,7 +195,11 @@ mod tests {
 
     #[test]
     fn apply_plan_records_selection_and_cleans_legacy_menu() {
-        let plan = build_apply_plan(Path::new("lumia-app.exe"), &selected(&["png"]));
+        let plan = build_apply_plan(
+            Path::new("lumia-app.exe"),
+            &selected(&["png"]),
+            &selected(&["png"]),
+        );
 
         assert!(plan.set_values.iter().any(|value| {
             value.path == r"Software\Lumia\Associations"
@@ -209,6 +215,7 @@ mod tests {
     fn apply_plan_registers_photoshop_extensions() {
         let plan = build_apply_plan(
             Path::new(r"C:\Program Files\Lumia\lumia-app.exe"),
+            &selected(&["psd", "psb"]),
             &selected(&["psd", "psb"]),
         );
 
@@ -229,7 +236,11 @@ mod tests {
 
     #[test]
     fn plans_never_modify_windows_user_choice() {
-        let apply = build_apply_plan(Path::new("lumia-app.exe"), &selected(&["png"]));
+        let apply = build_apply_plan(
+            Path::new("lumia-app.exe"),
+            &selected(&["png"]),
+            &selected(&["png"]),
+        );
         let unregister = build_unregister_plan();
         let paths = apply
             .set_values
@@ -262,5 +273,23 @@ mod tests {
             .delete_trees
             .iter()
             .any(|path| path.contains(r"Software\Lumia\Installer")));
+    }
+
+    #[test]
+    fn active_unselected_extensions_can_remain_registered_during_confirmation() {
+        let plan = build_apply_plan(
+            Path::new("lumia-app.exe"),
+            &selected(&["png", "gif"]),
+            &selected(&["png"]),
+        );
+
+        assert!(plan.set_values.iter().any(|value| {
+            value.path.ends_with(r".gif\OpenWithProgids") && value.name == PROG_ID
+        }));
+        assert!(plan.set_values.iter().any(|value| {
+            value.path == r"Software\Lumia\Associations"
+                && value.name == "SelectedExtensions"
+                && value.data == RegistryData::MultiString(vec!["png".into()])
+        }));
     }
 }

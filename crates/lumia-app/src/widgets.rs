@@ -2,7 +2,6 @@ use gpui::{
     div, px, rgb, Context, InteractiveElement, IntoElement, MouseButton, MouseDownEvent,
     ParentElement, StatefulInteractiveElement, Styled, Window,
 };
-#[cfg(target_os = "windows")]
 use gpui_component::{button::ButtonVariants as _, Disableable as _};
 use gpui_component::{
     button::{Button, ButtonRounded},
@@ -101,7 +100,6 @@ pub(crate) fn settings_dropdown_button(
         .into_any_element()
 }
 
-#[cfg(target_os = "windows")]
 pub(crate) fn settings_action_button(
     id: &'static str,
     label: &'static str,

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use gpui::{App, Context, FocusHandle, Focusable, Subscription, WeakEntity, Window};
-use lumia_core::{AppSettings, FolderNavigation, ViewerSession};
+use lumia_core::{AppSettings, FolderNavigation, SettingsGroup, ViewerSession};
 
 use crate::large_image::LargeImageSession;
 use crate::load_state::ImageLoadState;
@@ -55,7 +55,15 @@ impl LumiaApp {
         }));
         app.activation_subscription =
             Some(cx.observe_window_activation(window, |app, window, cx| {
+                let was_active = app.window_active;
                 app.window_active = window.is_window_active();
+                if app.window_active
+                    && !was_active
+                    && app.ui.show_settings_panel
+                    && app.ui.active_settings_group == SettingsGroup::FileAssociations
+                {
+                    app.refresh_file_associations(cx);
+                }
                 cx.notify();
             }));
         app.rebuild_keybindings(cx);

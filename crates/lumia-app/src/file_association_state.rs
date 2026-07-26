@@ -4,6 +4,8 @@ use std::collections::BTreeSet;
 pub(crate) enum FileAssociationFeedback {
     Applied,
     Removed,
+    NeedsSystemConfirmation,
+    ManualRestore(Vec<String>),
     Error(String),
     SettingsLaunchError(String),
 }
@@ -11,14 +13,16 @@ pub(crate) enum FileAssociationFeedback {
 #[derive(Debug, Default)]
 pub(crate) struct FileAssociationUiState {
     pub(crate) initialized: bool,
-    pub(crate) registered_extensions: BTreeSet<String>,
+    pub(crate) is_busy: bool,
+    pub(crate) applied_extensions: BTreeSet<String>,
     pub(crate) selected_extensions: BTreeSet<String>,
+    pub(crate) effective_extensions: BTreeSet<String>,
     pub(crate) feedback: Option<FileAssociationFeedback>,
 }
 
 impl FileAssociationUiState {
     pub(crate) fn is_dirty(&self) -> bool {
-        self.selected_extensions != self.registered_extensions
+        self.selected_extensions != self.applied_extensions
     }
 }
 
@@ -34,7 +38,7 @@ mod tests {
         state.selected_extensions.insert("png".into());
         assert!(state.is_dirty());
 
-        state.registered_extensions.insert("png".into());
+        state.applied_extensions.insert("png".into());
         assert!(!state.is_dirty());
     }
 }

@@ -29,6 +29,9 @@ pub(crate) enum TextKey {
     Shortcuts,
     FileAssociationsDescription,
     FileAssociationsSystemNotice,
+    AssociationLoading,
+    CurrentDefault,
+    RefreshAssociations,
     SelectAll,
     ClearAll,
     ApplyAssociations,
@@ -36,6 +39,8 @@ pub(crate) enum TextKey {
     AssociationApplied,
     AssociationRemoved,
     AssociationApplyFailed,
+    AssociationNeedsConfirmation,
+    AssociationManualRestore,
     DefaultAppsLaunchFailed,
     PhotoshopPreviewFailed,
     LargeImagePreviewFailed,
@@ -105,9 +110,10 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::FileAssociationsDescription => {
                 "Choose the image formats Lumia should offer to open"
             }
-            TextKey::FileAssociationsSystemNotice => {
-                "Windows will ask you to confirm default apps after applying"
-            }
+            TextKey::FileAssociationsSystemNotice => association_system_notice(Language::English),
+            TextKey::AssociationLoading => "Checking system defaults...",
+            TextKey::CurrentDefault => "Current default",
+            TextKey::RefreshAssociations => "Refresh",
             TextKey::SelectAll => "Select All",
             TextKey::ClearAll => "Clear",
             TextKey::ApplyAssociations => "Apply",
@@ -115,6 +121,10 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::AssociationApplied => "File associations registered",
             TextKey::AssociationRemoved => "File associations removed",
             TextKey::AssociationApplyFailed => "Could not update file associations",
+            TextKey::AssociationNeedsConfirmation => {
+                "Registered. Confirm the selected formats in system settings, then refresh."
+            }
+            TextKey::AssociationManualRestore => "Choose another default application manually for",
             TextKey::DefaultAppsLaunchFailed => "Could not open Windows Default Apps",
             TextKey::PhotoshopPreviewFailed => "Could not preview Photoshop document",
             TextKey::LargeImagePreviewFailed => "Could not decode this large image",
@@ -181,7 +191,10 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::FileAssociations => "文件关联",
             TextKey::Shortcuts => "快捷键",
             TextKey::FileAssociationsDescription => "选择 Lumia 可用于打开的图片格式",
-            TextKey::FileAssociationsSystemNotice => "应用后需在 Windows 默认应用页面确认",
+            TextKey::FileAssociationsSystemNotice => association_system_notice(Language::Chinese),
+            TextKey::AssociationLoading => "正在检查系统默认应用...",
+            TextKey::CurrentDefault => "当前默认",
+            TextKey::RefreshAssociations => "刷新",
             TextKey::SelectAll => "全选",
             TextKey::ClearAll => "清空",
             TextKey::ApplyAssociations => "应用",
@@ -189,6 +202,10 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::AssociationApplied => "文件关联已注册",
             TextKey::AssociationRemoved => "文件关联已移除",
             TextKey::AssociationApplyFailed => "无法更新文件关联",
+            TextKey::AssociationNeedsConfirmation => {
+                "关联已注册，请在系统设置中确认所选格式，然后刷新状态"
+            }
+            TextKey::AssociationManualRestore => "请手动为以下格式选择其他默认应用",
             TextKey::DefaultAppsLaunchFailed => "无法打开 Windows 默认应用设置",
             TextKey::PhotoshopPreviewFailed => "无法预览 Photoshop 文档",
             TextKey::LargeImagePreviewFailed => "无法解码这张超大图片",
@@ -231,5 +248,29 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::ImageInfoPath => "路径",
             TextKey::ImageInfoUnknown => "未知",
         },
+    }
+}
+
+fn association_system_notice(language: Language) -> &'static str {
+    #[cfg(target_os = "windows")]
+    {
+        match language {
+            Language::English => "Windows requires confirmation in Default Apps",
+            Language::Chinese => "Windows 需要在默认应用页面确认",
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        match language {
+            Language::English => "Changes are applied through macOS Launch Services",
+            Language::Chinese => "更改将通过 macOS Launch Services 直接应用",
+        }
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        match language {
+            Language::English => "Changes are applied through the desktop MIME settings",
+            Language::Chinese => "更改将通过桌面 MIME 设置直接应用",
+        }
     }
 }

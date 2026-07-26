@@ -13,20 +13,34 @@ use windows_sys::Win32::UI::Shell::{
 use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 use winreg::{enums::*, RegKey};
 
-use crate::shell::FileAssociationSnapshot;
+use crate::shell::{FileAssociationApplyResult, FileAssociationSnapshot};
 use registration::{
     build_apply_plan, build_unregister_plan, open_command, RegistryData, RegistryPlan,
 };
 
 const ASSOCIATIONS_KEY: &str = "Software\\Lumia\\Associations";
 const PROG_ID: &str = "Lumia.Image";
+const ASSOCF_NONE: u32 = 0;
+const ASSOCSTR_EXECUTABLE: u32 = 2;
+
+#[link(name = "shlwapi")]
+extern "system" {
+    fn AssocQueryStringW(
+        flags: u32,
+        query: u32,
+        association: *const u16,
+        extra: *const u16,
+        output: *mut u16,
+        output_characters: *mut u32,
+    ) -> i32;
+}
 
 pub(super) fn register(exe_path: &Path) -> anyhow::Result<()> {
     let selected = lumia_core::supported_image_extensions()
         .iter()
         .map(|extension| (*extension).to_string())
         .collect::<BTreeSet<_>>();
-    apply(exe_path, &selected)
+    apply(exe_path, &selected).map(|_| ())
 }
 
 pub(super) fn query(exe_path: &Path) -> anyhow::Result<FileAssociationSnapshot> {
@@ -49,19 +63,48 @@ pub(super) fn query(exe_path: &Path) -> anyhow::Result<FileAssociationSnapshot> 
         .filter(|extension| extension_is_registered(&hkcu, extension, &expected_command))
         .map(|extension| (*extension).to_string())
         .collect();
+    let effective_extensions = lumia_core::supported_image_extensions()
+        .iter()
+        .filter(|extension| extension_uses_executable(extension, exe_path))
+        .map(|extension| (*extension).to_string())
+        .collect();
 
     Ok(FileAssociationSnapshot {
         configured,
         registered_extensions,
         selected_extensions,
+        effective_extensions,
     })
 }
 
-pub(super) fn apply(exe_path: &Path, selected_extensions: &BTreeSet<String>) -> anyhow::Result<()> {
-    let plan = build_apply_plan(exe_path, selected_extensions);
-    let result = apply_registry_plan(&plan);
+pub(super) fn apply(
+    exe_path: &Path,
+    selected_extensions: &BTreeSet<String>,
+) -> anyhow::Result<FileAssociationApplyResult> {
+    let before = query(exe_path)?;
+    let selected_extensions = selected_extensions
+        .iter()
+        .filter(|extension| lumia_core::is_supported_image_extension(extension))
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let registered_extensions = selected_extensions
+        .union(&before.effective_extensions)
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let plan = build_apply_plan(exe_path, &registered_extensions, &selected_extensions);
+    apply_registry_plan(&plan)?;
     notify_associations_changed();
-    result
+    let snapshot = query(exe_path)?;
+    let manual_restore_extensions = before
+        .effective_extensions
+        .difference(&selected_extensions)
+        .cloned()
+        .collect();
+    Ok(FileAssociationApplyResult {
+        system_confirmation_required: snapshot.effective_extensions != selected_extensions,
+        snapshot,
+        manual_restore_extensions,
+    })
 }
 
 pub(super) fn unregister() -> anyhow::Result<()> {
@@ -203,6 +246,47 @@ fn extension_is_registered(hkcu: &RegKey, extension: &str, expected_command: &st
         && registry_string(hkcu, prog_id_command, "").as_deref() == Some(expected_command)
         && registry_string(hkcu, capabilities, &extension_with_dot).as_deref() == Some(PROG_ID)
         && registry_string(hkcu, supported_types, &extension_with_dot).is_some()
+}
+
+fn extension_uses_executable(extension: &str, exe_path: &Path) -> bool {
+    let association = wide_null(&format!(".{extension}"));
+    let mut length = 0_u32;
+    let first = unsafe {
+        AssocQueryStringW(
+            ASSOCF_NONE,
+            ASSOCSTR_EXECUTABLE,
+            association.as_ptr(),
+            ptr::null(),
+            ptr::null_mut(),
+            &mut length,
+        )
+    };
+    if first != 1 || length == 0 {
+        return false;
+    }
+    let mut output = vec![0_u16; length as usize];
+    let result = unsafe {
+        AssocQueryStringW(
+            ASSOCF_NONE,
+            ASSOCSTR_EXECUTABLE,
+            association.as_ptr(),
+            ptr::null(),
+            output.as_mut_ptr(),
+            &mut length,
+        )
+    };
+    if result != 0 {
+        return false;
+    }
+    if output.last() == Some(&0) {
+        output.pop();
+    }
+    let actual = String::from_utf16_lossy(&output);
+    normalize_windows_path(&actual) == normalize_windows_path(&exe_path.to_string_lossy())
+}
+
+fn normalize_windows_path(path: &str) -> String {
+    path.trim_matches('"').replace('/', r"\").to_lowercase()
 }
 
 fn registry_string(root: &RegKey, path: &str, name: &str) -> Option<String> {

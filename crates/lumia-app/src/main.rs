@@ -5,9 +5,7 @@ mod bootstrap;
 mod cli;
 mod common_decode;
 mod custom_icons;
-#[cfg(target_os = "windows")]
 mod file_association_actions;
-#[cfg(target_os = "windows")]
 mod file_association_state;
 mod i18n;
 mod image_info;
@@ -24,7 +22,6 @@ mod preferences;
 mod professional_decode;
 mod render;
 mod settings_about;
-#[cfg(target_os = "windows")]
 mod settings_associations;
 mod settings_general;
 mod settings_shortcuts;
