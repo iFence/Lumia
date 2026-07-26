@@ -45,13 +45,13 @@ impl LumiaApp {
                         this.loads.set_current_image(generation, image);
                         this.ui.error_message = None;
                         if this.viewer.rotation_quarter_turns() != 0 {
-                            this.rebuild_rotated_image(cx);
+                            this.rebuild_rotated_image(None, cx);
                         }
                     }
                     Err(lumia_core::ImageLoadError::Cancelled) => return,
                     Err(error) => this.ui.error_message = Some(format_load_error(&error)),
                 }
-                this.release_retired_images(cx);
+                this.release_retired_images(None, cx);
                 cx.notify();
             });
         })
@@ -124,9 +124,9 @@ impl LumiaApp {
                                     this.ui.error_message = None;
                                 }
                                 if this.viewer.rotation_quarter_turns() != 0 {
-                                    this.rebuild_rotated_image(cx);
+                                    this.rebuild_rotated_image(None, cx);
                                 }
-                                this.release_retired_images(cx);
+                                this.release_retired_images(None, cx);
                                 cx.notify();
                                 true
                             }

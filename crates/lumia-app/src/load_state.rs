@@ -183,4 +183,31 @@ mod tests {
         state.begin_current_load();
         assert_eq!(state.drain_retired_images().count(), 2);
     }
+
+    #[test]
+    fn browsing_many_images_does_not_retain_retired_pixel_buffers() {
+        const OBSERVED_LARGE_ALLOCATIONS: usize = 1_192;
+
+        let mut state = ImageLoadState::default();
+        let generation = state.begin_current_load();
+        assert!(state.set_current_image(generation, prepared(0)));
+
+        for value in 1..=OBSERVED_LARGE_ALLOCATIONS {
+            let previous = state.current_image().unwrap().render_image();
+            assert!(state.set_current_image(generation, prepared(value as u8)));
+
+            let retired = state.drain_retired_images().collect::<Vec<_>>();
+            assert_eq!(retired.len(), 1);
+            drop(retired);
+
+            assert_eq!(
+                Arc::strong_count(&previous),
+                1,
+                "retired image {value} remained referenced by image load state"
+            );
+        }
+
+        assert_eq!(state.drain_retired_images().count(), 0);
+        assert!(state.current_image().is_some());
+    }
 }

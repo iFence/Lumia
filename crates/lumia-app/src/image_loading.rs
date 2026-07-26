@@ -16,16 +16,16 @@ impl LumiaApp {
     pub(crate) fn load_image(
         &mut self,
         path: PathBuf,
-        window: Option<&mut Window>,
+        mut window: Option<&mut Window>,
         cx: &mut Context<Self>,
     ) {
         let generation = self.loads.begin_current_load();
         self.large_image.reset();
         let retired_tiles = self.large_image.drain_retired_tiles().collect::<Vec<_>>();
         for image in retired_tiles {
-            cx.drop_image(image.render_image(), None);
+            cx.drop_image(image.render_image(), window.as_deref_mut());
         }
-        self.release_retired_images(cx);
+        self.release_retired_images(window.as_deref_mut(), cx);
         self.viewer
             .replace_document(ImageDocument::from_path(&path));
         self.ui.error_message = None;
@@ -35,7 +35,7 @@ impl LumiaApp {
         self.ui.context_menu_position = None;
         self.ui.last_mouse_position = None;
         self.window_title = self.image_name();
-        if let Some(window) = window {
+        if let Some(window) = window.as_deref_mut() {
             window.set_window_title(&self.window_title);
         }
         let Some(cancellation) = self.loads.begin_decode(generation) else {
@@ -157,9 +157,16 @@ impl LumiaApp {
         .detach();
     }
 
-    pub(crate) fn release_retired_images(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn release_retired_images(
+        &mut self,
+        mut current_window: Option<&mut Window>,
+        cx: &mut Context<Self>,
+    ) {
+        // GPUI temporarily removes a window from App::windows while that
+        // window is being updated, so synchronous actions must pass it here
+        // explicitly or its sprite-atlas textures will not be removed.
         for image in self.loads.drain_retired_images() {
-            cx.drop_image(image.render_image(), None);
+            cx.drop_image(image.render_image(), current_window.as_deref_mut());
         }
     }
 
@@ -197,7 +204,7 @@ impl LumiaApp {
                 match preview {
                     Ok(preview) => {
                         this.loads.set_current_image(generation, preview);
-                        this.release_retired_images(cx);
+                        this.release_retired_images(None, cx);
                         this.large_image.mark_preview_ready(generation);
                         this.loads.finish_decode(generation);
                         this.ui.error_message = None;
@@ -303,9 +310,9 @@ impl LumiaApp {
                     }
                     if let Some(preview) = preview {
                         this.loads.set_current_image(generation, preview);
-                        this.release_retired_images(cx);
+                        this.release_retired_images(None, cx);
                         if this.viewer.rotation_quarter_turns() != 0 {
-                            this.rebuild_rotated_image(cx);
+                            this.rebuild_rotated_image(None, cx);
                         }
                         cx.notify();
                     }
@@ -337,10 +344,10 @@ impl LumiaApp {
                 match full_image {
                     Ok(image) => {
                         this.loads.set_current_image(generation, image);
-                        this.release_retired_images(cx);
+                        this.release_retired_images(None, cx);
                         this.ui.error_message = None;
                         if this.viewer.rotation_quarter_turns() != 0 {
-                            this.rebuild_rotated_image(cx);
+                            this.rebuild_rotated_image(None, cx);
                         }
                     }
                     Err(_error) if cancellation.is_cancelled() => return,

@@ -50,10 +50,10 @@ impl LumiaApp {
                             document.metadata = Some(preview.metadata);
                         }
                         this.loads.set_current_image(generation, preview.image);
-                        this.release_retired_images(cx);
+                        this.release_retired_images(None, cx);
                         this.ui.error_message = None;
                         if this.viewer.rotation_quarter_turns() != 0 {
-                            this.rebuild_rotated_image(cx);
+                            this.rebuild_rotated_image(None, cx);
                         }
                     }
                     Err(error) => {
