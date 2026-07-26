@@ -6,7 +6,6 @@ use lumia_core::{Language, ThemeAccent, ThemeMode};
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
-use crate::palette::Palette;
 use crate::settings_ui::{language_text_key, theme_accent_text_key, theme_mode_text_key};
 use crate::widgets::{settings_dropdown_button, settings_label};
 use crate::{SelectLanguage, SelectThemeAccent, SelectThemeMode};
@@ -15,7 +14,6 @@ impl LumiaApp {
     pub(crate) fn render_general_settings(
         &self,
         _window: &Window,
-        palette: Palette,
         _cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let language = self.settings.language;
@@ -38,11 +36,7 @@ impl LumiaApp {
                     .items_center()
                     .justify_between()
                     .gap_4()
-                    .child(settings_label(
-                        tr(language, TextKey::Language),
-                        tr(language, TextKey::LanguageDescription),
-                        palette,
-                    ))
+                    .child(settings_label(tr(language, TextKey::Language)))
                     .child(settings_dropdown_button(
                         "settings-language-select",
                         tr(language, language_text_key(selected_language)),
@@ -67,11 +61,7 @@ impl LumiaApp {
                     .items_center()
                     .justify_between()
                     .gap_4()
-                    .child(settings_label(
-                        tr(language, TextKey::Theme),
-                        tr(language, TextKey::ThemeDescription),
-                        palette,
-                    ))
+                    .child(settings_label(tr(language, TextKey::Theme)))
                     .child(settings_dropdown_button(
                         "settings-theme-select",
                         tr(language, theme_mode_text_key(selected_theme)),
@@ -101,11 +91,7 @@ impl LumiaApp {
                     .items_center()
                     .justify_between()
                     .gap_4()
-                    .child(settings_label(
-                        tr(language, TextKey::ThemeColor),
-                        tr(language, TextKey::ThemeColorDescription),
-                        palette,
-                    ))
+                    .child(settings_label(tr(language, TextKey::ThemeColor)))
                     .child(settings_dropdown_button(
                         "settings-theme-accent-select",
                         tr(language, theme_accent_text_key(selected_accent)),

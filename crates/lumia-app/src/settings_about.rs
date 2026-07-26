@@ -36,13 +36,5 @@ impl LumiaApp {
                         env!("CARGO_PKG_VERSION")
                     )),
             )
-            .child(
-                div()
-                    .max_w(gpui::px(320.0))
-                    .text_sm()
-                    .text_center()
-                    .text_color(rgb(palette.muted_text))
-                    .child(tr(language, TextKey::AboutDescription)),
-            )
     }
 }

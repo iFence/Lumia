@@ -8,7 +8,7 @@ use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
 use crate::palette::Palette;
 use crate::settings_ui::{shortcut_record_button_id, shortcut_reset_button_id};
-use crate::widgets::{shortcut_record_button, shortcut_reset_button};
+use crate::widgets::{settings_action_button, shortcut_record_button, shortcut_reset_button};
 
 impl LumiaApp {
     pub(crate) fn render_shortcuts_settings(
@@ -62,38 +62,23 @@ impl LumiaApp {
                     .child(
                         div()
                             .flex_1()
-                            .flex()
-                            .flex_col()
-                            .gap_1()
-                            .child(div().text_sm().child(tr(language, TextKey::Shortcuts)))
-                            .child(
-                                div()
-                                    .text_xs()
-                                    .text_color(rgb(palette.muted_text))
-                                    .child(tr(language, TextKey::ShortcutDescription)),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .id("shortcuts-reset-all")
-                            .px_3()
-                            .py_1()
-                            .rounded_md()
-                            .border_1()
-                            .border_color(rgb(palette.border))
                             .text_sm()
-                            .cursor_pointer()
-                            .text_color(rgb(palette.muted_text))
-                            .hover(|style| {
-                                style
-                                    .bg(rgb(palette.button_hover))
-                                    .text_color(rgb(palette.text))
-                            })
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.reset_all_shortcuts(cx);
-                            }))
-                            .child(tr(language, TextKey::ShortcutResetAll)),
-                    ),
+                            .child(tr(language, TextKey::Shortcuts)),
+                    )
+                    .child(settings_action_button(
+                        "shortcuts-reset-all",
+                        tr(language, TextKey::ShortcutResetAll),
+                        false,
+                        false,
+                        {
+                            let self_handle = self.self_handle.clone();
+                            move |_, _, cx| {
+                                let _ = self_handle.update(cx, |this, cx| {
+                                    this.reset_all_shortcuts(cx);
+                                });
+                            }
+                        },
+                    )),
             )
             .child(
                 div()
@@ -130,7 +115,6 @@ impl LumiaApp {
                                     shortcut_record_button_id(shortcut_id),
                                     current_binding,
                                     is_recording,
-                                    palette,
                                     cx,
                                     move |this, _, _, cx| {
                                         if this.ui.recording_shortcut == Some(shortcut_id) {
@@ -143,7 +127,6 @@ impl LumiaApp {
                                 .child(shortcut_reset_button(
                                     shortcut_reset_button_id(shortcut_id),
                                     tr(language, TextKey::ShortcutResetToDefault),
-                                    palette,
                                     cx,
                                     move |this, _, _, cx| {
                                         this.reset_shortcut(shortcut_id, cx);

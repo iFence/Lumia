@@ -287,7 +287,7 @@ impl LumiaApp {
                     this.set_edit_menu_hover(*hovered, has_image, cx);
                 });
             })
-            .child(format!("{dimensions} px"))
+            .child(dimensions)
             .child(
                 Icon::new(if self.editing.show_menu {
                     IconName::ChevronDown

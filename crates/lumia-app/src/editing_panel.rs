@@ -3,8 +3,7 @@ use gpui::{
 };
 use gpui_component::button::{Button, ButtonVariants as _};
 use gpui_component::input::Input;
-use gpui_component::switch::Switch;
-use gpui_component::{Disableable as _, IconName};
+use gpui_component::{Disableable as _, Icon, IconName};
 
 use crate::app::LumiaApp;
 use crate::editing::{CropAspect, EditMode};
@@ -185,14 +184,19 @@ impl LumiaApp {
         let width_input = self.editing.width_input.as_ref().cloned();
         let height_input = self.editing.height_input.as_ref().cloned();
         let handle = self.self_handle.clone();
-        let lock = Switch::new("resize-aspect-lock")
-            .checked(self.editing.lock_aspect)
-            .label(tr(language, TextKey::EditLockAspect))
+        let lock = Button::new("resize-aspect-lock")
+            .icon(Icon::default().path("custom/lock-aspect-ratio.svg"))
+            .tooltip(tr(language, TextKey::EditLockAspect))
             .on_click(move |_, window, cx| {
                 let _ = handle.update(cx, |this, cx| {
                     this.toggle_resize_aspect_lock(window, cx);
                 });
             });
+        let lock = if self.editing.lock_aspect {
+            lock.primary()
+        } else {
+            lock.ghost()
+        };
         div()
             .flex_1()
             .overflow_hidden()
@@ -212,25 +216,16 @@ impl LumiaApp {
                             .text_color(rgb(palette.muted_text))
                             .child(tr(language, TextKey::EditTargetSize)),
                     )
-                    .children(width_input.map(|input| {
+                    .children(width_input.zip(height_input).map(|(width, height)| {
                         div()
                             .flex()
                             .items_center()
                             .gap_2()
-                            .child(div().w(px(52.0)).text_xs().child("W"))
-                            .child(div().flex_1().child(Input::new(&input)))
+                            .child(div().flex_1().child(Input::new(&width)))
+                            .child(lock)
+                            .child(div().flex_1().child(Input::new(&height)))
                             .child(div().text_xs().child("px"))
-                    }))
-                    .children(height_input.map(|input| {
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().w(px(52.0)).text_xs().child("H"))
-                            .child(div().flex_1().child(Input::new(&input)))
-                            .child(div().text_xs().child("px"))
-                    }))
-                    .child(lock),
+                    })),
             )
             .child({
                 let handle = self.self_handle.clone();

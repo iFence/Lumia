@@ -1,7 +1,8 @@
-use std::{path::PathBuf, thread};
+use std::{path::PathBuf, sync::Arc, thread};
 
 use async_channel;
 use gpui::{px, size, App, AppContext, Bounds, WindowBounds, WindowOptions};
+use reqwest_client::ReqwestClient;
 
 use crate::{
     app::LumiaApp, custom_icons::CustomAssets, large_image::large_image_cache_dir, single_instance,
@@ -33,6 +34,9 @@ pub(crate) fn run_gui(initial_path: Option<PathBuf>) -> anyhow::Result<()> {
     });
     application.run(move |cx: &mut App| {
         gpui_component::init(cx);
+        let http_client = ReqwestClient::user_agent(concat!("Lumia/", env!("CARGO_PKG_VERSION")))
+            .expect("failed to initialize Lumia HTTP client");
+        cx.set_http_client(Arc::new(http_client));
         #[cfg(target_os = "macos")]
         set_macos_dock_icon();
         cx.on_action(|_: &Quit, cx| cx.quit());

@@ -2,10 +2,9 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use gpui::{px, AppContext, Context, ParentElement, Styled, Window};
-use gpui_component::dialog::{DialogButtonProps, DialogDescription, DialogTitle};
+use gpui::{AppContext, Context, Focusable, ParentElement, Window};
+use gpui_component::dialog::DialogButtonProps;
 use gpui_component::input::{Input, InputState};
-use gpui_component::v_flex;
 use gpui_component::WindowExt;
 use http_client::{AsyncBody, HttpClient};
 use lumia_core::{
@@ -73,7 +72,7 @@ impl LumiaApp {
         let self_handle = self.self_handle.clone();
         let url_input_for_ok = url_input.clone();
         let url_input_for_content = url_input.clone();
-        let language_for_content = language;
+        let url_input_focus = url_input.focus_handle(cx);
         window.open_dialog(cx, move |dialog, _, _| {
             let url_input_for_ok = url_input_for_ok.clone();
             let url_input_for_content = url_input_for_content.clone();
@@ -111,11 +110,17 @@ impl LumiaApp {
                                     cx.notify();
                                 });
                             }
-                            Err(_) => {
+                            Err(error) => {
                                 let _ = handle.update(cx, |this, cx| {
                                     this.ui.error_message = Some(
-                                        tr(this.settings.language, TextKey::OpenUrlDownloadFailed)
-                                            .into(),
+                                        format!(
+                                            "{}: {error:#}",
+                                            tr(
+                                                this.settings.language,
+                                                TextKey::OpenUrlDownloadFailed
+                                            )
+                                        )
+                                        .into(),
                                     );
                                     cx.notify();
                                 });
@@ -125,22 +130,9 @@ impl LumiaApp {
                         true
                     }
                 })
-                .content(move |content, _, _| {
-                    content.child(
-                        v_flex()
-                            .gap(px(12.0))
-                            .child(
-                                DialogTitle::new()
-                                    .child(tr(language_for_content, TextKey::OpenUrlDialogTitle)),
-                            )
-                            .child(
-                                DialogDescription::new()
-                                    .child(tr(language_for_content, TextKey::OpenUrlPlaceholder)),
-                            )
-                            .child(Input::new(&url_input_for_content)),
-                    )
-                })
+                .content(move |content, _, _| content.child(Input::new(&url_input_for_content)))
         });
+        url_input_focus.focus(window, cx);
     }
 
     pub(crate) fn zoom_in(&mut self, _: &ZoomIn, window: &mut Window, cx: &mut Context<Self>) {

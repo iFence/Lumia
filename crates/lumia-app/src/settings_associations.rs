@@ -29,11 +29,7 @@ impl LumiaApp {
             .items_center()
             .justify_between()
             .gap_4()
-            .child(settings_label(
-                tr(language, TextKey::FileAssociations),
-                tr(language, TextKey::FileAssociationsDescription),
-                palette,
-            ))
+            .child(settings_label(tr(language, TextKey::FileAssociations)))
             .child(
                 div()
                     .flex()
@@ -78,13 +74,7 @@ impl LumiaApp {
             .content_start()
             .overflow_y_scroll();
         for group in supported_image_format_groups() {
-            let is_effective = group.extensions.iter().all(|extension| {
-                self.ui
-                    .file_associations
-                    .effective_extensions
-                    .contains(*extension)
-            });
-            let mut label = format!(
+            let label = format!(
                 "{} ({})",
                 group.name,
                 group
@@ -94,10 +84,6 @@ impl LumiaApp {
                     .collect::<Vec<_>>()
                     .join(", ")
             );
-            if is_effective {
-                label.push_str(" · ");
-                label.push_str(tr(language, TextKey::CurrentDefault));
-            }
             let checked = group
                 .extensions
                 .iter()
@@ -239,10 +225,7 @@ impl LumiaApp {
                     ),
                     true,
                 ),
-                None => (
-                    tr(language, TextKey::FileAssociationsSystemNotice).to_string(),
-                    false,
-                ),
+                None => return div().flex_1().into_any_element(),
             }
         };
         let feedback = div()

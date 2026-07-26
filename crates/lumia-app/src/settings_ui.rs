@@ -235,9 +235,7 @@ impl LumiaApp {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         match self.ui.active_settings_group {
-            SettingsGroup::General => self
-                .render_general_settings(window, palette, cx)
-                .into_any_element(),
+            SettingsGroup::General => self.render_general_settings(window, cx).into_any_element(),
             SettingsGroup::FileAssociations => self
                 .render_file_association_settings(palette, cx)
                 .into_any_element(),

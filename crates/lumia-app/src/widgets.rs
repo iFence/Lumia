@@ -1,11 +1,12 @@
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    div, px, rgb, Context, InteractiveElement, IntoElement, MouseButton, MouseDownEvent,
+    div, px, rgb, Context, InteractiveElement, IntoElement, Keystroke, MouseButton, MouseDownEvent,
     ParentElement, StatefulInteractiveElement, Styled, Window,
 };
 use gpui_component::{button::ButtonVariants as _, Disableable as _};
 use gpui_component::{
     button::{Button, ButtonRounded},
+    kbd::Kbd,
     menu::{DropdownMenu, PopupMenu},
 };
 
@@ -26,7 +27,13 @@ pub(crate) fn context_menu_item(
         .py_1()
         .cursor_pointer()
         .hover(move |style| style.bg(rgb(palette.button_hover)))
-        .on_mouse_down(MouseButton::Left, cx.listener(on_click))
+        .on_mouse_down(
+            MouseButton::Left,
+            cx.listener(move |this, event, window, cx| {
+                cx.stop_propagation();
+                on_click(this, event, window, cx);
+            }),
+        )
         .child(label)
         .into_any_element()
 }
@@ -189,91 +196,46 @@ pub(crate) fn edit_option_button(
         .into_any_element()
 }
 
-pub(crate) fn settings_label(
-    title: &'static str,
-    description: &'static str,
-    palette: Palette,
-) -> impl gpui::IntoElement {
-    div()
-        .flex_1()
-        .flex()
-        .flex_col()
-        .gap_1()
-        .child(div().text_sm().child(title))
-        .child(
-            div()
-                .text_xs()
-                .text_color(rgb(palette.muted_text))
-                .child(description),
-        )
+pub(crate) fn settings_label(title: &'static str) -> impl gpui::IntoElement {
+    div().flex_1().text_sm().child(title)
 }
 
 pub(crate) fn shortcut_record_button(
     id: &'static str,
     current_binding: String,
     is_recording: bool,
-    palette: Palette,
     cx: &mut Context<LumiaApp>,
     on_click: impl Fn(&mut LumiaApp, &gpui::ClickEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
 ) -> gpui::AnyElement {
-    let text = if is_recording {
-        "...".to_string()
-    } else {
-        current_binding
-    };
-    let background = if is_recording {
-        palette.accent_soft
-    } else {
-        palette.button_bg
-    };
-    let border = if is_recording {
-        palette.accent
-    } else {
-        palette.border
-    };
-
-    div()
-        .id(id)
+    let button = Button::new(id)
         .min_w(px(132.0))
         .h(px(32.0))
         .px_3()
-        .flex()
-        .items_center()
-        .justify_center()
-        .rounded_md()
-        .border_1()
-        .border_color(rgb(border))
-        .bg(rgb(background))
-        .text_sm()
-        .text_color(rgb(palette.text))
-        .cursor_pointer()
-        .hover(move |style| style.bg(rgb(palette.button_hover)))
-        .on_click(cx.listener(on_click))
-        .child(text)
-        .into_any_element()
+        .on_click(cx.listener(on_click));
+
+    if is_recording {
+        button.primary().label("…").into_any_element()
+    } else {
+        match Keystroke::parse(&current_binding) {
+            Ok(stroke) => button
+                .ghost()
+                .child(Kbd::new(stroke).outline())
+                .into_any_element(),
+            Err(_) => button.ghost().label(current_binding).into_any_element(),
+        }
+    }
 }
 
 pub(crate) fn shortcut_reset_button(
     id: &'static str,
     label: &'static str,
-    palette: Palette,
     cx: &mut Context<LumiaApp>,
     on_click: impl Fn(&mut LumiaApp, &gpui::ClickEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
 ) -> gpui::AnyElement {
-    div()
-        .id(id)
-        .px_2()
-        .py_1()
-        .rounded_sm()
-        .text_xs()
-        .text_color(rgb(palette.muted_text))
-        .cursor_pointer()
-        .hover(move |style| {
-            style
-                .bg(rgb(palette.button_hover))
-                .text_color(rgb(palette.text))
-        })
+    Button::new(id)
+        .label(label)
+        .ghost()
+        .compact()
         .on_click(cx.listener(on_click))
-        .child(label)
         .into_any_element()
 }

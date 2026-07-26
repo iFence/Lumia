@@ -1,4 +1,4 @@
-use gpui::{Context, KeyBinding, Window};
+use gpui::{Action, Context, KeyBinding, Window};
 use lumia_core::{default_shortcuts, Language, ShortcutId, ThemeAccent, ThemeMode};
 
 use crate::app::LumiaApp;
@@ -56,7 +56,10 @@ impl LumiaApp {
     }
 
     pub(crate) fn rebuild_keybindings(&self, cx: &mut Context<Self>) {
+        let keymap = cx.key_bindings();
+        let component_bindings = preserve_non_lumia_bindings(keymap.borrow().bindings());
         cx.clear_key_bindings();
+        cx.bind_keys(component_bindings);
         let shortcuts = &self.settings.shortcuts;
         let mut bindings = Vec::new();
 
@@ -164,5 +167,48 @@ impl LumiaApp {
             .get(&shortcut_id)
             .cloned()
             .unwrap_or_default()
+    }
+}
+
+fn is_lumia_shortcut_action(action: &dyn Action) -> bool {
+    action.as_any().is::<OpenFile>()
+        || action.as_any().is::<ZoomIn>()
+        || action.as_any().is::<ZoomOut>()
+        || action.as_any().is::<ZoomFit>()
+        || action.as_any().is::<ToggleFullscreen>()
+        || action.as_any().is::<ExitFullscreen>()
+        || action.as_any().is::<ToggleImageInfo>()
+        || action.as_any().is::<NextImage>()
+        || action.as_any().is::<PreviousImage>()
+        || action.as_any().is::<Quit>()
+}
+
+fn preserve_non_lumia_bindings<'a>(
+    bindings: impl Iterator<Item = &'a KeyBinding>,
+) -> Vec<KeyBinding> {
+    bindings
+        .filter(|binding| !is_lumia_shortcut_action(binding.action()))
+        .cloned()
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use gpui::Keymap;
+    use gpui_component::input::Paste;
+
+    use super::*;
+
+    #[test]
+    fn rebuilding_shortcuts_preserves_component_input_bindings() {
+        let keymap = Keymap::new(vec![
+            KeyBinding::new("cmd-v", Paste, Some("Input")),
+            KeyBinding::new("cmd-o", OpenFile, Some("Lumia")),
+        ]);
+
+        let preserved = preserve_non_lumia_bindings(keymap.bindings());
+
+        assert_eq!(preserved.len(), 1);
+        assert!(preserved[0].action().as_any().is::<Paste>());
     }
 }

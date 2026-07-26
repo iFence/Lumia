@@ -14,6 +14,9 @@ impl AssetSource for CustomAssets {
             "custom/fit-to-window.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../resources/icons/fit-to-window.svg"
             )))),
+            "custom/lock-aspect-ratio.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../resources/icons/lock-aspect-ratio.svg"
+            )))),
             other => gpui_component_assets::Assets.load(other),
         }
     }
@@ -23,6 +26,7 @@ impl AssetSource for CustomAssets {
             Ok(vec![
                 "custom/actual-size.svg".into(),
                 "custom/fit-to-window.svg".into(),
+                "custom/lock-aspect-ratio.svg".into(),
             ])
         } else {
             gpui_component_assets::Assets.list(path)

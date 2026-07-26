@@ -10,7 +10,6 @@ pub(crate) enum TextKey {
     Settings,
     Open,
     About,
-    AboutDescription,
     Version,
     Quit,
     EmptyState,
@@ -27,10 +26,7 @@ pub(crate) enum TextKey {
     General,
     FileAssociations,
     Shortcuts,
-    FileAssociationsDescription,
-    FileAssociationsSystemNotice,
     AssociationLoading,
-    CurrentDefault,
     RefreshAssociations,
     SelectAll,
     ClearAll,
@@ -47,11 +43,8 @@ pub(crate) enum TextKey {
     LargeImageDiskSpace,
     RetrySystemSettings,
     Language,
-    LanguageDescription,
     Theme,
-    ThemeDescription,
     ThemeColor,
-    ThemeColorDescription,
     English,
     Chinese,
     Light,
@@ -71,7 +64,6 @@ pub(crate) enum TextKey {
     ShortcutNextImageLabel,
     ShortcutPreviousImageLabel,
     ShortcutQuitLabel,
-    ShortcutDescription,
     ShortcutResetToDefault,
     ShortcutResetAll,
     ImageInfoName,
@@ -106,7 +98,6 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::Settings => "Settings",
             TextKey::Open => "Open",
             TextKey::About => "About",
-            TextKey::AboutDescription => "A fast, polished image viewer for everyday use.",
             TextKey::Version => "Version",
             TextKey::Quit => "Quit",
             TextKey::EmptyState => "Drop an image here, or open one with Ctrl+O",
@@ -123,12 +114,7 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::General => "General",
             TextKey::FileAssociations => "File Associations",
             TextKey::Shortcuts => "Shortcuts",
-            TextKey::FileAssociationsDescription => {
-                "Choose the image formats Lumia should offer to open"
-            }
-            TextKey::FileAssociationsSystemNotice => association_system_notice(Language::English),
             TextKey::AssociationLoading => "Checking system defaults...",
-            TextKey::CurrentDefault => "Current default",
             TextKey::RefreshAssociations => "Refresh",
             TextKey::SelectAll => "Select All",
             TextKey::ClearAll => "Clear",
@@ -147,13 +133,8 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::LargeImageDiskSpace => "Not enough disk space to prepare this large image",
             TextKey::RetrySystemSettings => "Retry",
             TextKey::Language => "Language",
-            TextKey::LanguageDescription => "Choose the display language",
             TextKey::Theme => "Theme",
-            TextKey::ThemeDescription => "Choose light, dark, or system appearance",
             TextKey::ThemeColor => "Theme Color",
-            TextKey::ThemeColorDescription => {
-                "Choose the accent color used for highlights and controls"
-            }
             TextKey::English => "English",
             TextKey::Chinese => "中文",
             TextKey::Light => "Light",
@@ -173,7 +154,6 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::ShortcutNextImageLabel => "Next image",
             TextKey::ShortcutPreviousImageLabel => "Previous image",
             TextKey::ShortcutQuitLabel => "Quit",
-            TextKey::ShortcutDescription => "Select a key binding, then press a new shortcut",
             TextKey::ShortcutResetToDefault => "Reset",
             TextKey::ShortcutResetAll => "Reset All",
             TextKey::ImageInfoName => "Name",
@@ -205,7 +185,6 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::Settings => "设置",
             TextKey::Open => "打开",
             TextKey::About => "关于",
-            TextKey::AboutDescription => "一款快速、精致的日常图像查看器。",
             TextKey::Version => "版本",
             TextKey::Quit => "退出",
             TextKey::EmptyState => "将图片拖到这里，或按 Ctrl+O 打开",
@@ -222,10 +201,7 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::General => "通用",
             TextKey::FileAssociations => "文件关联",
             TextKey::Shortcuts => "快捷键",
-            TextKey::FileAssociationsDescription => "选择 Lumia 可用于打开的图片格式",
-            TextKey::FileAssociationsSystemNotice => association_system_notice(Language::Chinese),
             TextKey::AssociationLoading => "正在检查系统默认应用...",
-            TextKey::CurrentDefault => "当前默认",
             TextKey::RefreshAssociations => "刷新",
             TextKey::SelectAll => "全选",
             TextKey::ClearAll => "清空",
@@ -244,11 +220,8 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::LargeImageDiskSpace => "磁盘空间不足，无法准备这张超大图片",
             TextKey::RetrySystemSettings => "重试",
             TextKey::Language => "语言",
-            TextKey::LanguageDescription => "选择界面显示语言",
             TextKey::Theme => "主题",
-            TextKey::ThemeDescription => "选择浅色、深色或跟随系统",
             TextKey::ThemeColor => "主题色",
-            TextKey::ThemeColorDescription => "选择用于高亮和控件强调的主题色",
             TextKey::English => "English",
             TextKey::Chinese => "中文",
             TextKey::Light => "浅色",
@@ -268,7 +241,6 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::ShortcutNextImageLabel => "下一张",
             TextKey::ShortcutPreviousImageLabel => "上一张",
             TextKey::ShortcutQuitLabel => "退出",
-            TextKey::ShortcutDescription => "选择按键组合，然后输入新的快捷键",
             TextKey::ShortcutResetToDefault => "重置",
             TextKey::ShortcutResetAll => "全部重置",
             TextKey::ImageInfoName => "名称",
@@ -296,29 +268,5 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::EditCropHint => "在图片上拖动选区或四角控制点",
             TextKey::EditResizeHint => "左侧保持显示原图，导出时生成修改尺寸后的副本",
         },
-    }
-}
-
-fn association_system_notice(language: Language) -> &'static str {
-    #[cfg(target_os = "windows")]
-    {
-        match language {
-            Language::English => "Windows requires confirmation in Default Apps",
-            Language::Chinese => "Windows 需要在默认应用页面确认",
-        }
-    }
-    #[cfg(target_os = "macos")]
-    {
-        match language {
-            Language::English => "Changes are applied through macOS Launch Services",
-            Language::Chinese => "更改将通过 macOS Launch Services 直接应用",
-        }
-    }
-    #[cfg(all(unix, not(target_os = "macos")))]
-    {
-        match language {
-            Language::English => "Changes are applied through the desktop MIME settings",
-            Language::Chinese => "更改将通过桌面 MIME 设置直接应用",
-        }
     }
 }
