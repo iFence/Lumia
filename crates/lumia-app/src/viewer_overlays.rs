@@ -112,6 +112,25 @@ impl LumiaApp {
                 .text_color(rgb(palette.text))
                 .text_sm()
                 .child(context_menu_item(
+                    "open-menu-item",
+                    tr(language, TextKey::Open),
+                    palette,
+                    cx,
+                    |this, _, _, cx| {
+                        this.open_file_dialog(cx, None);
+                    },
+                ))
+                .child(context_menu_item(
+                    "open-url-menu-item",
+                    tr(language, TextKey::OpenUrl),
+                    palette,
+                    cx,
+                    |this, _, window, cx| {
+                        this.open_url_dialog(window, cx);
+                    },
+                ))
+                .child(div().h(px(1.0)).my_1().bg(rgb(palette.border)))
+                .child(context_menu_item(
                     "settings-menu-item",
                     tr(language, TextKey::Settings),
                     palette,
@@ -130,6 +149,7 @@ impl LumiaApp {
                         cx.notify();
                     },
                 ))
+                .child(div().h(px(1.0)).my_1().bg(rgb(palette.border)))
                 .child(context_menu_item(
                     "quit-menu-item",
                     tr(language, TextKey::Quit),

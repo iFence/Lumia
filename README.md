@@ -39,7 +39,7 @@ Download the recommended Setup program (`Lumia-Setup-*-x64.exe`) or portable arc
 
 ### macOS
 
-Download the `.dmg` from the [Releases](https://github.com/iFence/Lumia/releases) page. Open the disk image and drag **Lumia.app** into your `Applications` folder. Once installed, right-click any image in Finder and choose **Open With -> Lumia**.
+Download the `.dmg` from the [Releases](https://github.com/iFence/Lumia/releases) page. Open the disk image and drag **Lumia.app** into your `Applications` folder. Once installed, right-click any image in Finder and choose **Open With -> Lumia**, or use **Settings -> File Associations** in Lumia to choose the default formats.
 
 If you prefer the portable binary, run `lumia-app --register-context-menu` to create a wrapper app bundle under `~/Applications/` so Lumia appears in Finder's "Open With" menu.
 
@@ -58,7 +58,7 @@ Run the included `install.sh` script to install the application, official plugin
 ./install.sh
 ```
 
-This registers Lumia in your system's right-click "Open With" menu for all supported image formats. To uninstall, run `./install.sh --uninstall`.
+This registers Lumia in your system's right-click "Open With" menu for all supported image formats. Use **Settings -> File Associations** to make Lumia the default for selected formats. To uninstall, run `./install.sh --uninstall`.
 
 If you've downloaded only the raw application binary, PSD/PSB preview is unavailable because the official plugin is not present. You can still register the core viewer manually:
 
@@ -67,22 +67,24 @@ lumia-app --register-context-menu      # adds .desktop entry and icon
 lumia-app --unregister-context-menu    # removes them
 ```
 
-> **Linux dependencies**: GPU drivers and system libraries (fontconfig, wayland, xkbcommon, xcb) must be installed. On Debian/Ubuntu:
+> **Linux dependencies**: GPU drivers, `xdg-utils`, and system libraries (fontconfig, wayland, xkbcommon, xcb) must be installed. On Debian/Ubuntu:
 > ```bash
-> sudo apt install libfontconfig-dev libwayland-dev libxkbcommon-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-x11-dev
+> sudo apt install xdg-utils shared-mime-info libfontconfig-dev libwayland-dev libxkbcommon-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-x11-dev
 > ```
 
-## Right-Click Context Menu
+## File Associations and Default Applications
 
-Lumia integrates into your operating system's right-click / "Open With" menu so you can open images directly from your file manager.
+Lumia integrates with the operating system's "Open With" menu and default application settings. After choosing formats under **Settings -> File Associations**, double-clicking those images opens them in Lumia. If Lumia is already running, the existing window is activated and loads the new image.
 
-| Platform | Mechanism | How to enable |
-|---|---|---|
-| **Windows** | Per-user registry entries under `HKCU` | Settings -> File Associations, or `lumia-app --register-context-menu` |
-| **macOS** | `.app` bundle with `CFBundleDocumentTypes` in `Info.plist` | `.dmg`: drag to Applications. Portable: `lumia-app --register-context-menu` |
-| **Linux** | `.desktop` file with `MimeType` entries | `./install.sh` from the tarball, or `lumia-app --register-context-menu` |
+| Platform | Default-application behavior |
+|---|---|
+| **Windows** | Registers selected formats under the current user and opens Windows Default Apps for confirmation. |
+| **macOS** | Applies selected Viewer handlers through Launch Services. |
+| **Linux** | Applies selected MIME handlers through `xdg-mime`. |
 
 Windows 10 and 11 require the user to confirm default applications in system Settings. Lumia registers the selected formats and opens its Windows Default Apps page; it does not overwrite the protected user choice directly.
+
+On macOS and Linux, clearing a format restores the handler captured when Lumia first took ownership, but only if Lumia is still the current default. Lumia never overwrites a default application changed externally. If no previous handler is known, the settings page identifies the formats that need manual selection.
 
 ## Official Bundled Plugins
 

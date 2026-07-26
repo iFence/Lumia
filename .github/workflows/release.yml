@@ -108,6 +108,7 @@ jobs:
           test -x "$PLUGIN_DIR/lumia-plugin-photoshop"
           test -f "$PLUGIN_DIR/lumia.plugin.json"
           cp crates/lumia-app/resources/lumia.desktop lumia-release/
+          cp crates/lumia-app/resources/lumia-mime.xml lumia-release/
           cp crates/lumia-app/resources/icon.png lumia-release/
           cp crates/lumia-app/resources/install.sh lumia-release/
           chmod +x lumia-release/install.sh
@@ -116,6 +117,8 @@ jobs:
             grep -q "./plugins/lumia-plugin-photoshop/lumia-plugin-photoshop"
           tar -tzf target/lumia-linux-x64.tar.gz |
             grep -q "./plugins/lumia-plugin-photoshop/lumia.plugin.json"
+          tar -tzf target/lumia-linux-x64.tar.gz |
+            grep -q "./lumia-mime.xml"
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:

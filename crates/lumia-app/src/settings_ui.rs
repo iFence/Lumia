@@ -195,7 +195,6 @@ impl LumiaApp {
                     this.select_settings_group(SettingsGroup::General, cx);
                 },
             ));
-        #[cfg(target_os = "windows")]
         let sidebar = sidebar.child(settings_group_button(
             "settings-group-file-associations",
             tr(language, TextKey::FileAssociations),
@@ -239,17 +238,9 @@ impl LumiaApp {
             SettingsGroup::General => self
                 .render_general_settings(window, palette, cx)
                 .into_any_element(),
-            SettingsGroup::FileAssociations => {
-                #[cfg(target_os = "windows")]
-                {
-                    self.render_file_association_settings(palette, cx)
-                        .into_any_element()
-                }
-                #[cfg(not(target_os = "windows"))]
-                {
-                    div().into_any_element()
-                }
-            }
+            SettingsGroup::FileAssociations => self
+                .render_file_association_settings(palette, cx)
+                .into_any_element(),
             SettingsGroup::Shortcuts => self
                 .render_shortcuts_settings(palette, cx)
                 .into_any_element(),

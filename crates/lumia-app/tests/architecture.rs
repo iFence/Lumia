@@ -39,10 +39,15 @@ fn official_photoshop_plugin_is_declared_in_every_release_package() {
         release
             .matches("target/release/lumia-plugin-photoshop")
             .count()
-            >= 3,
-        "Windows, macOS, and Linux releases must build or copy the plugin"
+            >= 2,
+        "Windows and Linux releases must copy the plugin"
     );
     assert!(release.contains("plugins/lumia-plugin-photoshop/lumia.plugin.json"));
+    let macos_installer =
+        std::fs::read_to_string(workspace.join("scripts/build-macos-installer.sh"))
+            .expect("macOS installer");
+    assert!(macos_installer.contains("target/release/lumia-plugin-photoshop"));
+    assert!(macos_installer.contains("plugins/lumia-plugin-photoshop/lumia.plugin.json"));
 
     let wix = std::fs::read_to_string(workspace.join("crates/lumia-app/wix/main.wxs"))
         .expect("WiX source");
@@ -54,11 +59,36 @@ fn official_photoshop_plugin_is_declared_in_every_release_package() {
             .expect("Linux installer");
     assert!(installer.contains("PLUGIN_INSTALL_DIR"));
     assert!(installer.contains("lumia.plugin.json"));
+    assert!(installer.contains("lumia-image-formats.xml"));
 
     let plist = std::fs::read_to_string(workspace.join("crates/lumia-app/resources/Info.plist"))
         .expect("macOS bundle metadata");
     assert!(plist.contains("com.adobe.photoshop-image"));
     assert!(plist.contains("com.ifence.lumia.photoshop-large-document"));
+}
+
+#[test]
+fn release_metadata_declares_file_association_resources() {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("lumia-app must be under workspace/crates");
+    let release = std::fs::read_to_string(workspace.join(".github/workflows/release.yml"))
+        .expect("release workflow");
+    assert!(release.contains("resources/lumia.desktop"));
+    assert!(release.contains("resources/lumia-mime.xml"));
+
+    let plist = std::fs::read_to_string(workspace.join("crates/lumia-app/resources/Info.plist"))
+        .expect("macOS bundle metadata");
+    for content_type in [
+        "public.jpeg",
+        "public.png",
+        "public.heic",
+        "com.ifence.lumia.dds",
+        "com.ifence.lumia.photoshop-large-document",
+    ] {
+        assert!(plist.contains(content_type), "missing {content_type}");
+    }
 }
 
 fn collect_rust_files(root: &Path, files: &mut Vec<PathBuf>) {

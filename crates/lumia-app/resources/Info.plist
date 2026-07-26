@@ -152,31 +152,37 @@
     <array>
         <dict>
             <key>UTTypeIdentifier</key><string>com.ifence.lumia.dds</string>
+            <key>UTTypeConformsTo</key><array><string>public.image</string></array>
             <key>UTTypeTagSpecification</key>
             <dict><key>public.filename-extension</key><array><string>dds</string></array></dict>
         </dict>
         <dict>
             <key>UTTypeIdentifier</key><string>com.ifence.lumia.exr</string>
+            <key>UTTypeConformsTo</key><array><string>public.image</string></array>
             <key>UTTypeTagSpecification</key>
             <dict><key>public.filename-extension</key><array><string>exr</string></array></dict>
         </dict>
         <dict>
             <key>UTTypeIdentifier</key><string>com.ifence.lumia.farbfeld</string>
+            <key>UTTypeConformsTo</key><array><string>public.image</string></array>
             <key>UTTypeTagSpecification</key>
             <dict><key>public.filename-extension</key><array><string>ff</string><string>farbfeld</string></array></dict>
         </dict>
         <dict>
             <key>UTTypeIdentifier</key><string>com.ifence.lumia.hdr</string>
+            <key>UTTypeConformsTo</key><array><string>public.image</string></array>
             <key>UTTypeTagSpecification</key>
             <dict><key>public.filename-extension</key><array><string>hdr</string></array></dict>
         </dict>
         <dict>
             <key>UTTypeIdentifier</key><string>com.ifence.lumia.netpbm</string>
+            <key>UTTypeConformsTo</key><array><string>public.image</string></array>
             <key>UTTypeTagSpecification</key>
             <dict><key>public.filename-extension</key><array><string>pbm</string><string>pam</string><string>ppm</string><string>pgm</string></array></dict>
         </dict>
         <dict>
             <key>UTTypeIdentifier</key><string>com.ifence.lumia.qoi</string>
+            <key>UTTypeConformsTo</key><array><string>public.image</string></array>
             <key>UTTypeTagSpecification</key>
             <dict><key>public.filename-extension</key><array><string>qoi</string></array></dict>
         </dict>

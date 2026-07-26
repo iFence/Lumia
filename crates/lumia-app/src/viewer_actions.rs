@@ -1,10 +1,20 @@
-use gpui::{Context, Window};
+use std::io::Write;
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use gpui::{px, AppContext, Context, ParentElement, Styled, Window};
+use gpui_component::dialog::{DialogButtonProps, DialogDescription, DialogTitle};
+use gpui_component::input::{Input, InputState};
+use gpui_component::v_flex;
+use gpui_component::WindowExt;
+use http_client::{AsyncBody, HttpClient};
 use lumia_core::{
     load_decoded_image_from_path, rotate_bgra8, rotate_decoded_image, supported_image_extensions,
     FitMode,
 };
 
 use crate::app::LumiaApp;
+use crate::i18n::{tr, TextKey};
 use crate::load_state::PreparedImage;
 use crate::{OpenFile, RotateClockwise, RotateCounterClockwise, ZoomFit, ZoomIn, ZoomOut};
 
@@ -48,6 +58,89 @@ impl LumiaApp {
             }
         })
         .detach();
+    }
+
+    pub(crate) fn open_url_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.is_viewer_blocked() {
+            return;
+        }
+        self.ui.context_menu_position = None;
+        cx.notify();
+        let language = self.settings.language;
+        let url_input = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(tr(language, TextKey::OpenUrlPlaceholder))
+        });
+        let self_handle = self.self_handle.clone();
+        let url_input_for_ok = url_input.clone();
+        let url_input_for_content = url_input.clone();
+        let language_for_content = language;
+        window.open_dialog(cx, move |dialog, _, _| {
+            let url_input_for_ok = url_input_for_ok.clone();
+            let url_input_for_content = url_input_for_content.clone();
+            dialog
+                .title(tr(language, TextKey::OpenUrlDialogTitle))
+                .close_button(true)
+                .overlay_closable(true)
+                .button_props(
+                    DialogButtonProps::default()
+                        .show_cancel(true)
+                        .ok_text(tr(language, TextKey::Confirm))
+                        .cancel_text(tr(language, TextKey::Cancel)),
+                )
+                .on_cancel(|_, _, _| true)
+                .on_ok({
+                    let url_input = url_input_for_ok;
+                    let self_handle = self_handle.clone();
+                    move |_, _window, cx| {
+                        let url = url_input.read(cx).value().trim().to_string();
+                        if !url.starts_with("http://") && !url.starts_with("https://") {
+                            let _ = self_handle.update(cx, |this, cx| {
+                                this.ui.error_message = Some(
+                                    tr(this.settings.language, TextKey::OpenUrlInvalid).into(),
+                                );
+                                cx.notify();
+                            });
+                            return true;
+                        }
+                        let handle = self_handle.clone();
+                        let client = cx.http_client();
+                        cx.spawn(async move |cx| match download_image(&client, &url).await {
+                            Ok(path) => {
+                                let _ = handle.update(cx, |this, cx| {
+                                    this.load_image(path, None, cx);
+                                    cx.notify();
+                                });
+                            }
+                            Err(_) => {
+                                let _ = handle.update(cx, |this, cx| {
+                                    this.ui.error_message = Some(
+                                        tr(this.settings.language, TextKey::OpenUrlDownloadFailed)
+                                            .into(),
+                                    );
+                                    cx.notify();
+                                });
+                            }
+                        })
+                        .detach();
+                        true
+                    }
+                })
+                .content(move |content, _, _| {
+                    content.child(
+                        v_flex()
+                            .gap(px(12.0))
+                            .child(
+                                DialogTitle::new()
+                                    .child(tr(language_for_content, TextKey::OpenUrlDialogTitle)),
+                            )
+                            .child(
+                                DialogDescription::new()
+                                    .child(tr(language_for_content, TextKey::OpenUrlPlaceholder)),
+                            )
+                            .child(Input::new(&url_input_for_content)),
+                    )
+                })
+        });
     }
 
     pub(crate) fn zoom_in(&mut self, _: &ZoomIn, window: &mut Window, cx: &mut Context<Self>) {
@@ -197,5 +290,49 @@ impl LumiaApp {
         .map(PreparedImage::from_decoded);
         self.loads.set_rotated_image(rotated);
         self.release_retired_images(current_window, cx);
+    }
+}
+
+async fn download_image(client: &Arc<dyn HttpClient>, url: &str) -> anyhow::Result<PathBuf> {
+    let response = client.get(url, AsyncBody::from(()), true).await?;
+    if !response.status().is_success() {
+        anyhow::bail!("http status {}", response.status());
+    }
+    let (_, mut body) = response.into_parts();
+    let mut bytes = Vec::new();
+    futures::io::AsyncReadExt::read_to_end(&mut body, &mut bytes).await?;
+
+    let extension = extension_for_bytes(&bytes)
+        .unwrap_or_else(|| extension_from_url(url).unwrap_or_else(|| "png".into()));
+    let mut temp = std::env::temp_dir();
+    temp.push(format!("lumia-url-{}.{}", std::process::id(), extension));
+    let mut file = std::fs::File::create(&temp)?;
+    file.write_all(&bytes)?;
+    Ok(temp)
+}
+
+fn extension_from_url(url: &str) -> Option<String> {
+    let path = url.split('?').next().unwrap_or(url);
+    let name = path.rsplit('/').next()?;
+    let extension = name.rsplit('.').next()?;
+    if extension.is_empty() || extension == name {
+        return None;
+    }
+    if lumia_core::is_supported_image_extension(extension) {
+        Some(extension.to_ascii_lowercase())
+    } else {
+        None
+    }
+}
+
+fn extension_for_bytes(bytes: &[u8]) -> Option<String> {
+    match bytes {
+        b if b.starts_with(b"\x89PNG") => Some("png".into()),
+        b if b.len() >= 3 && b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF => Some("jpg".into()),
+        b if b.starts_with(b"GIF87a") || b.starts_with(b"GIF89a") => Some("gif".into()),
+        b if b.starts_with(b"RIFF") && b.len() >= 12 && &b[8..12] == b"WEBP" => Some("webp".into()),
+        b if b.starts_with(b"BM") => Some("bmp".into()),
+        b if b.starts_with(b"%PDF") => Some("pdf".into()),
+        _ => None,
     }
 }

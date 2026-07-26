@@ -11,6 +11,7 @@ set -euo pipefail
 BIN_DIR="${HOME}/.local/bin"
 APPS_DIR="${HOME}/.local/share/applications"
 ICONS_DIR="${HOME}/.local/share/icons/hicolor/128x128/apps"
+MIME_PACKAGES_DIR="${HOME}/.local/share/mime/packages"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_SOURCE_DIR="$SCRIPT_DIR/plugins/lumia-plugin-photoshop"
@@ -32,7 +33,7 @@ install_lumia() {
         return 1
     fi
 
-    mkdir -p "$BIN_DIR" "$APPS_DIR" "$ICONS_DIR"
+    mkdir -p "$BIN_DIR" "$APPS_DIR" "$ICONS_DIR" "$MIME_PACKAGES_DIR"
 
     # Binary
     cp "$SCRIPT_DIR/lumia-app" "$BIN_DIR/lumia-app"
@@ -55,6 +56,14 @@ install_lumia() {
         echo "  ! lumia.desktop not found — skipping"
     fi
 
+    if [ -f "$SCRIPT_DIR/lumia-mime.xml" ]; then
+        cp "$SCRIPT_DIR/lumia-mime.xml" "$MIME_PACKAGES_DIR/lumia-image-formats.xml"
+        if command -v update-mime-database &>/dev/null; then
+            update-mime-database "${HOME}/.local/share/mime" 2>/dev/null || true
+        fi
+        echo "  ✓ MIME definitions installed"
+    fi
+
     # Icon
     if [ -f "$SCRIPT_DIR/icon.png" ]; then
         cp "$SCRIPT_DIR/icon.png" "$ICONS_DIR/lumia.png"
@@ -74,14 +83,21 @@ install_lumia() {
 uninstall_lumia() {
     echo "Uninstalling Lumia..."
 
+    if [ -x "$BIN_DIR/lumia-app" ]; then
+        "$BIN_DIR/lumia-app" --unregister-context-menu 2>/dev/null || true
+    fi
     rm -f "$BIN_DIR/lumia-app"
     rm -rf "$PLUGIN_INSTALL_DIR"
     rmdir "$BIN_DIR/plugins" 2>/dev/null || true
     rm -f "$APPS_DIR/lumia.desktop"
     rm -f "$ICONS_DIR/lumia.png"
+    rm -f "$MIME_PACKAGES_DIR/lumia-image-formats.xml"
 
     if command -v update-desktop-database &>/dev/null; then
         update-desktop-database "$APPS_DIR" 2>/dev/null || true
+    fi
+    if command -v update-mime-database &>/dev/null; then
+        update-mime-database "${HOME}/.local/share/mime" 2>/dev/null || true
     fi
 
     echo "Done. Lumia has been removed."

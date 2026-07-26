@@ -2,10 +2,10 @@ use gpui::{
     div, px, rgb, Context, InteractiveElement, IntoElement, MouseButton, MouseDownEvent,
     ParentElement, StatefulInteractiveElement, Styled, Window,
 };
+use gpui_component::{button::ButtonVariants as _, Disableable as _};
 use gpui_component::{
-    button::{Button, ButtonRounded, ButtonVariants as _},
+    button::{Button, ButtonRounded},
     menu::{DropdownMenu, PopupMenu},
-    Disableable as _,
 };
 
 use crate::app::LumiaApp;

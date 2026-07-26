@@ -71,7 +71,6 @@ impl LumiaApp {
 
     pub(crate) fn select_settings_group(&mut self, group: SettingsGroup, cx: &mut Context<Self>) {
         self.ui.active_settings_group = group;
-        #[cfg(target_os = "windows")]
         if group == SettingsGroup::FileAssociations && !self.ui.file_associations.initialized {
             self.initialize_file_associations(cx);
         }
