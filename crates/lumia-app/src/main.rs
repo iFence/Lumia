@@ -17,6 +17,7 @@ mod large_image_render;
 mod load_state;
 mod palette;
 mod persistence;
+mod platform_open;
 mod plugin_catalog;
 mod preferences;
 mod professional_decode;
