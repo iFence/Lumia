@@ -19,6 +19,7 @@ impl LumiaApp {
         mut window: Option<&mut Window>,
         cx: &mut Context<Self>,
     ) {
+        self.close_edit_session(false, cx);
         let generation = self.loads.begin_current_load();
         self.large_image.reset();
         let retired_tiles = self.large_image.drain_retired_tiles().collect::<Vec<_>>();

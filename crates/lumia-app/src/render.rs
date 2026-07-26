@@ -48,7 +48,16 @@ impl Render for LumiaApp {
             .flex_col()
             .bg(rgb(palette.viewer_bg))
             .text_color(rgb(palette.text))
-            .child(self.render_viewer(window, palette, cx))
+            .child(
+                div()
+                    .id("viewer-workspace")
+                    .flex_1()
+                    .min_h_0()
+                    .flex()
+                    .overflow_hidden()
+                    .child(self.render_viewer(window, palette, cx))
+                    .children(self.render_edit_panel(palette, cx)),
+            )
             .children(
                 (self.ui.show_status_bar || self.ui.show_zoom_menu)
                     .then(|| self.render_status_bar(window, palette, cx)),
@@ -121,14 +130,14 @@ impl LumiaApp {
             .relative()
             .bg(rgb(palette.viewer_bg))
             .on_drop(cx.listener(|this, paths: &ExternalPaths, window, cx| {
-                if this.ui.show_settings_panel {
+                if this.is_viewer_blocked() {
                     return;
                 }
                 this.ui.pending_drop_paths = paths.paths().to_vec();
                 this.load_first_supported_drop(window, cx);
             }))
             .on_scroll_wheel(cx.listener(|this, event: &ScrollWheelEvent, window, cx| {
-                if this.ui.show_settings_panel {
+                if this.is_viewer_blocked() {
                     return;
                 }
                 let delta = match event.delta {
@@ -144,7 +153,7 @@ impl LumiaApp {
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(|this, event: &MouseDownEvent, _, cx| {
-                    if this.ui.show_settings_panel {
+                    if this.is_viewer_blocked() {
                         return;
                     }
                     if this.ui.context_menu_position.take().is_some() {
@@ -161,7 +170,7 @@ impl LumiaApp {
             .on_mouse_up(
                 MouseButton::Left,
                 cx.listener(|this, _, _, cx| {
-                    if this.ui.show_settings_panel {
+                    if this.is_viewer_blocked() {
                         return;
                     }
                     this.ui.is_panning = false;
@@ -172,7 +181,7 @@ impl LumiaApp {
             .on_mouse_down(
                 MouseButton::Right,
                 cx.listener(|this, event: &MouseDownEvent, _, cx| {
-                    if this.ui.show_settings_panel {
+                    if this.is_viewer_blocked() {
                         return;
                     }
                     this.ui.context_menu_position =
@@ -185,7 +194,7 @@ impl LumiaApp {
             .on_mouse_up_out(
                 MouseButton::Left,
                 cx.listener(|this, _, _, cx| {
-                    if this.ui.show_settings_panel {
+                    if this.is_viewer_blocked() {
                         return;
                     }
                     this.ui.is_panning = false;
@@ -194,7 +203,7 @@ impl LumiaApp {
                 }),
             )
             .on_mouse_move(cx.listener(|this, event: &MouseMoveEvent, window, cx| {
-                if this.ui.show_settings_panel {
+                if this.is_viewer_blocked() {
                     return;
                 }
                 if this.ui.is_panning && event.dragging() {
@@ -246,6 +255,21 @@ impl LumiaApp {
                 div().into_any_element()
             };
 
+            let display_size = self.scaled_image_size(window);
+            let crop_overlay = display_size.and_then(|(width, _)| {
+                let scale = width / self.editing.source_width.max(1) as f32;
+                self.render_crop_overlay(scale, palette, cx)
+            });
+            let mut image_frame = div()
+                .relative()
+                .left(px(self.viewer.viewport().pan_x))
+                .top(px(self.viewer.viewport().pan_y))
+                .child(image)
+                .children(crop_overlay);
+            if let Some((width, height)) = display_size {
+                image_frame = image_frame.w(px(width)).h(px(height));
+            }
+
             viewer
                 .child(
                     div()
@@ -253,13 +277,7 @@ impl LumiaApp {
                         .flex()
                         .items_center()
                         .justify_center()
-                        .child(
-                            div()
-                                .relative()
-                                .left(px(self.viewer.viewport().pan_x))
-                                .top(px(self.viewer.viewport().pan_y))
-                                .child(image),
-                        ),
+                        .child(image_frame),
                 )
                 .children(self.large_image.detail_error().map(|message| {
                     status_message("large-image-detail-error", message, palette.error_text)

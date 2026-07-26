@@ -1,13 +1,16 @@
 use gpui::{
     div, px, rgb, AnyElement, Context, InteractiveElement, IntoElement, MouseButton,
-    MouseDownEvent, ParentElement, Rgba, Styled, Window,
+    MouseDownEvent, ParentElement, Rgba, StatefulInteractiveElement, Styled, Window,
 };
 use gpui_component::{Icon, IconName};
 use lumia_core::FitMode;
 
 use crate::app::LumiaApp;
+use crate::editing::EditMode;
+use crate::i18n::{tr, TextKey};
 use crate::palette::Palette;
 use crate::util::format_file_size;
+use crate::widgets::edit_menu_item;
 use crate::STATUS_BAR_HEIGHT;
 
 impl LumiaApp {
@@ -18,6 +21,7 @@ impl LumiaApp {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let has_image = self.viewer.has_document();
+        let viewer_enabled = has_image && !self.is_viewer_blocked();
         let count = self.sibling_count();
         let current = self
             .current_image_index()
@@ -25,9 +29,8 @@ impl LumiaApp {
             .unwrap_or(0);
         let dimensions = self
             .viewer
-            .document()
-            .and_then(|image| image.metadata.as_ref())
-            .map(|metadata| format!("{}x{}", metadata.width, metadata.height))
+            .display_dimensions()
+            .map(|(width, height)| format!("{width}x{height}"))
             .unwrap_or_else(|| "--".to_string());
         let file_size = self
             .loads
@@ -63,7 +66,7 @@ impl LumiaApp {
                     .child(self.render_status_icon_button(
                         "status-prev-image",
                         IconName::ChevronLeft,
-                        has_image && current > 1,
+                        viewer_enabled && current > 1,
                         palette,
                         cx,
                         |this, _, window, cx| {
@@ -75,7 +78,7 @@ impl LumiaApp {
                     .child(self.render_status_icon_button(
                         "status-next-image",
                         IconName::ChevronRight,
-                        has_image && current < count,
+                        viewer_enabled && current < count,
                         palette,
                         cx,
                         |this, _, window, cx| {
@@ -86,7 +89,7 @@ impl LumiaApp {
                     .child(self.render_status_icon_button(
                         "status-rotate-counter-clockwise",
                         IconName::Undo2,
-                        has_image,
+                        viewer_enabled,
                         palette,
                         cx,
                         |this, _, window, cx| {
@@ -96,7 +99,7 @@ impl LumiaApp {
                     .child(self.render_status_icon_button(
                         "status-rotate-clockwise",
                         IconName::Redo2,
-                        has_image,
+                        viewer_enabled,
                         palette,
                         cx,
                         |this, _, window, cx| {
@@ -104,7 +107,7 @@ impl LumiaApp {
                         },
                     ))
                     .child(self.render_status_text(file_size, palette))
-                    .child(self.render_status_text(dimensions, palette)),
+                    .child(self.render_dimensions_button(dimensions, has_image, palette, cx)),
             )
             .child(
                 div()
@@ -118,7 +121,7 @@ impl LumiaApp {
                         } else {
                             Icon::default().path("custom/actual-size.svg")
                         },
-                        has_image,
+                        viewer_enabled,
                         palette,
                         cx,
                         |this, _, window, cx| {
@@ -127,7 +130,7 @@ impl LumiaApp {
                     ))
                     .child(self.render_status_zoom_button(
                         window,
-                        has_image,
+                        viewer_enabled,
                         palette,
                         cx,
                         |this, _, _, cx| {
@@ -137,7 +140,7 @@ impl LumiaApp {
                     .child(self.render_status_icon_button(
                         "status-zoom-in",
                         IconName::Plus,
-                        has_image,
+                        viewer_enabled,
                         palette,
                         cx,
                         |this, _, window, cx| {
@@ -147,7 +150,7 @@ impl LumiaApp {
                     .child(self.render_status_icon_button(
                         "status-zoom-out",
                         IconName::Minus,
-                        has_image,
+                        viewer_enabled,
                         palette,
                         cx,
                         |this, _, window, cx| {
@@ -254,6 +257,103 @@ impl LumiaApp {
             .child(Icon::new(icon).size(px(16.0)).text_color(rgb(icon_color)))
             .into_any_element()
     }
+
+    fn render_dimensions_button(
+        &self,
+        dimensions: String,
+        has_image: bool,
+        palette: Palette,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let handle = self.self_handle.clone();
+        let menu_handle = self.self_handle.clone();
+        let menu_move_handle = self.self_handle.clone();
+        let enabled = has_image && self.can_edit_current_image();
+        let language = self.settings.language;
+        div()
+            .id("status-dimensions")
+            .relative()
+            .h(px(24.0))
+            .px_2()
+            .flex()
+            .items_center()
+            .gap_1()
+            .rounded_sm()
+            .text_sm()
+            .text_color(rgb(palette.muted_text))
+            .hover(move |style| style.bg(rgb(palette.status_hover)))
+            .on_hover(move |hovered, _, cx| {
+                let _ = handle.update(cx, |this, cx| {
+                    this.set_edit_menu_hover(*hovered, has_image, cx);
+                });
+            })
+            .child(format!("{dimensions} px"))
+            .child(
+                Icon::new(if self.editing.show_menu {
+                    IconName::ChevronDown
+                } else {
+                    IconName::ChevronUp
+                })
+                .size(px(12.0))
+                .text_color(rgb(palette.muted_text)),
+            )
+            .children(self.editing.show_menu.then(|| {
+                div()
+                    .id("status-dimensions-menu")
+                    .absolute()
+                    .left_0()
+                    .bottom(px(24.0))
+                    .w(px(184.0))
+                    .p_1()
+                    .rounded_md()
+                    .border_1()
+                    .border_color(rgb(palette.border))
+                    .bg(rgb(palette.panel_bg))
+                    .shadow_lg()
+                    .on_hover(move |hovered, _, cx| {
+                        let _ = menu_handle.update(cx, |this, cx| {
+                            this.set_edit_menu_hover(*hovered, has_image, cx);
+                        });
+                    })
+                    .on_mouse_move(move |_, _, cx| {
+                        let _ = menu_move_handle.update(cx, |this, cx| {
+                            this.set_edit_menu_hover(true, has_image, cx);
+                        });
+                    })
+                    .child(edit_menu_item(
+                        "edit-menu-crop",
+                        tr(language, TextKey::EditCrop),
+                        enabled,
+                        palette,
+                        cx,
+                        |this, _, window, cx| {
+                            this.open_edit_mode(EditMode::Crop, window, cx);
+                        },
+                    ))
+                    .child(edit_menu_item(
+                        "edit-menu-resize",
+                        tr(language, TextKey::EditResize),
+                        enabled,
+                        palette,
+                        cx,
+                        |this, _, window, cx| {
+                            this.open_edit_mode(EditMode::Resize, window, cx);
+                        },
+                    ))
+                    .children((!enabled).then(|| {
+                        div()
+                            .px_3()
+                            .py_2()
+                            .border_t_1()
+                            .border_color(rgb(palette.border))
+                            .text_xs()
+                            .text_color(rgb(palette.muted_text))
+                            .child(tr(language, TextKey::EditUnavailable))
+                    }))
+            }))
+            .into_any_element()
+    }
+
     fn render_status_text(&self, label: impl Into<String>, palette: Palette) -> AnyElement {
         div()
             .px_2()

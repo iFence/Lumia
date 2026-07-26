@@ -73,13 +73,21 @@ impl LumiaApp {
             bindings.push(KeyBinding::new(key.as_str(), ZoomFit, Some("Lumia")));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::ToggleFullscreen) {
-            bindings.push(KeyBinding::new(key.as_str(), ToggleFullscreen, Some("Lumia")));
+            bindings.push(KeyBinding::new(
+                key.as_str(),
+                ToggleFullscreen,
+                Some("Lumia"),
+            ));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::ExitFullscreen) {
             bindings.push(KeyBinding::new(key.as_str(), ExitFullscreen, Some("Lumia")));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::ToggleImageInfo) {
-            bindings.push(KeyBinding::new(key.as_str(), ToggleImageInfo, Some("Lumia")));
+            bindings.push(KeyBinding::new(
+                key.as_str(),
+                ToggleImageInfo,
+                Some("Lumia"),
+            ));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::NextImage) {
             bindings.push(KeyBinding::new(key.as_str(), NextImage, Some("Lumia")));

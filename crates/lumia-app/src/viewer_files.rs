@@ -4,6 +4,7 @@ use gpui::{Context, Window};
 use lumia_core::{FitMode, ViewportState};
 
 use crate::app::LumiaApp;
+use crate::EDIT_PANEL_WIDTH;
 use crate::{NextImage, PreviousImage};
 
 impl LumiaApp {
@@ -100,7 +101,12 @@ impl LumiaApp {
     pub(crate) fn image_display_scale(&self, window: &Window) -> Option<f32> {
         let (image_width, image_height) = self.viewer.display_dimensions()?;
         let viewport_size = window.viewport_size();
-        let available_width = f32::from(viewport_size.width).max(1.0);
+        let panel_width = if self.editing.mode.is_some() {
+            EDIT_PANEL_WIDTH
+        } else {
+            0.0
+        };
+        let available_width = (f32::from(viewport_size.width) - panel_width).max(1.0);
         let available_height = f32::from(viewport_size.height).max(1.0);
         Some(display_scale(
             image_width,

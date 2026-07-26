@@ -115,6 +115,9 @@ impl LumiaApp {
         palette: Palette,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
+        if self.editing.mode.is_some() {
+            return None;
+        }
         let geometry = self.overview_geometry(window)?;
         let path = self.image_path()?;
         let thumbnail = if let Some(prepared) = self

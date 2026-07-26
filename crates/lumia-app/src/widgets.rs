@@ -1,3 +1,4 @@
+use gpui::prelude::FluentBuilder;
 use gpui::{
     div, px, rgb, Context, InteractiveElement, IntoElement, MouseButton, MouseDownEvent,
     ParentElement, StatefulInteractiveElement, Styled, Window,
@@ -26,6 +27,37 @@ pub(crate) fn context_menu_item(
         .cursor_pointer()
         .hover(move |style| style.bg(rgb(palette.button_hover)))
         .on_mouse_down(MouseButton::Left, cx.listener(on_click))
+        .child(label)
+        .into_any_element()
+}
+
+pub(crate) fn edit_menu_item(
+    id: &'static str,
+    label: &'static str,
+    enabled: bool,
+    palette: Palette,
+    cx: &mut Context<LumiaApp>,
+    on_click: impl Fn(&mut LumiaApp, &MouseDownEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
+) -> gpui::AnyElement {
+    div()
+        .id(id)
+        .w_full()
+        .h(px(30.0))
+        .px_3()
+        .flex()
+        .items_center()
+        .rounded_sm()
+        .text_sm()
+        .text_color(rgb(if enabled {
+            palette.text
+        } else {
+            palette.muted_text
+        }))
+        .when(enabled, |item| {
+            item.cursor_pointer()
+                .hover(move |style| style.bg(rgb(palette.button_hover)))
+                .on_mouse_down(MouseButton::Left, cx.listener(on_click))
+        })
         .child(label)
         .into_any_element()
 }
@@ -118,6 +150,43 @@ pub(crate) fn settings_action_button(
     } else {
         button.outline().into_any_element()
     }
+}
+
+pub(crate) fn edit_option_button(
+    id: &'static str,
+    label: &'static str,
+    active: bool,
+    palette: Palette,
+    cx: &mut Context<LumiaApp>,
+    on_click: impl Fn(&mut LumiaApp, &gpui::ClickEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
+) -> gpui::AnyElement {
+    div()
+        .id(id)
+        .px_2()
+        .py_1()
+        .rounded_md()
+        .border_1()
+        .border_color(rgb(if active {
+            palette.accent
+        } else {
+            palette.border
+        }))
+        .bg(rgb(if active {
+            palette.accent_soft
+        } else {
+            palette.subtle_bg
+        }))
+        .text_xs()
+        .text_color(rgb(if active {
+            palette.text
+        } else {
+            palette.muted_text
+        }))
+        .cursor_pointer()
+        .hover(move |style| style.bg(rgb(palette.button_hover)))
+        .on_click(cx.listener(on_click))
+        .child(label)
+        .into_any_element()
 }
 
 pub(crate) fn settings_label(

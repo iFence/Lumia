@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use gpui::{App, Context, FocusHandle, Focusable, Subscription, WeakEntity, Window};
 use lumia_core::{AppSettings, FolderNavigation, SettingsGroup, ViewerSession};
 
+use crate::editing::EditState;
 use crate::large_image::LargeImageSession;
 use crate::load_state::ImageLoadState;
 use crate::load_state::PreparedImage;
@@ -17,6 +18,7 @@ pub(crate) struct LumiaApp {
     pub(crate) navigation: FolderNavigation,
     pub(crate) loads: ImageLoadState,
     pub(crate) large_image: LargeImageSession<PreparedImage>,
+    pub(crate) editing: EditState,
     pub(crate) ui: UiState,
     pub(crate) settings: AppSettings,
     pub(crate) appearance_subscription: Option<Subscription>,
@@ -43,6 +45,7 @@ impl LumiaApp {
             navigation: FolderNavigation::default(),
             loads: ImageLoadState::default(),
             large_image: LargeImageSession::default(),
+            editing: EditState::default(),
             ui: UiState::default(),
             settings,
             appearance_subscription: None,
@@ -84,7 +87,7 @@ impl LumiaApp {
     }
 
     pub(crate) fn is_viewer_blocked(&self) -> bool {
-        self.ui.show_settings_panel
+        self.ui.show_settings_panel || self.editing.mode.is_some()
     }
 }
 

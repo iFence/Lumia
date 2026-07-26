@@ -1,5 +1,6 @@
 mod animation;
 mod document;
+mod edit;
 mod error;
 mod formats;
 mod heif;
@@ -7,6 +8,10 @@ mod large;
 mod raster;
 mod types;
 
+pub use edit::{
+    apply_image_edit, export_decoded_image, CropRect, ImageEditError, ImageEditOperation,
+    ImageEditPolicy, ImageExportFormat,
+};
 pub use error::ImageLoadError;
 pub use formats::{
     is_supported_image_extension, requires_plugin_preview_extension, supported_image_extensions,
