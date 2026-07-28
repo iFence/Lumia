@@ -33,6 +33,7 @@ futures = "0.3"
 image = "0.25"
 hex = "0.4"
 gif = "0.14"
+kamadak-exif = "0.6.1"
 memmap2 = "0.9.10"
 png = "0.18.1"
 lumia-core = { path = "crates/lumia-core" }

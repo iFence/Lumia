@@ -10,6 +10,7 @@ rust-version.workspace = true
 heic.workspace = true
 image.workspace = true
 gif.workspace = true
+kamadak-exif.workspace = true
 memmap2.workspace = true
 png.workspace = true
 serde.workspace = true

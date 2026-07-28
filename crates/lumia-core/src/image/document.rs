@@ -2,6 +2,8 @@ use std::path::{Path, PathBuf};
 
 use uuid::Uuid;
 
+use super::metadata::read_exif_metadata;
+
 use super::{
     is_supported_image_extension, requires_plugin_preview_extension, ColorDescription,
     ImageDocument, ImageFileMetadata, ImageLoadError, ImageMetadata, ImageProbe, ImageSource,
@@ -72,6 +74,7 @@ impl ImageDocument {
                         has_alpha: info.has_alpha,
                     },
                     format_name: Some("HEIF".into()),
+                    exif: read_exif_metadata(path),
                 }),
                 Some(file_bytes),
             )
@@ -105,6 +108,7 @@ impl ImageDocument {
                         has_alpha: false,
                     },
                     format_name,
+                    exif: read_exif_metadata(path),
                 }),
                 None,
             )

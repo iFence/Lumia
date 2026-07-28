@@ -110,7 +110,18 @@ if ($InstallTest) {
         $link = $shell.CreateShortcut($Path)
         Assert-Equal $link.TargetPath (Join-Path $installDir "lumia-app.exe") "Shortcut target mismatch"
         Assert-Equal $link.WorkingDirectory.TrimEnd("\\") $installDir.TrimEnd("\\") "Shortcut working directory mismatch"
-        if ($link.IconLocation -notlike "*Lumia*") { throw "Shortcut icon location is not Lumia: $($link.IconLocation)" }
+        $iconLocation = $link.IconLocation
+        if ([string]::IsNullOrWhiteSpace($iconLocation)) {
+            throw "Shortcut icon location is empty"
+        }
+        if ($iconLocation -notmatch '^(?<path>.+),(?<index>-?\d+)$') {
+            throw "Shortcut icon location is invalid: $iconLocation"
+        }
+        Assert-Equal $Matches.index "0" "Shortcut icon index mismatch"
+        $iconPath = $Matches.path.Trim('"')
+        if (-not (Test-Path -LiteralPath $iconPath -PathType Leaf)) {
+            throw "Shortcut icon file is missing: $iconPath"
+        }
     }
 
     Invoke-Msi @("/i", "`"$msi`"", "/qn", "/norestart")

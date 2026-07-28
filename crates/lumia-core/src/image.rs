@@ -5,6 +5,7 @@ mod error;
 mod formats;
 mod heif;
 mod large;
+mod metadata;
 mod raster;
 mod types;
 
@@ -31,8 +32,8 @@ pub use raster::{
 };
 pub use types::{
     ColorDescription, DecodeCancellation, DecodePolicy, DecodedAnimationFrame, DecodedImage,
-    ImageDocument, ImageFileMetadata, ImageMetadata, ImageProbe, ImageSource, PixelFormat,
-    TransferFunction,
+    ExifMetadata, ImageDocument, ImageFileMetadata, ImageMetadata, ImageProbe, ImageSource,
+    PixelFormat, TransferFunction,
 };
 
 #[cfg(test)]

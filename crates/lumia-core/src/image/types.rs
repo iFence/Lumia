@@ -95,6 +95,27 @@ pub struct ImageMetadata {
     pub height: u32,
     pub color: ColorDescription,
     pub format_name: Option<String>,
+    #[serde(default)]
+    pub exif: ExifMetadata,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExifMetadata {
+    pub chroma_subsampling: Option<String>,
+    pub color_space: Option<String>,
+    pub camera_make: Option<String>,
+    pub camera_model: Option<String>,
+    pub software: Option<String>,
+    pub date_taken: Option<String>,
+    pub flash: Option<String>,
+    pub focal_length: Option<String>,
+    pub exposure_time: Option<String>,
+    pub exposure_bias: Option<String>,
+    pub aperture: Option<String>,
+    pub iso: Option<String>,
+    pub exposure_program: Option<String>,
+    pub metering_mode: Option<String>,
+    pub gps: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

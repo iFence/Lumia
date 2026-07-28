@@ -79,6 +79,7 @@ mod tests {
                 has_alpha: false,
             },
             format_name: Some("Png".into()),
+            exif: Default::default(),
         });
         document
     }

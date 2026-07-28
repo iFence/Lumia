@@ -1,9 +1,9 @@
 use gpui::{div, px, rgb, InteractiveElement, IntoElement, ParentElement, Styled, Window};
+use lumia_core::{ExifMetadata, Language};
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
 use crate::util::{format_file_size, format_modified_time};
-use lumia_core::Language;
 
 impl LumiaApp {
     pub(crate) fn render_image_info_overlay(&self, window: &Window) -> Option<impl IntoElement> {
@@ -14,7 +14,7 @@ impl LumiaApp {
                 .absolute()
                 .top_4()
                 .left_4()
-                .max_w(px(420.0))
+                .max_w(px(560.0))
                 .px_3()
                 .py_2()
                 .rounded_md()
@@ -37,36 +37,16 @@ impl LumiaApp {
 
         let unknown = tr(language, TextKey::ImageInfoUnknown);
         let mut lines = Vec::new();
+        let position = self
+            .current_image_index()
+            .map(|index| format!(" [{}/{}]", index + 1, self.sibling_count()))
+            .unwrap_or_default();
 
         lines.push(format!(
-            "{}: {}",
+            "{}: {}{position}",
             tr(language, TextKey::ImageInfoName),
             self.image_name()
         ));
-
-        if let Some(metadata) = self
-            .viewer
-            .document()
-            .and_then(|image| image.metadata.as_ref())
-        {
-            lines.push(format!(
-                "{}: {} × {}",
-                tr(language, TextKey::ImageInfoDimensions),
-                metadata.width,
-                metadata.height
-            ));
-            if let Some(format_name) = metadata.format_name.as_deref() {
-                lines.push(format!(
-                    "{}: {format_name}",
-                    tr(language, TextKey::ImageInfoFormat),
-                ));
-            }
-        } else {
-            lines.push(format!(
-                "{}: {unknown}",
-                tr(language, TextKey::ImageInfoDimensions),
-            ));
-        }
 
         if let Some(file_metadata) = self.loads.file_metadata() {
             lines.push(format!(
@@ -83,6 +63,40 @@ impl LumiaApp {
             }
         }
 
+        if let Some(metadata) = self
+            .viewer
+            .document()
+            .and_then(|image| image.metadata.as_ref())
+        {
+            lines.push(format!(
+                "{}: {} × {}",
+                tr(language, TextKey::ImageInfoDimensions),
+                metadata.width,
+                metadata.height
+            ));
+            let format_details = [
+                metadata.format_name.as_deref(),
+                metadata.exif.chroma_subsampling.as_deref(),
+                metadata.exif.color_space.as_deref(),
+            ]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+            if !format_details.is_empty() {
+                lines.push(format!(
+                    "{}: {}",
+                    tr(language, TextKey::ImageInfoFormat),
+                    format_details.join(", ")
+                ));
+            }
+            append_exif_lines(&mut lines, language, &metadata.exif);
+        } else {
+            lines.push(format!(
+                "{}: {unknown}",
+                tr(language, TextKey::ImageInfoDimensions),
+            ));
+        }
+
         lines.push(format!(
             "{}: {:.0}%",
             tr(language, TextKey::ImageInfoZoom),
@@ -94,5 +108,39 @@ impl LumiaApp {
             path.display()
         ));
         lines
+    }
+}
+
+fn append_exif_lines(lines: &mut Vec<String>, language: Language, exif: &ExifMetadata) {
+    for (key, value) in [
+        (TextKey::ImageInfoCameraMake, exif.camera_make.as_deref()),
+        (TextKey::ImageInfoCameraModel, exif.camera_model.as_deref()),
+        (TextKey::ImageInfoSoftware, exif.software.as_deref()),
+        (TextKey::ImageInfoDateTaken, exif.date_taken.as_deref()),
+        (TextKey::ImageInfoFlash, exif.flash.as_deref()),
+        (TextKey::ImageInfoFocalLength, exif.focal_length.as_deref()),
+        (
+            TextKey::ImageInfoExposureTime,
+            exif.exposure_time.as_deref(),
+        ),
+        (
+            TextKey::ImageInfoExposureBias,
+            exif.exposure_bias.as_deref(),
+        ),
+        (TextKey::ImageInfoAperture, exif.aperture.as_deref()),
+        (TextKey::ImageInfoIso, exif.iso.as_deref()),
+        (
+            TextKey::ImageInfoExposureProgram,
+            exif.exposure_program.as_deref(),
+        ),
+        (
+            TextKey::ImageInfoMeteringMode,
+            exif.metering_mode.as_deref(),
+        ),
+        (TextKey::ImageInfoGps, exif.gps.as_deref()),
+    ] {
+        if let Some(value) = value {
+            lines.push(format!("{}: {value}", tr(language, key)));
+        }
     }
 }

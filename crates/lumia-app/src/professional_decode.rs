@@ -129,6 +129,7 @@ fn decode_photoshop(path: &Path) -> Result<ProfessionalPreview> {
             has_alpha: true,
         },
         format_name: probe.format_name,
+        exif: Default::default(),
     };
     Ok(ProfessionalPreview {
         image: PreparedImage::from_decoded(decoded),
