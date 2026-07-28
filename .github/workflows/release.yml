@@ -4,6 +4,9 @@ on:
   push:
     tags: ['v*']
 
+permissions:
+  contents: write
+
 jobs:
   windows-release:
     name: Windows installer
@@ -56,7 +59,7 @@ jobs:
             target/wix/Lumia-*-x64-zh-CN.msi
             target/lumia-portable-windows-x64.zip
             target/Lumia-Annotation-windows-x64.zip
-          fail_on_unmatched: true
+          fail_on_unmatched_files: true
 
   macos-release:
     name: macOS .dmg
@@ -81,7 +84,7 @@ jobs:
           files: |
             target/Lumia-macos-*.dmg
             target/Lumia-Annotation-macos-*.tar.gz
-          fail_on_unmatched: true
+          fail_on_unmatched_files: true
 
   linux-release:
     name: Linux tarball
@@ -136,4 +139,4 @@ jobs:
           files: |
             target/lumia-linux-x64.tar.gz
             target/Lumia-Annotation-linux-x64.tar.gz
-          fail_on_unmatched: true
+          fail_on_unmatched_files: true
