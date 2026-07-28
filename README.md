@@ -4,6 +4,19 @@
   <img src="crates/lumia-app/resources/logo.png" alt="Lumia Logo" width="256">
 </p>
 
+<p align="center">
+  <a href="https://github.com/iFence/Lumia/releases"><img src="https://img.shields.io/github/v/release/iFence/Lumia?style=flat-square&color=blue" alt="Release"></a>
+  <a href="https://github.com/iFence/Lumia/releases"><img src="https://img.shields.io/github/downloads/iFence/Lumia/total?style=flat-square&color=green" alt="Downloads"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/iFence/Lumia?style=flat-square&color=orange" alt="License"></a>
+  <img src="https://img.shields.io/badge/MSRV-1.95-red?style=flat-square" alt="MSRV">
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey?style=flat-square" alt="Platform">
+  <a href="https://github.com/iFence/Lumia"><img src="https://img.shields.io/github/stars/iFence/Lumia?style=social" alt="Stars"></a>
+</p>
+
+<p align="center">
+  <a href="README_CN.md">中文版</a>
+</p>
+
 Lumia is a small, polished, high-performance, cross-platform image viewer built with Rust, GPUI, and `gpui-component`.
 
 The product goal is a viewer that opens quickly, stays low-memory, and remains stable while serving both everyday image browsing and professional preview workflows for photographers, UI designers, and engineers. The core app owns the desktop shell, viewer state, fast navigation, and plugin host. Heavier capabilities are isolated behind process plugins so they can evolve without slowing down or destabilizing the core viewer.
