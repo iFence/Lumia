@@ -137,6 +137,17 @@ pub(super) fn open_default_apps_settings() -> anyhow::Result<()> {
     bail!("the Linux desktop applies file associations directly")
 }
 
+pub(super) fn open_url_in_browser(url: &str) -> anyhow::Result<()> {
+    let status = Command::new("xdg-open")
+        .arg(url)
+        .status()
+        .with_context(|| format!("xdg-open {url:?}"))?;
+    if !status.success() {
+        bail!("`xdg-open {url:?}` exited with {status}");
+    }
+    Ok(())
+}
+
 fn restore_managed_defaults() -> anyhow::Result<()> {
     let mut preferences = load_file_association_preferences();
     for (mime, previous) in preferences.previous_handlers.clone() {

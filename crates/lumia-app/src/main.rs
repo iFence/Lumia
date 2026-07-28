@@ -46,6 +46,7 @@ mod slideshow;
 mod status_bar;
 mod tile_cache;
 mod ui_state;
+mod update_check;
 mod util;
 mod viewer_actions;
 mod viewer_files;
@@ -96,6 +97,7 @@ actions!(
         ToggleFullscreen,
         ExitFullscreen,
         ToggleImageInfo,
+        CheckForUpdates,
         Quit
     ]
 );

@@ -194,6 +194,25 @@ pub(super) fn open_default_apps_settings() -> anyhow::Result<()> {
     Ok(())
 }
 
+pub(super) fn open_url_in_browser(url: &str) -> anyhow::Result<()> {
+    let operation = wide_null("open");
+    let uri = wide_null(url);
+    let result = unsafe {
+        ShellExecuteW(
+            ptr::null_mut(),
+            operation.as_ptr(),
+            uri.as_ptr(),
+            ptr::null(),
+            ptr::null(),
+            SW_SHOWNORMAL,
+        )
+    };
+    if result as isize <= 32 {
+        bail!("Windows rejected opening {url:?} ({result:?})");
+    }
+    Ok(())
+}
+
 fn apply_registry_plan(plan: &RegistryPlan) -> anyhow::Result<()> {
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
 

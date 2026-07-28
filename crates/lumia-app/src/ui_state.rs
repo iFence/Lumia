@@ -4,6 +4,7 @@ use gpui::{Pixels, Point};
 use lumia_core::{SettingsGroup, ShortcutId};
 
 use crate::file_association_state::FileAssociationUiState;
+use crate::update_check::UpdateCheckUiState;
 
 pub(crate) struct UiState {
     pub(crate) error_message: Option<String>,
@@ -17,6 +18,7 @@ pub(crate) struct UiState {
     pub(crate) show_settings_panel: bool,
     pub(crate) active_settings_group: SettingsGroup,
     pub(crate) file_associations: FileAssociationUiState,
+    pub(crate) update_check: UpdateCheckUiState,
     pub(crate) recording_shortcut: Option<ShortcutId>,
     pub(crate) show_zoom_menu: bool,
     pub(crate) show_status_bar: bool,
@@ -37,6 +39,7 @@ impl Default for UiState {
             show_settings_panel: false,
             active_settings_group: SettingsGroup::General,
             file_associations: FileAssociationUiState::default(),
+            update_check: UpdateCheckUiState::default(),
             recording_shortcut: None,
             show_zoom_menu: false,
             show_status_bar: false,

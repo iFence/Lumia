@@ -164,6 +164,17 @@ pub(super) fn open_default_apps_settings() -> anyhow::Result<()> {
     bail!("macOS applies file associations directly")
 }
 
+pub(super) fn open_url_in_browser(url: &str) -> anyhow::Result<()> {
+    let status = Command::new("open")
+        .arg(url)
+        .status()
+        .with_context(|| format!("open {url:?}"))?;
+    if !status.success() {
+        bail!("`open {url:?}` exited with {status}");
+    }
+    Ok(())
+}
+
 fn restore_managed_defaults() -> anyhow::Result<()> {
     let mut preferences = load_file_association_preferences();
     for (content_type, previous) in preferences.previous_handlers.clone() {
