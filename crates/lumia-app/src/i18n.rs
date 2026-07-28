@@ -136,6 +136,10 @@ pub(crate) enum TextKey {
     ReleaseNotes,
     OpenReleasesPage,
     CheckUpdatesOnStartup,
+    DownloadAndInstall,
+    SkipUpdate,
+    InstallingUpdate,
+    DownloadingUpdate,
 }
 
 pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
@@ -272,6 +276,10 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::ReleaseNotes => "Release notes",
             TextKey::OpenReleasesPage => "Open releases page",
             TextKey::CheckUpdatesOnStartup => "Check for updates on startup",
+            TextKey::DownloadAndInstall => "Download and Install",
+            TextKey::SkipUpdate => "Skip this update",
+            TextKey::InstallingUpdate => "Installing...",
+            TextKey::DownloadingUpdate => "Downloading...",
         },
         Language::Chinese => match key {
             TextKey::Settings => "设置",
@@ -405,6 +413,10 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::ReleaseNotes => "更新日志",
             TextKey::OpenReleasesPage => "打开发布页面",
             TextKey::CheckUpdatesOnStartup => "启动时检查更新",
+            TextKey::DownloadAndInstall => "下载并安装",
+            TextKey::SkipUpdate => "跳过本次更新",
+            TextKey::InstallingUpdate => "正在安装...",
+            TextKey::DownloadingUpdate => "正在下载...",
         },
     }
 }

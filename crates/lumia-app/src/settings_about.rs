@@ -39,6 +39,30 @@ impl LumiaApp {
                     latest_version
                 ))
                 .into_any_element(),
+            UpdateState::Downloading {
+                downloaded_bytes,
+                total_bytes,
+                ..
+            } => {
+                let pct = total_bytes
+                    .filter(|&total| total > 0)
+                    .map(|total| ((*downloaded_bytes as f32 / total as f32) * 100.0) as u32)
+                    .unwrap_or(0);
+                div()
+                    .text_sm()
+                    .text_color(rgb(palette.muted_text))
+                    .child(format!(
+                        "{} {}%",
+                        tr(language, TextKey::DownloadingUpdate),
+                        pct
+                    ))
+                    .into_any_element()
+            }
+            UpdateState::Installing => div()
+                .text_sm()
+                .text_color(rgb(palette.muted_text))
+                .child(tr(language, TextKey::InstallingUpdate))
+                .into_any_element(),
             UpdateState::UpToDate => div()
                 .text_sm()
                 .text_color(rgb(palette.muted_text))
@@ -55,7 +79,8 @@ impl LumiaApp {
         };
 
         let check_button_handle = self.self_handle.clone();
-        let open_button_handle = self.self_handle.clone();
+        let download_button_handle = self.self_handle.clone();
+        let skip_button_handle = self.self_handle.clone();
 
         let release_notes_element =
             if let UpdateState::Available { release_notes, .. } = update_state {
@@ -81,6 +106,35 @@ impl LumiaApp {
             } else {
                 None
             };
+
+        let progress_element = if let UpdateState::Downloading {
+            downloaded_bytes,
+            total_bytes,
+            ..
+        } = update_state
+        {
+            let progress = total_bytes
+                .filter(|&total| total > 0)
+                .map(|total| *downloaded_bytes as f32 / total as f32)
+                .unwrap_or(0.0);
+            let fill_width = (progress * 280.0).max(2.0).min(280.0);
+            Some(
+                div()
+                    .w(px(280.0))
+                    .h(px(6.0))
+                    .rounded_sm()
+                    .bg(rgb(palette.border))
+                    .child(
+                        div()
+                            .h_full()
+                            .w(px(fill_width))
+                            .rounded_sm()
+                            .bg(rgb(palette.accent)),
+                    ),
+            )
+        } else {
+            None
+        };
 
         div()
             .id("settings-about")
@@ -127,6 +181,7 @@ impl LumiaApp {
                     ))
                     .child(status_element),
             )
+            .when_some(progress_element, |this, bar| this.child(bar))
             .when_some(release_notes_element, |this, notes| {
                 this.child(
                     div()
@@ -145,17 +200,34 @@ impl LumiaApp {
                 )
             })
             .when(has_update, |this| {
-                this.child(settings_action_button(
-                    "about-open-releases",
-                    tr(language, TextKey::OpenReleasesPage),
-                    true,
-                    false,
-                    move |_, _, cx| {
-                        let _ = open_button_handle.update(cx, |this, cx| {
-                            this.open_releases_page(cx);
-                        });
-                    },
-                ))
+                this.child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap_3()
+                        .child(settings_action_button(
+                            "about-download-install",
+                            tr(language, TextKey::DownloadAndInstall),
+                            true,
+                            false,
+                            move |_, _, cx| {
+                                let _ = download_button_handle.update(cx, |this, cx| {
+                                    this.download_and_install(cx);
+                                });
+                            },
+                        ))
+                        .child(settings_action_button(
+                            "about-skip-update",
+                            tr(language, TextKey::SkipUpdate),
+                            false,
+                            false,
+                            move |_, _, cx| {
+                                let _ = skip_button_handle.update(cx, |this, cx| {
+                                    this.skip_update(cx);
+                                });
+                            },
+                        )),
+                )
             })
     }
 }

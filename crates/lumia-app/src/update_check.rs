@@ -1,14 +1,16 @@
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+
 use anyhow::Context as _;
 use gpui::{Context, Window};
 use http_client::{AsyncBody, HttpClient};
 use semver::Version;
-use std::sync::Arc;
 
 use crate::app::LumiaApp;
+use crate::persistence::save_settings;
 
 const RELEASES_LATEST_URL: &str = "https://api.github.com/repos/iFence/lumia/releases/latest";
 const DEFAULT_BRANCH: &str = "master";
-const RELEASES_PAGE_URL: &str = "https://github.com/iFence/lumia/releases/latest";
 
 fn changelog_url() -> String {
     format!("https://raw.githubusercontent.com/iFence/lumia/{DEFAULT_BRANCH}/Changelog.md")
@@ -21,8 +23,14 @@ pub(crate) enum UpdateState {
     Available {
         latest_version: Version,
         release_notes: String,
-        release_url: String,
+        asset: UpdateAsset,
     },
+    Downloading {
+        latest_version: Version,
+        downloaded_bytes: u64,
+        total_bytes: Option<u64>,
+    },
+    Installing,
     UpToDate,
     Error(String),
 }
@@ -40,20 +48,30 @@ pub(crate) struct UpdateCheckUiState {
 
 impl UpdateCheckUiState {
     pub(crate) fn is_busy(&self) -> bool {
-        matches!(self.state, UpdateState::Checking)
+        matches!(
+            self.state,
+            UpdateState::Checking | UpdateState::Downloading { .. } | UpdateState::Installing
+        )
     }
 
-    /// `true` when an update is available (used to show the "Open releases page" button).
+    /// `true` when an update is available and ready to download.
     pub(crate) fn has_update(&self) -> bool {
         matches!(self.state, UpdateState::Available { .. })
     }
+}
 
-    pub(crate) fn release_url(&self) -> Option<&str> {
-        match &self.state {
-            UpdateState::Available { release_url, .. } => Some(release_url),
-            _ => None,
-        }
-    }
+#[derive(Debug, Clone)]
+pub(crate) struct UpdateAsset {
+    pub(crate) name: String,
+    pub(crate) url: String,
+    pub(crate) size: u64,
+}
+
+#[derive(serde::Deserialize)]
+struct GithubAsset {
+    name: String,
+    browser_download_url: String,
+    size: u64,
 }
 
 #[derive(serde::Deserialize)]
@@ -61,11 +79,38 @@ struct GithubRelease {
     tag_name: String,
     #[serde(default)]
     body: Option<String>,
-    html_url: Option<String>,
+    #[serde(default)]
+    assets: Vec<GithubAsset>,
     #[serde(default)]
     draft: bool,
     #[serde(default)]
     prerelease: bool,
+}
+
+/// Select the platform-appropriate installer asset from a GitHub release.
+fn select_asset(assets: &[GithubAsset]) -> Option<UpdateAsset> {
+    let matches_platform = |name: &str| {
+        #[cfg(target_os = "windows")]
+        {
+            name.starts_with("Lumia-Setup-") && name.ends_with("-x64.exe")
+        }
+        #[cfg(target_os = "macos")]
+        {
+            name.starts_with("Lumia-macos-") && name.ends_with(".dmg")
+        }
+        #[cfg(all(unix, not(target_os = "macos")))]
+        {
+            name == "lumia-linux-x64.tar.gz"
+        }
+    };
+    assets
+        .iter()
+        .find(|asset| matches_platform(&asset.name))
+        .map(|asset| UpdateAsset {
+            name: asset.name.clone(),
+            url: asset.browser_download_url.clone(),
+            size: asset.size,
+        })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -172,7 +217,7 @@ async fn fetch_text(client: &Arc<dyn HttpClient>, url: &str) -> anyhow::Result<S
 struct UpdateInfo {
     latest_version: Version,
     release_notes: String,
-    release_url: String,
+    asset: UpdateAsset,
 }
 
 /// Returns `Some(UpdateInfo)` when a newer release exists, `None` when up-to-date.
@@ -195,6 +240,8 @@ async fn check_update(
     if latest <= *current {
         return Ok(None);
     }
+    let asset =
+        select_asset(&release.assets).context("no matching installer asset for platform")?;
     let notes = match fetch_text(client, &changelog_url()).await {
         Ok(content) => aggregate_release_notes(
             &parse_changelog(&content),
@@ -204,14 +251,10 @@ async fn check_update(
         ),
         Err(_) => release.body.clone().unwrap_or_default(),
     };
-    let release_url = release
-        .html_url
-        .clone()
-        .unwrap_or_else(|| RELEASES_PAGE_URL.to_string());
     Ok(Some(UpdateInfo {
         latest_version: latest,
         release_notes: notes,
-        release_url,
+        asset,
     }))
 }
 
@@ -234,11 +277,25 @@ impl LumiaApp {
             let _ = handle.update(cx, |this, cx| {
                 match result {
                     Ok(Some(info)) => {
-                        this.ui.update_check.state = UpdateState::Available {
-                            latest_version: info.latest_version,
-                            release_notes: info.release_notes,
-                            release_url: info.release_url,
-                        };
+                        let skipped = this
+                            .settings
+                            .skipped_update_version
+                            .as_deref()
+                            .map(|v| v.trim_start_matches('v'))
+                            .and_then(|v| Version::parse(v).ok());
+                        if skipped.as_ref() == Some(&info.latest_version) {
+                            this.ui.update_check.state = if manual {
+                                UpdateState::UpToDate
+                            } else {
+                                UpdateState::Idle
+                            };
+                        } else {
+                            this.ui.update_check.state = UpdateState::Available {
+                                latest_version: info.latest_version,
+                                release_notes: info.release_notes,
+                                asset: info.asset,
+                            };
+                        }
                     }
                     Ok(None) => {
                         this.ui.update_check.state = UpdateState::UpToDate;
@@ -274,180 +331,103 @@ impl LumiaApp {
         self.check_for_updates(true, cx);
     }
 
-    /// Open the releases page in the system browser.
-    pub(crate) fn open_releases_page(&mut self, cx: &mut Context<Self>) {
-        if let Some(url) = self.ui.update_check.release_url() {
-            let _ = crate::shell::open_url_in_browser(url);
+    /// Download the installer for the currently-available update, launch it, and quit.
+    pub(crate) fn download_and_install(&mut self, cx: &mut Context<Self>) {
+        let (latest_version, asset) = match &self.ui.update_check.state {
+            UpdateState::Available {
+                latest_version,
+                asset,
+                ..
+            } => (latest_version.clone(), asset.clone()),
+            _ => return,
+        };
+
+        let total_bytes = (asset.size > 0).then_some(asset.size);
+        self.ui.update_check.state = UpdateState::Downloading {
+            latest_version: latest_version.clone(),
+            downloaded_bytes: 0,
+            total_bytes,
+        };
+        cx.notify();
+
+        let client = cx.http_client();
+        let handle = self.self_handle.clone();
+        let dest = std::env::temp_dir().join(&asset.name);
+
+        cx.spawn(async move |_this, cx| {
+            let result: anyhow::Result<()> = async {
+                let response = client.get(&asset.url, AsyncBody::from(()), true).await?;
+                if !response.status().is_success() {
+                    anyhow::bail!("http status {}", response.status());
+                }
+                let (_parts, mut body) = response.into_parts();
+                let mut file = std::fs::File::create(&dest)?;
+                let mut downloaded: u64 = 0;
+                let mut buf = [0u8; 8192];
+                let mut last_notify = Instant::now();
+                loop {
+                    let n = futures::io::AsyncReadExt::read(&mut body, &mut buf).await?;
+                    if n == 0 {
+                        break;
+                    }
+                    std::io::Write::write_all(&mut file, &buf[..n])?;
+                    downloaded += n as u64;
+                    if last_notify.elapsed() >= Duration::from_millis(100) {
+                        last_notify = Instant::now();
+                        let _ = handle.update(cx, |this, cx| {
+                            if let UpdateState::Downloading {
+                                downloaded_bytes, ..
+                            } = &mut this.ui.update_check.state
+                            {
+                                *downloaded_bytes = downloaded;
+                            }
+                            cx.notify();
+                        });
+                    }
+                }
+                file.sync_all()?;
+                if let Some(expected) = total_bytes {
+                    if downloaded != expected {
+                        anyhow::bail!("download incomplete: {downloaded}/{expected} bytes");
+                    }
+                }
+                Ok(())
+            }
+            .await;
+
+            match result {
+                Ok(()) => {
+                    let _ = handle.update(cx, |this, cx| {
+                        this.ui.update_check.state = UpdateState::Installing;
+                        cx.notify();
+                    });
+                    let _ = crate::shell::open_url_in_browser(&dest.to_string_lossy());
+                    let _ = handle.update(cx, |_, cx| {
+                        cx.quit();
+                    });
+                }
+                Err(err) => {
+                    let _ = handle.update(cx, |this, cx| {
+                        this.ui.update_check.state = UpdateState::Error(format!("{err:#}"));
+                        cx.notify();
+                    });
+                }
+            }
+        })
+        .detach();
+    }
+
+    /// Persist the currently-available version as skipped and dismiss the prompt.
+    pub(crate) fn skip_update(&mut self, cx: &mut Context<Self>) {
+        if let UpdateState::Available { latest_version, .. } = &self.ui.update_check.state {
+            self.settings.skipped_update_version = Some(latest_version.to_string());
+            let _ = save_settings(&self.settings);
         }
+        self.ui.update_check.state = UpdateState::Idle;
         cx.notify();
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn v(major: u64, minor: u64, patch: u64) -> Version {
-        Version::new(major, minor, patch)
-    }
-
-    #[test]
-    fn parse_changelog_extracts_version_sections() {
-        let content =
-            "# Changelog\n\npreamble\n\n## v0.1.3\n\n- new feature\n\n## v0.1.2\n\n- initial\n";
-        let entries = parse_changelog(content);
-        assert_eq!(entries.len(), 2);
-        assert_eq!(entries[0].version, v(0, 1, 3));
-        assert_eq!(entries[1].version, v(0, 1, 2));
-        assert!(entries[0].body.contains("new feature"));
-        assert!(entries[1].body.contains("initial"));
-    }
-
-    #[test]
-    fn parse_changelog_strips_v_prefix_and_handles_no_prefix() {
-        let content = "## v0.1.3\nbody1\n## 0.1.2\nbody2\n";
-        let entries = parse_changelog(content);
-        assert_eq!(entries.len(), 2);
-        assert_eq!(entries[0].version, v(0, 1, 3));
-        assert_eq!(entries[1].version, v(0, 1, 2));
-    }
-
-    #[test]
-    fn parse_changelog_ignores_trailing_date_in_header() {
-        let content = "## v0.1.3 (2026-07-28)\nbody\n";
-        let entries = parse_changelog(content);
-        assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].version, v(0, 1, 3));
-    }
-
-    #[test]
-    fn parse_changelog_handles_separator_between_sections() {
-        let content = "## v0.1.3\nbody1\n---\n## v0.1.2\nbody2\n";
-        let entries = parse_changelog(content);
-        assert_eq!(entries.len(), 2);
-        assert!(entries[0].body.contains("body1"));
-        assert!(!entries[0].body.contains("body2"));
-        assert!(entries[1].body.contains("body2"));
-    }
-
-    #[test]
-    fn parse_changelog_handles_adjacent_headers() {
-        let content = "## v0.1.3\n## v0.1.2\nbody2\n";
-        let entries = parse_changelog(content);
-        assert_eq!(entries.len(), 2);
-        assert_eq!(entries[0].version, v(0, 1, 3));
-        assert_eq!(entries[0].body.trim(), "");
-        assert_eq!(entries[1].version, v(0, 1, 2));
-        assert!(entries[1].body.contains("body2"));
-    }
-
-    #[test]
-    fn parse_changelog_drops_preamble_before_first_header() {
-        let content = "# Changelog\n\n约定：\n- foo\n\n## v0.1.2\nbody\n";
-        let entries = parse_changelog(content);
-        assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].version, v(0, 1, 2));
-    }
-
-    #[test]
-    fn parse_changelog_treats_non_version_header_as_body() {
-        let content = "## v0.1.3\n## NotAVersion\nstill body\n";
-        let entries = parse_changelog(content);
-        assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].version, v(0, 1, 3));
-        assert!(entries[0].body.contains("NotAVersion"));
-        assert!(entries[0].body.contains("still body"));
-    }
-
-    #[test]
-    fn aggregate_release_notes_filters_and_sorts_descending() {
-        let entries = vec![
-            ChangelogEntry {
-                version: v(0, 1, 2),
-                body: "current".into(),
-            },
-            ChangelogEntry {
-                version: v(0, 1, 3),
-                body: "minor".into(),
-            },
-            ChangelogEntry {
-                version: v(0, 1, 4),
-                body: "latest".into(),
-            },
-        ];
-        let notes = aggregate_release_notes(&entries, &v(0, 1, 2), &v(0, 1, 4), None);
-        assert!(notes.contains("## v0.1.4"));
-        assert!(notes.contains("## v0.1.3"));
-        assert!(!notes.contains("## v0.1.2"));
-        let pos4 = notes.find("v0.1.4").unwrap();
-        let pos3 = notes.find("v0.1.3").unwrap();
-        assert!(pos4 < pos3);
-    }
-
-    #[test]
-    fn aggregate_release_notes_falls_back_when_no_match() {
-        let entries = vec![ChangelogEntry {
-            version: v(0, 1, 2),
-            body: "current".into(),
-        }];
-        let notes =
-            aggregate_release_notes(&entries, &v(0, 1, 2), &v(0, 1, 4), Some("fallback notes"));
-        assert_eq!(notes, "fallback notes");
-    }
-
-    #[test]
-    fn aggregate_release_notes_empty_when_no_fallback() {
-        let entries: Vec<ChangelogEntry> = vec![];
-        let notes = aggregate_release_notes(&entries, &v(0, 1, 2), &v(0, 1, 4), None);
-        assert_eq!(notes, "");
-    }
-
-    #[test]
-    fn aggregate_release_notes_respects_latest_upper_bound() {
-        let entries = vec![
-            ChangelogEntry {
-                version: v(0, 1, 3),
-                body: "thirteen".into(),
-            },
-            ChangelogEntry {
-                version: v(0, 1, 4),
-                body: "fourteen".into(),
-            },
-            ChangelogEntry {
-                version: v(0, 1, 5),
-                body: "fifteen".into(),
-            },
-        ];
-        let notes = aggregate_release_notes(&entries, &v(0, 1, 2), &v(0, 1, 4), None);
-        assert!(notes.contains("v0.1.4"));
-        assert!(notes.contains("v0.1.3"));
-        assert!(!notes.contains("v0.1.5"));
-    }
-
-    #[test]
-    fn update_check_ui_state_helpers() {
-        let mut state = UpdateCheckUiState::default();
-        assert!(!state.is_busy());
-        assert!(!state.has_update());
-        assert_eq!(state.release_url(), None);
-
-        state.state = UpdateState::Checking;
-        assert!(state.is_busy());
-        assert!(!state.has_update());
-
-        state.state = UpdateState::Available {
-            latest_version: v(0, 2, 0),
-            release_notes: "notes".into(),
-            release_url: "https://example.com".into(),
-        };
-        assert!(!state.is_busy());
-        assert!(state.has_update());
-        assert_eq!(state.release_url(), Some("https://example.com"));
-
-        state.state = UpdateState::UpToDate;
-        assert!(!state.has_update());
-
-        state.state = UpdateState::Error("err".into());
-        assert!(!state.has_update());
-    }
-}
+#[path = "update_check_tests.rs"]
+mod update_check_tests;
