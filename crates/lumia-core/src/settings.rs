@@ -26,6 +26,8 @@ pub struct AppSettings {
     pub shortcuts: HashMap<ShortcutId, String>,
     #[serde(default = "default_check_updates_on_startup")]
     pub check_updates_on_startup: bool,
+    #[serde(default)]
+    pub skipped_update_version: Option<String>,
 }
 
 fn default_check_updates_on_startup() -> bool {
@@ -40,6 +42,7 @@ impl Default for AppSettings {
             theme_accent: ThemeAccent::default(),
             shortcuts: default_shortcuts(),
             check_updates_on_startup: true,
+            skipped_update_version: None,
         }
     }
 }
@@ -137,6 +140,7 @@ mod tests {
             theme_accent: ThemeAccent::Rose,
             shortcuts: default_shortcuts(),
             check_updates_on_startup: false,
+            skipped_update_version: Some("0.1.1".into()),
         };
 
         let json = serde_json::to_string(&settings).expect("serialize settings");
