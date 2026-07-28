@@ -30,6 +30,7 @@ http_client = { git = "https://github.com/zed-industries/zed" }
 reqwest_client = { git = "https://github.com/zed-industries/zed" }
 ring = "0.17"
 futures = "0.3"
+jpeg-decoder = "0.3.2"
 image = "0.25"
 hex = "0.4"
 gif = "0.14"

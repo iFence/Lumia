@@ -21,6 +21,8 @@ impl LumiaApp {
     ) {
         self.close_plugin_session(cx);
         self.close_edit_session(false, cx);
+        self.cancel_preview_preloads();
+        let cached_preview = self.lookup_cached_preview(&path, cx);
         let generation = self.loads.begin_current_load();
         self.large_image.reset();
         let retired_tiles = self.large_image.drain_retired_tiles().collect::<Vec<_>>();
@@ -48,6 +50,30 @@ impl LumiaApp {
         let probe_path = path.clone();
         let catalog_path = path.clone();
         let needs_catalog_scan = !self.navigation.contains(&path);
+        if let Some(cached) = cached_preview {
+            let metadata = cached.metadata().clone();
+            self.loads
+                .set_source_dimensions(generation, Some((metadata.width, metadata.height)));
+            self.loads.set_file_metadata(cached.file().clone());
+            if let Some(document) = self.viewer.document_mut() {
+                document.metadata = Some(metadata);
+            }
+            self.large_image
+                .begin(path.clone(), generation, cancellation);
+            self.loads.set_current_image(generation, cached.image());
+            self.large_image.mark_preview_ready(generation);
+            self.loads.finish_decode(generation);
+            self.ui.error_message = None;
+            self.release_retired_images(window.as_deref_mut(), cx);
+            if needs_catalog_scan {
+                self.start_navigation_scan(path, generation, cx);
+            } else {
+                self.schedule_adjacent_preloads(cx);
+            }
+            cx.notify();
+            return;
+        }
+
         cx.spawn(async move |this, cx| {
             let probe_task = cx
                 .background_executor()
@@ -69,6 +95,8 @@ impl LumiaApp {
                         Ok(probe) => probe,
                         Err(error) => {
                             this.loads.finish_decode(generation);
+                            this.loads.clear_display_images();
+                            this.release_retired_images(None, cx);
                             this.ui.error_message = Some(format_load_error(&error));
                             cx.notify();
                             return false;
@@ -91,6 +119,13 @@ impl LumiaApp {
                                 .saturating_mul(4)
                                 <= lumia_core::DecodePolicy::default().max_output_bytes
                         });
+                    let source_dimensions = probe
+                        .document
+                        .metadata
+                        .as_ref()
+                        .map(|metadata| (metadata.width, metadata.height));
+                    this.loads
+                        .set_source_dimensions(generation, source_dimensions);
                     let heif_bytes = probe.document.heif_bytes.take();
                     this.loads.set_file_metadata(probe.file);
                     if let Some(document) = this.viewer.document_mut() {
@@ -154,6 +189,7 @@ impl LumiaApp {
                         && this.image_path() == Some(path.as_path())
                     {
                         this.navigation = catalog.unwrap_or_default();
+                        this.schedule_adjacent_preloads(cx);
                         cx.notify();
                     }
                 });
@@ -162,6 +198,23 @@ impl LumiaApp {
         .detach();
     }
 
+    fn start_navigation_scan(&mut self, path: PathBuf, generation: u64, cx: &mut Context<Self>) {
+        cx.spawn(async move |this, cx| {
+            let scan_path = path.clone();
+            let catalog = cx
+                .background_executor()
+                .spawn(async move { FolderNavigation::scan(&scan_path) })
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                if this.loads.is_current(generation) && this.image_path() == Some(path.as_path()) {
+                    this.navigation = catalog.unwrap_or_default();
+                    this.schedule_adjacent_preloads(cx);
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
+    }
     pub(crate) fn release_retired_images(
         &mut self,
         mut current_window: Option<&mut Window>,
@@ -208,15 +261,33 @@ impl LumiaApp {
                 }
                 match preview {
                     Ok(preview) => {
+                        let cached_image = preview.clone();
+                        let cached_metadata = this
+                            .viewer
+                            .document()
+                            .and_then(|document| document.metadata.clone());
+                        let cached_file = this.loads.file_metadata().cloned();
                         this.loads.set_current_image(generation, preview);
                         this.release_retired_images(None, cx);
+                        if let (Some(metadata), Some(file)) = (cached_metadata, cached_file) {
+                            this.store_cached_preview(
+                                path.clone(),
+                                cached_image,
+                                metadata,
+                                file,
+                                cx,
+                            );
+                        }
                         this.large_image.mark_preview_ready(generation);
                         this.loads.finish_decode(generation);
                         this.ui.error_message = None;
+                        this.schedule_adjacent_preloads(cx);
                         cx.notify();
                     }
                     Err(_error) if cancellation.is_cancelled() => {}
                     Err(error) => {
+                        this.loads.clear_display_images();
+                        this.release_retired_images(None, cx);
                         this.loads.finish_decode(generation);
                         this.ui.error_message =
                             Some(format_large_image_error(this.settings.language, &error));

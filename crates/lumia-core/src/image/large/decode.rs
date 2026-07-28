@@ -2,7 +2,10 @@ use std::path::Path;
 
 use image::ImageFormat;
 
-use super::{mapped::decode_mapped_preview, png::decode_png_preview, LargeImageError};
+use super::{
+    jpeg::decode_jpeg_preview, mapped::decode_mapped_preview, png::decode_png_preview,
+    LargeImageError,
+};
 use crate::{DecodeCancellation, DecodedImage};
 
 pub fn decode_large_image_preview(
@@ -20,6 +23,14 @@ pub fn decode_large_image_preview(
     }
 
     let reader = image::ImageReader::open(path)?.with_guessed_format()?;
+    if reader.format() == Some(ImageFormat::Jpeg) {
+        match decode_jpeg_preview(path, max_width, max_height, cancellation) {
+            Ok(Some(preview)) => return Ok(preview),
+            Err(LargeImageError::Cancelled) => return Err(LargeImageError::Cancelled),
+            Ok(None) | Err(_) => {}
+        }
+    }
+
     if reader.format() == Some(ImageFormat::Png) {
         if let Some(preview) = decode_png_preview(path, max_width, max_height, cancellation)? {
             return Ok(preview);
@@ -131,6 +142,23 @@ mod tests {
                 .unwrap();
         assert_eq!((preview.width, preview.height), (64, 1));
         assert_eq!(preview.pixels_bgra8.len(), 64 * 4);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn jpeg_uses_a_bounded_decode_without_mapped_intermediate() {
+        let dir = temp_dir("jpeg-scaled");
+        let cache = dir.join("cache");
+        fs::create_dir_all(&cache).unwrap();
+        let path = dir.join("scaled.jpg");
+        write_fixture(&path, ImageFormat::Jpeg, 64, 32);
+
+        let preview =
+            decode_large_image_preview(&path, 16, 16, &cache, &DecodeCancellation::default())
+                .unwrap();
+        assert_eq!((preview.width, preview.height), (16, 8));
+        assert_eq!(preview.pixels_bgra8.len(), 16 * 8 * 4);
+        assert_eq!(fs::read_dir(&cache).unwrap().count(), 0);
         fs::remove_dir_all(dir).unwrap();
     }
 

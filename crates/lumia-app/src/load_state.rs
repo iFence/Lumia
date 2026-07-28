@@ -33,11 +33,19 @@ impl PreparedImage {
     pub(crate) fn dimensions(&self) -> (u32, u32) {
         (self.width, self.height)
     }
+
+    pub(crate) fn byte_len(&self) -> usize {
+        self.pixels_bgra8().map_or(0, <[u8]>::len)
+    }
 }
 
 #[derive(Default)]
 pub(crate) struct ImageLoadState {
     current_generation: u64,
+    display_generation: u64,
+    pending_source_dimensions: Option<(u32, u32)>,
+    display_source_dimensions: Option<(u32, u32)>,
+    display_rotation_quarter_turns: u8,
     current_image: Option<PreparedImage>,
     rotated_image: Option<PreparedImage>,
     current_cancellation: Option<DecodeCancellation>,
@@ -52,7 +60,7 @@ impl ImageLoadState {
             cancellation.cancel();
         }
         self.current_generation = self.current_generation.wrapping_add(1);
-        self.retire_display_images();
+        self.pending_source_dimensions = None;
         self.file_metadata = None;
         self.is_decoding = false;
         self.current_generation
@@ -93,10 +101,31 @@ impl ImageLoadState {
         self.is_decoding
     }
 
+    pub(crate) fn is_transitioning(&self) -> bool {
+        self.current_image.is_some() && self.display_generation != self.current_generation
+    }
+
+    pub(crate) fn set_source_dimensions(
+        &mut self,
+        generation: u64,
+        dimensions: Option<(u32, u32)>,
+    ) -> bool {
+        if !self.is_current(generation) {
+            return false;
+        }
+        self.pending_source_dimensions = dimensions;
+        true
+    }
+
     pub(crate) fn set_current_image(&mut self, generation: u64, image: PreparedImage) -> bool {
         if !self.is_current(generation) {
             return false;
         }
+        self.display_generation = generation;
+        self.display_rotation_quarter_turns = 0;
+        self.display_source_dimensions = self
+            .pending_source_dimensions
+            .or_else(|| Some(image.dimensions()));
         if let Some(previous) = self.current_image.replace(image) {
             self.retired_images.push(previous);
         }
@@ -110,7 +139,26 @@ impl ImageLoadState {
         self.current_image.as_ref()
     }
 
+    pub(crate) fn display_source_dimensions(&self, quarter_turns: u8) -> Option<(u32, u32)> {
+        let (width, height) = self.display_source_dimensions?;
+        let quarter_turns = if self.is_transitioning() {
+            self.display_rotation_quarter_turns
+        } else {
+            quarter_turns
+        };
+        if quarter_turns % 2 == 1 {
+            Some((height, width))
+        } else {
+            Some((width, height))
+        }
+    }
+
     pub(crate) fn display_image(&self, quarter_turns: u8) -> Option<&PreparedImage> {
+        let quarter_turns = if self.is_transitioning() {
+            self.display_rotation_quarter_turns
+        } else {
+            quarter_turns
+        };
         if quarter_turns % 4 == 0 {
             self.current_image.as_ref()
         } else {
@@ -118,11 +166,12 @@ impl ImageLoadState {
         }
     }
 
-    pub(crate) fn set_rotated_image(&mut self, image: Option<PreparedImage>) {
+    pub(crate) fn set_rotated_image(&mut self, image: Option<PreparedImage>, quarter_turns: u8) {
         if let Some(previous) = self.rotated_image.take() {
             self.retired_images.push(previous);
         }
         self.rotated_image = image;
+        self.display_rotation_quarter_turns = quarter_turns % 4;
     }
 
     pub(crate) fn set_file_metadata(&mut self, metadata: ImageFileMetadata) {
@@ -135,6 +184,11 @@ impl ImageLoadState {
 
     pub(crate) fn drain_retired_images(&mut self) -> impl Iterator<Item = PreparedImage> + '_ {
         self.retired_images.drain(..)
+    }
+
+    pub(crate) fn clear_display_images(&mut self) {
+        self.retire_display_images();
+        self.display_source_dimensions = None;
     }
 
     fn retire_display_images(&mut self) {
@@ -179,8 +233,14 @@ mod tests {
         assert!(state.set_current_image(generation, prepared(2)));
         assert_eq!(state.drain_retired_images().count(), 1);
 
-        state.set_rotated_image(Some(prepared(3)));
-        state.begin_current_load();
+        state.set_rotated_image(Some(prepared(3)), 1);
+        let next = state.begin_current_load();
+        assert_eq!(state.drain_retired_images().count(), 0);
+        assert!(state.is_transitioning());
+        assert_eq!(state.display_image(0).unwrap().dimensions(), (1, 1));
+        assert_eq!(state.display_source_dimensions(0), Some((1, 1)));
+        assert!(state.set_current_image(next, prepared(4)));
+        assert!(!state.is_transitioning());
         assert_eq!(state.drain_retired_images().count(), 2);
     }
 

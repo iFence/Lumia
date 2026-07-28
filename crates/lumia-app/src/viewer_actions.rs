@@ -263,8 +263,8 @@ impl LumiaApp {
         current_window: Option<&mut Window>,
         cx: &mut Context<Self>,
     ) {
-        self.loads.set_rotated_image(None);
         let turns = self.viewer.rotation_quarter_turns();
+        self.loads.set_rotated_image(None, turns);
         if turns == 0 {
             self.release_retired_images(current_window, cx);
             return;
@@ -286,7 +286,7 @@ impl LumiaApp {
                 .and_then(|image| rotate_decoded_image(&image, turns).ok())
         }
         .map(PreparedImage::from_decoded);
-        self.loads.set_rotated_image(rotated);
+        self.loads.set_rotated_image(rotated, turns);
         self.release_retired_images(current_window, cx);
     }
 }

@@ -32,6 +32,8 @@ pub enum LargeImageError {
     Image(#[from] image::ImageError),
     #[error("large PNG decode failed")]
     Png(#[from] png::DecodingError),
+    #[error("large JPEG preview decode failed")]
+    Jpeg(#[from] jpeg_decoder::Error),
     #[error("large image cache I/O failed")]
     Io(#[from] io::Error),
 }

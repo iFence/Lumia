@@ -20,6 +20,7 @@ impl LumiaApp {
         palette: Palette,
     ) -> Option<AnyElement> {
         self.plugins.active.as_ref()?;
+        (!self.loads.is_transitioning()).then_some(())?;
         let (display_width, _) = display_size?;
         let (source_width, _) = self.viewer.display_dimensions()?;
         let scale = display_width / source_width.max(1) as f32;

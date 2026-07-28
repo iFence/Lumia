@@ -22,6 +22,9 @@ impl LumiaApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if step != 0 {
+            self.navigation_direction = step.signum();
+        }
         let Some(path) = self
             .image_path()
             .and_then(|current| self.navigation.step_path(current, step))
@@ -93,13 +96,13 @@ impl LumiaApp {
     }
 
     pub(crate) fn scaled_image_size(&self, window: &Window) -> Option<(f32, f32)> {
-        let (image_width, image_height) = self.viewer.display_dimensions()?;
+        let (image_width, image_height) = self.displayed_source_dimensions()?;
         let scale = self.image_display_scale(window)?;
         Some((image_width as f32 * scale, image_height as f32 * scale))
     }
 
     pub(crate) fn image_display_scale(&self, window: &Window) -> Option<f32> {
-        let (image_width, image_height) = self.viewer.display_dimensions()?;
+        let (image_width, image_height) = self.displayed_source_dimensions()?;
         let (available_width, available_height) = self.viewer_available_size(window);
         Some(display_scale(
             image_width,
@@ -110,6 +113,14 @@ impl LumiaApp {
         ))
     }
 
+    fn displayed_source_dimensions(&self) -> Option<(u32, u32)> {
+        if self.loads.is_transitioning() {
+            self.loads
+                .display_source_dimensions(self.viewer.rotation_quarter_turns())
+        } else {
+            self.viewer.display_dimensions()
+        }
+    }
     pub(crate) fn viewer_available_size(&self, window: &Window) -> (f32, f32) {
         let viewport_size = window.viewport_size();
         let panel_width = if self.editing.mode.is_some() {

@@ -28,6 +28,7 @@ mod plugin_controls;
 mod plugin_panel;
 mod plugin_state;
 mod preferences;
+mod preview_cache;
 mod professional_decode;
 mod render;
 mod settings_about;

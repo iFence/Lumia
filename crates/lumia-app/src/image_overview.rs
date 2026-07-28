@@ -115,7 +115,7 @@ impl LumiaApp {
         palette: Palette,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
-        if self.editing.mode.is_some() {
+        if self.editing.mode.is_some() || self.loads.is_transitioning() {
             return None;
         }
         let geometry = self.overview_geometry(window)?;

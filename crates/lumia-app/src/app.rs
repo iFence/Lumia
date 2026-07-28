@@ -9,6 +9,7 @@ use crate::load_state::ImageLoadState;
 use crate::load_state::PreparedImage;
 use crate::persistence::load_settings;
 use crate::plugin_state::PluginUiState;
+use crate::preview_cache::{PreviewCache, PreviewPreloadState};
 use crate::slideshow::SlideshowState;
 use crate::ui_state::UiState;
 use crate::APP_TITLE;
@@ -19,6 +20,9 @@ pub(crate) struct LumiaApp {
     pub(crate) viewer: ViewerSession,
     pub(crate) navigation: FolderNavigation,
     pub(crate) loads: ImageLoadState,
+    pub(crate) preview_cache: PreviewCache,
+    pub(crate) preview_preloads: PreviewPreloadState,
+    pub(crate) navigation_direction: i32,
     pub(crate) large_image: LargeImageSession<PreparedImage>,
     pub(crate) editing: EditState,
     pub(crate) slideshow: SlideshowState,
@@ -49,6 +53,9 @@ impl LumiaApp {
             viewer: ViewerSession::default(),
             navigation: FolderNavigation::default(),
             loads: ImageLoadState::default(),
+            preview_cache: PreviewCache::default(),
+            preview_preloads: PreviewPreloadState::default(),
+            navigation_direction: 1,
             large_image: LargeImageSession::default(),
             editing: EditState::default(),
             slideshow: SlideshowState::default(),

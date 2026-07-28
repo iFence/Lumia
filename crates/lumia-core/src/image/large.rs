@@ -1,6 +1,7 @@
 mod cache;
 mod decode;
 mod error;
+mod jpeg;
 mod mapped;
 mod png;
 mod tiles;

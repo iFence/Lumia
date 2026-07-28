@@ -9,6 +9,7 @@ rust-version.workspace = true
 [dependencies]
 heic.workspace = true
 image.workspace = true
+jpeg-decoder.workspace = true
 gif.workspace = true
 kamadak-exif.workspace = true
 memmap2.workspace = true
