@@ -128,6 +128,14 @@ pub(crate) enum TextKey {
     AnnotationPixelsUnavailable,
     AnnotationExported,
     AnnotationChooseFormat,
+    CheckForUpdates,
+    CheckingForUpdates,
+    UpdateAvailable,
+    UpToDate,
+    UpdateCheckFailed,
+    ReleaseNotes,
+    OpenReleasesPage,
+    CheckUpdatesOnStartup,
 }
 
 pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
@@ -256,6 +264,14 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::AnnotationPixelsUnavailable => "The displayed image pixels are unavailable",
             TextKey::AnnotationExported => "Exported to",
             TextKey::AnnotationChooseFormat => "Choose a PNG, JPEG, or WebP file name",
+            TextKey::CheckForUpdates => "Check for Updates",
+            TextKey::CheckingForUpdates => "Checking for updates...",
+            TextKey::UpdateAvailable => "A new version is available:",
+            TextKey::UpToDate => "Lumia is up to date.",
+            TextKey::UpdateCheckFailed => "Could not check for updates",
+            TextKey::ReleaseNotes => "Release notes",
+            TextKey::OpenReleasesPage => "Open releases page",
+            TextKey::CheckUpdatesOnStartup => "Check for updates on startup",
         },
         Language::Chinese => match key {
             TextKey::Settings => "设置",
@@ -381,6 +397,14 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::AnnotationPixelsUnavailable => "无法读取当前显示图片的像素",
             TextKey::AnnotationExported => "已导出到",
             TextKey::AnnotationChooseFormat => "请选择 PNG、JPEG 或 WebP 文件名",
+            TextKey::CheckForUpdates => "检查更新",
+            TextKey::CheckingForUpdates => "正在检查更新...",
+            TextKey::UpdateAvailable => "发现新版本：",
+            TextKey::UpToDate => "已是最新版本。",
+            TextKey::UpdateCheckFailed => "无法检查更新",
+            TextKey::ReleaseNotes => "更新日志",
+            TextKey::OpenReleasesPage => "打开发布页面",
+            TextKey::CheckUpdatesOnStartup => "启动时检查更新",
         },
     }
 }

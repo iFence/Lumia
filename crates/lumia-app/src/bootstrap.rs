@@ -57,6 +57,7 @@ pub(crate) fn run_gui(initial_path: Option<PathBuf>) -> anyhow::Result<()> {
                     app.set_self_handle(view.downgrade(), cx);
                     app.listen_for_instance_requests(primary_instance, window, cx);
                     app.listen_for_platform_open_requests(platform_open_receiver, window, cx);
+                    app.maybe_check_for_updates_on_startup(cx);
                 });
                 cx.new(|cx| gpui_component::Root::new(view, window, cx).bordered(false))
             },

@@ -28,6 +28,12 @@ impl LumiaApp {
         cx.notify();
     }
 
+    pub(crate) fn set_check_updates_on_startup(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        self.settings.check_updates_on_startup = enabled;
+        let _ = save_settings(&self.settings);
+        cx.notify();
+    }
+
     pub(crate) fn apply_selected_language(
         &mut self,
         action: &SelectLanguage,

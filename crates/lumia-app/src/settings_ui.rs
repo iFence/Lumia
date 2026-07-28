@@ -117,6 +117,7 @@ impl LumiaApp {
                     .on_action(cx.listener(Self::apply_selected_language))
                     .on_action(cx.listener(Self::apply_selected_theme_mode))
                     .on_action(cx.listener(Self::apply_selected_theme_accent))
+                    .on_action(cx.listener(Self::handle_check_for_updates))
                     .child(
                         div()
                             .id("settings-header")
@@ -253,7 +254,7 @@ impl LumiaApp {
             SettingsGroup::Shortcuts => self
                 .render_shortcuts_settings(palette, cx)
                 .into_any_element(),
-            SettingsGroup::About => self.render_about_settings(palette).into_any_element(),
+            SettingsGroup::About => self.render_about_settings(palette, cx).into_any_element(),
         }
     }
 }

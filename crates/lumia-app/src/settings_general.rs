@@ -2,6 +2,7 @@ use gpui::{
     div, Context, InteractiveElement, IntoElement, ParentElement, StatefulInteractiveElement,
     Styled, Window,
 };
+use gpui_component::checkbox::Checkbox;
 use lumia_core::{Language, ThemeAccent, ThemeMode};
 
 use crate::app::LumiaApp;
@@ -20,6 +21,8 @@ impl LumiaApp {
         let selected_language = self.settings.language;
         let selected_theme = self.settings.theme;
         let selected_accent = self.settings.theme_accent;
+        let check_updates_on_startup = self.settings.check_updates_on_startup;
+        let self_handle = self.self_handle.clone();
 
         div()
             .id("settings-general")
@@ -119,6 +122,26 @@ impl LumiaApp {
                                 )
                         },
                     )),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .gap_4()
+                    .child(settings_label(tr(language, TextKey::CheckUpdatesOnStartup)))
+                    .child(
+                        Checkbox::new("settings-check-updates-startup")
+                            .checked(check_updates_on_startup)
+                            .on_click({
+                                let self_handle = self_handle.clone();
+                                move |checked, _, cx| {
+                                    let _ = self_handle.update(cx, |this, cx| {
+                                        this.set_check_updates_on_startup(*checked, cx);
+                                    });
+                                }
+                            }),
+                    ),
             )
     }
 }
