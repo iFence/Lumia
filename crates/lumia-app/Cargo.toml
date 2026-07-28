@@ -27,10 +27,17 @@ lumia-core.workspace = true
 lumia-plugin-api.workspace = true
 lumia-plugin-host.workspace = true
 rfd.workspace = true
+semver.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
+thiserror.workspace = true
 url.workspace = true
+uuid.workspace = true
+zip.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [package.metadata.wix]
 upgrade-guid = "07618386-59ac-4b5c-b4e1-ebe4f8aa182e"

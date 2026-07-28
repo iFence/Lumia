@@ -48,7 +48,13 @@ jobs:
 
       - name: Package optional Annotation plugin
         shell: pwsh
+        env:
+          LUMIA_PLUGIN_SIGNING_KEY_PEM: ${{ secrets.LUMIA_PLUGIN_SIGNING_KEY_PEM }}
         run: ./scripts/package-annotation-plugin.ps1
+      - name: Verify Annotation package with Lumia
+        shell: pwsh
+        run: ./scripts/verify-plugin-package.ps1 -Package target/Lumia-Annotation-windows-x64.lumiaplugin
+
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
@@ -58,7 +64,7 @@ jobs:
             target/wix/Lumia-*-x64-en-US.msi
             target/wix/Lumia-*-x64-zh-CN.msi
             target/lumia-portable-windows-x64.zip
-            target/Lumia-Annotation-windows-x64.zip
+            target/Lumia-Annotation-windows-x64.lumiaplugin
           fail_on_unmatched_files: true
 
   macos-release:
@@ -77,13 +83,17 @@ jobs:
           test -f "$PLUGIN_DIR/lumia.plugin.json"
           test -f target/Lumia.app/Contents/Resources/App.icns
       - name: Package optional Annotation plugin
+        env:
+          LUMIA_PLUGIN_SIGNING_KEY_PEM: ${{ secrets.LUMIA_PLUGIN_SIGNING_KEY_PEM }}
         run: ./scripts/package-annotation-plugin.sh macos "$(uname -m)"
+      - name: Verify Annotation package with Lumia
+        run: target/release/lumia-app --verify-plugin-package target/Lumia-Annotation-macos-*.lumiaplugin
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             target/Lumia-macos-*.dmg
-            target/Lumia-Annotation-macos-*.tar.gz
+            target/Lumia-Annotation-macos-*.lumiaplugin
           fail_on_unmatched_files: true
 
   linux-release:
@@ -132,11 +142,15 @@ jobs:
           tar -tzf target/lumia-linux-x64.tar.gz |
             grep -q "./lumia-mime.xml"
       - name: Package optional Annotation plugin
+        env:
+          LUMIA_PLUGIN_SIGNING_KEY_PEM: ${{ secrets.LUMIA_PLUGIN_SIGNING_KEY_PEM }}
         run: ./scripts/package-annotation-plugin.sh linux x64
+      - name: Verify Annotation package with Lumia
+        run: target/release/lumia-app --verify-plugin-package target/Lumia-Annotation-linux-x64.lumiaplugin
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             target/lumia-linux-x64.tar.gz
-            target/Lumia-Annotation-linux-x64.tar.gz
+            target/Lumia-Annotation-linux-x64.lumiaplugin
           fail_on_unmatched_files: true

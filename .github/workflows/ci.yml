@@ -35,6 +35,9 @@ jobs:
             libxrandr-dev
 
       - run: cargo fmt --check
+      - name: Verify plugin package signer fixture
+        if: runner.os == 'Linux'
+        run: node scripts/test-sign-plugin-package.mjs
       - run: cargo check --workspace --all-targets
       - run: cargo test --workspace
       - name: Build application and plugins

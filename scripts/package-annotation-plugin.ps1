@@ -13,12 +13,16 @@ try {
     $packageName = "Lumia-Annotation-windows-$Architecture"
     $staging = Join-Path $OutputDirectory $packageName
     $plugin = Join-Path $staging "lumia-plugin-annotation"
-    $archive = Join-Path $OutputDirectory "$packageName.zip"
+    $archive = Join-Path $OutputDirectory "$packageName.lumiaplugin"
+    $zipArchive = "$archive.zip"
     if (Test-Path $staging) {
         Remove-Item -Recurse -Force $staging
     }
     if (Test-Path $archive) {
         Remove-Item -Force $archive
+    }
+    if (Test-Path $zipArchive) {
+        Remove-Item -Force $zipArchive
     }
     New-Item -ItemType Directory -Force -Path $plugin | Out-Null
     Copy-Item target/release/lumia-plugin-annotation.exe $plugin/
@@ -37,7 +41,24 @@ try {
         }
     }
 
-    Compress-Archive -Path "$staging/*" -DestinationPath $archive
+    $appVersion = (Select-String -Path crates/lumia-app/Cargo.toml -Pattern '^version = "([^"]+)"$').Matches[0].Groups[1].Value
+    $pluginApiVersion = (Select-String -Path crates/lumia-plugin-api/src/rpc.rs -Pattern 'PROTOCOL_VERSION: u32 = ([0-9]+)').Matches[0].Groups[1].Value
+    node scripts/sign-plugin-package.mjs `
+        --root $staging `
+        --target-os windows `
+        --target-arch $Architecture `
+        --minimum-lumia-version $appVersion `
+        --plugin-api-version $pluginApiVersion
+    if ($LASTEXITCODE -ne 0) { throw "Annotation plugin package signing failed" }
+
+    foreach ($metadata in @("lumia.package.json", "lumia.package.sig")) {
+        if (-not (Test-Path (Join-Path $staging $metadata))) {
+            throw "Annotation plugin package is missing $metadata"
+        }
+    }
+
+    Compress-Archive -Path "$staging/*" -DestinationPath $zipArchive
+    Move-Item -LiteralPath $zipArchive -Destination $archive
     Write-Host "Created $archive"
 } finally {
     Pop-Location

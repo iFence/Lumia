@@ -25,6 +25,9 @@ mod persistence;
 mod platform_open;
 mod plugin_catalog;
 mod plugin_controls;
+mod plugin_installation;
+mod plugin_management;
+mod plugin_package;
 mod plugin_panel;
 mod plugin_state;
 mod preferences;
@@ -34,6 +37,7 @@ mod render;
 mod settings_about;
 mod settings_associations;
 mod settings_general;
+mod settings_plugins;
 mod settings_shortcuts;
 mod settings_ui;
 mod shell;
@@ -108,6 +112,17 @@ fn main() -> anyhow::Result<()> {
         cli::CliCommand::UnregisterContextMenu => {
             shell::unregister_context_menu()?;
             println!("Lumia removed from system context menu.");
+            Ok(())
+        }
+        cli::CliCommand::VerifyPluginPackage(path) => {
+            let package = plugin_package::verify_official_package_file(&path)?;
+            println!(
+                "Verified official plugin package {} {} for {}/{}.",
+                package.manifest.plugin_id,
+                package.manifest.version,
+                package.manifest.target_os,
+                package.manifest.target_arch
+            );
             Ok(())
         }
         #[cfg(target_os = "windows")]

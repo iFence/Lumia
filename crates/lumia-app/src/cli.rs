@@ -10,6 +10,8 @@ pub(crate) enum CliCommand {
     RegisterContextMenu,
     /// Remove Lumia from the OS context menu.
     UnregisterContextMenu,
+    /// Verify a signed plugin package without installing it.
+    VerifyPluginPackage(PathBuf),
     /// Refresh only legacy Program Files file-association paths after migration.
     #[cfg(target_os = "windows")]
     RepairFileAssociations,
@@ -29,6 +31,9 @@ fn parse_args(mut args: impl Iterator<Item = OsString>) -> CliCommand {
         None => CliCommand::Normal,
         Some(arg) if arg == "--register-context-menu" => CliCommand::RegisterContextMenu,
         Some(arg) if arg == "--unregister-context-menu" => CliCommand::UnregisterContextMenu,
+        Some(arg) if arg == "--verify-plugin-package" => {
+            CliCommand::VerifyPluginPackage(args.next().map(PathBuf::from).unwrap_or_default())
+        }
         #[cfg(target_os = "windows")]
         Some(arg) if arg == "--repair-file-associations" => CliCommand::RepairFileAssociations,
         Some(arg) => {
@@ -52,6 +57,14 @@ mod tests {
         assert_eq!(
             command(&[r"C:\Pictures\sample.png"]),
             CliCommand::OpenFile(r"C:\Pictures\sample.png".into())
+        );
+    }
+
+    #[test]
+    fn parses_plugin_package_verification_command() {
+        assert_eq!(
+            command(&["--verify-plugin-package", "annotation.lumiaplugin"]),
+            CliCommand::VerifyPluginPackage("annotation.lumiaplugin".into())
         );
     }
 

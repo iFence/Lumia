@@ -76,12 +76,16 @@ fn annotation_plugin_is_packaged_separately_with_integrity_metadata() {
     let release = std::fs::read_to_string(workspace.join(".github/workflows/release.yml"))
         .expect("release workflow");
     for artifact in [
-        "Lumia-Annotation-windows-x64.zip",
-        "Lumia-Annotation-macos-*.tar.gz",
-        "Lumia-Annotation-linux-x64.tar.gz",
+        "Lumia-Annotation-windows-x64.lumiaplugin",
+        "Lumia-Annotation-macos-*.lumiaplugin",
+        "Lumia-Annotation-linux-x64.lumiaplugin",
     ] {
         assert!(release.contains(artifact), "missing {artifact}");
     }
+    assert!(
+        release.contains("--verify-plugin-package"),
+        "release must verify final plugin packages with Lumia"
+    );
 
     let unix_packager =
         std::fs::read_to_string(workspace.join("scripts/package-annotation-plugin.sh"))
@@ -89,7 +93,13 @@ fn annotation_plugin_is_packaged_separately_with_integrity_metadata() {
     let windows_packager =
         std::fs::read_to_string(workspace.join("scripts/package-annotation-plugin.ps1"))
             .expect("Windows Annotation packager");
-    for required in ["lumia.plugin.json", "lumia.plugin.sig", "assets"] {
+    for required in [
+        "lumia.plugin.json",
+        "lumia.plugin.sig",
+        "lumia.package.json",
+        "lumia.package.sig",
+        "assets",
+    ] {
         assert!(
             unix_packager.contains(required),
             "Unix package misses {required}"

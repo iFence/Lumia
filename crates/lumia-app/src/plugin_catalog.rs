@@ -2,19 +2,16 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context as _, Result};
-use base64::Engine as _;
 use lumia_plugin_api::PluginManifest;
 use lumia_plugin_host::{validate_decode_preview_manifest, validate_ui_manifest};
-use ring::signature::{UnparsedPublicKey, ED25519};
 use sha2::{Digest, Sha256};
+
+use crate::plugin_package::{
+    is_official_plugin_id, verify_ed25519_signature, OFFICIAL_PLUGIN_PUBLIC_KEY,
+};
 
 const PHOTOSHOP_MANIFEST: &str =
     include_str!("../../../plugins/lumia-plugin-photoshop/lumia.plugin.json");
-const OFFICIAL_PLUGIN_PUBLIC_KEY: [u8; 32] = [
-    0x09, 0x82, 0x0c, 0xc2, 0x24, 0x31, 0x21, 0xfe, 0x1d, 0x00, 0x51, 0x4f, 0xa4, 0xdf, 0xfb, 0xd5,
-    0x1d, 0x21, 0xcc, 0x75, 0x8a, 0x51, 0x86, 0x66, 0x4c, 0x24, 0xba, 0xb4, 0x8e, 0x55, 0x06, 0x2f,
-];
-const OFFICIAL_UI_PLUGIN_IDS: &[&str] = &["lumia.annotation"];
 
 #[derive(Debug, Clone)]
 pub(crate) struct InstalledPlugin {
@@ -57,6 +54,10 @@ impl PluginRegistry {
         Self { plugins }
     }
 
+    pub(crate) fn all(&self) -> impl Iterator<Item = &InstalledPlugin> {
+        self.plugins.iter()
+    }
+
     pub(crate) fn ui_plugins(&self) -> impl Iterator<Item = &InstalledPlugin> {
         self.plugins
             .iter()
@@ -65,6 +66,10 @@ impl PluginRegistry {
 
     pub(crate) fn get(&self, id: &str) -> Option<&InstalledPlugin> {
         self.plugins.iter().find(|plugin| plugin.manifest.id == id)
+    }
+
+    pub(crate) fn remove(&mut self, id: &str) {
+        self.plugins.retain(|plugin| plugin.manifest.id != id);
     }
 }
 
@@ -109,15 +114,19 @@ fn plugin_roots() -> Vec<PathBuf> {
             roots.push(directory.join("plugins"));
         }
     }
-    if let Some(data_dir) = dirs::data_dir() {
-        let application_dir = if cfg!(target_os = "linux") {
-            "lumia"
-        } else {
-            "Lumia"
-        };
-        roots.push(data_dir.join(application_dir).join("plugins"));
+    if let Some(user_root) = user_plugin_root() {
+        roots.push(user_root);
     }
     roots
+}
+
+pub(crate) fn user_plugin_root() -> Option<PathBuf> {
+    let application_dir = if cfg!(target_os = "linux") {
+        "lumia"
+    } else {
+        "Lumia"
+    };
+    dirs::data_dir().map(|data_dir| data_dir.join(application_dir).join("plugins"))
 }
 
 fn discover_root(root: &Path, plugins: &mut Vec<InstalledPlugin>) {
@@ -139,14 +148,14 @@ fn discover_root(root: &Path, plugins: &mut Vec<InstalledPlugin>) {
     }
 }
 
-fn load_official_ui_plugin(root: &Path) -> Result<InstalledPlugin> {
+pub(crate) fn load_official_ui_plugin(root: &Path) -> Result<InstalledPlugin> {
     let manifest_path = root.join("lumia.plugin.json");
     let manifest_bytes =
         fs::read(&manifest_path).with_context(|| format!("read {}", manifest_path.display()))?;
     verify_manifest_signature(root, &manifest_bytes)?;
     let manifest: PluginManifest =
         serde_json::from_slice(&manifest_bytes).context("parse plugin manifest")?;
-    if !OFFICIAL_UI_PLUGIN_IDS.contains(&manifest.id.as_str()) {
+    if !is_official_plugin_id(&manifest.id) {
         anyhow::bail!("plugin {} is not in the official allowlist", manifest.id);
     }
     validate_ui_manifest(&manifest).context("validate UI contributions")?;
@@ -172,12 +181,12 @@ fn verify_manifest_signature(root: &Path, manifest_bytes: &[u8]) -> Result<()> {
     let signature_path = root.join("lumia.plugin.sig");
     let signature_text = fs::read_to_string(&signature_path)
         .with_context(|| format!("read {}", signature_path.display()))?;
-    let signature = base64::engine::general_purpose::STANDARD
-        .decode(signature_text.trim())
-        .context("decode plugin signature")?;
-    UnparsedPublicKey::new(&ED25519, OFFICIAL_PLUGIN_PUBLIC_KEY)
-        .verify(manifest_bytes, &signature)
-        .map_err(|_| anyhow::anyhow!("plugin manifest signature is invalid"))
+    verify_ed25519_signature(
+        &OFFICIAL_PLUGIN_PUBLIC_KEY,
+        manifest_bytes,
+        signature_text.trim(),
+    )
+    .map_err(anyhow::Error::from)
 }
 
 fn verify_assets(root: &Path, manifest: &PluginManifest) -> Result<()> {

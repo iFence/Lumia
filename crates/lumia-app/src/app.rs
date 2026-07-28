@@ -8,6 +8,7 @@ use crate::large_image::LargeImageSession;
 use crate::load_state::ImageLoadState;
 use crate::load_state::PreparedImage;
 use crate::persistence::load_settings;
+use crate::plugin_management::PluginManagementState;
 use crate::plugin_state::PluginUiState;
 use crate::preview_cache::{PreviewCache, PreviewPreloadState};
 use crate::slideshow::SlideshowState;
@@ -27,6 +28,7 @@ pub(crate) struct LumiaApp {
     pub(crate) editing: EditState,
     pub(crate) slideshow: SlideshowState,
     pub(crate) plugins: PluginUiState,
+    pub(crate) plugin_management: PluginManagementState,
     pub(crate) annotations: AnnotationDocument,
     pub(crate) ui: UiState,
     pub(crate) settings: AppSettings,
@@ -47,6 +49,8 @@ impl LumiaApp {
 
         let settings = load_settings();
         crate::shell::apply_native_theme(settings.theme);
+        let plugins = PluginUiState::new();
+        let plugin_management = PluginManagementState::from_registry(&plugins.registry);
         let mut app = Self {
             self_handle: WeakEntity::new_invalid(),
             focus_handle,
@@ -59,7 +63,8 @@ impl LumiaApp {
             large_image: LargeImageSession::default(),
             editing: EditState::default(),
             slideshow: SlideshowState::default(),
-            plugins: PluginUiState::new(),
+            plugins,
+            plugin_management,
             annotations: AnnotationDocument::default(),
             ui: UiState::default(),
             settings,

@@ -196,6 +196,16 @@ impl LumiaApp {
                 },
             ));
         let sidebar = sidebar.child(settings_group_button(
+            "settings-group-plugins",
+            tr(language, TextKey::Plugins),
+            self.ui.active_settings_group == SettingsGroup::Plugins,
+            palette,
+            cx,
+            |this, _, _, cx| {
+                this.select_settings_group(SettingsGroup::Plugins, cx);
+            },
+        ));
+        let sidebar = sidebar.child(settings_group_button(
             "settings-group-file-associations",
             tr(language, TextKey::FileAssociations),
             self.ui.active_settings_group == SettingsGroup::FileAssociations,
@@ -236,6 +246,7 @@ impl LumiaApp {
     ) -> gpui::AnyElement {
         match self.ui.active_settings_group {
             SettingsGroup::General => self.render_general_settings(window, cx).into_any_element(),
+            SettingsGroup::Plugins => self.render_plugin_settings(palette, cx).into_any_element(),
             SettingsGroup::FileAssociations => self
                 .render_file_association_settings(palette, cx)
                 .into_any_element(),

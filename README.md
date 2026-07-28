@@ -105,7 +105,25 @@ The MSI, Windows portable ZIP, macOS app bundle, and Linux archive all contain t
 
 The official Annotation plugin is released as a separate package. Without it, Lumia contributes no annotation row to the image context menu and creates no annotation panel. Once installed and Lumia is restarted, right-click an image and choose **Annotate / 标注** to open the host-rendered panel, place icon markers, undo or redo changes, and export a PNG, JPEG, or WebP copy without changing the source image.
 
-Extract the platform package from the GitHub Release and copy its `lumia-plugin-annotation` directory into:
+1. Download the `.lumiaplugin` asset matching your operating system and CPU
+   architecture from the GitHub Release.
+2. Open **Settings -> Plugins** and choose **Install from file**.
+3. Select the downloaded package, review its identity, version, and requested
+   permissions, then choose **Install**.
+4. Restart Lumia. Right-click an image and choose **Annotate / 标注**.
+
+Remove the plugin from the same **Settings -> Plugins** page. Removal hides its
+contributed commands immediately; restart Lumia if the page asks you to finish
+applying the change.
+
+Lumia verifies the package signature, official plugin ID, target OS and
+architecture, Lumia/plugin API compatibility, every payload path, file size,
+and SHA-256 digest before installation. The first version accepts only
+allowlisted plugins signed by Lumia; third-party packages and packages for a
+different platform are rejected without being installed.
+
+Manual copying is no longer required. For troubleshooting, user-installed
+plugins are stored below these fixed directories:
 
 | Platform | Plugin directory |
 |---|---|
@@ -113,7 +131,18 @@ Extract the platform package from the GitHub Release and copy its `lumia-plugin-
 | macOS | `~/Library/Application Support/Lumia/plugins/` |
 | Linux | `$XDG_DATA_HOME/lumia/plugins/`, or `~/.local/share/lumia/plugins/` by default |
 
-Lumia discovers plugins only at startup. The current phase scans these fixed directories but loads only known official plugin IDs whose Ed25519 manifest signature, relative paths, and SHA-256 asset hashes validate. Arbitrary third-party plugin installation is not enabled yet.
+Existing manually copied official plugin directories remain discoverable, but
+new installations should use Settings so package integrity and transactional
+replacement are enforced.
+
+### Release signing
+
+Official release jobs require the protected GitHub Actions secret
+`LUMIA_PLUGIN_SIGNING_KEY_PEM`. It may contain the official Ed25519 PKCS#8 PEM
+or its base64-encoded DER form and must match the public key embedded in Lumia.
+The signing script never prints the secret. A missing or mismatched key fails
+packaging, and Lumia's production verifier checks the final `.lumiaplugin`
+archive again before GitHub Release upload.
 
 The `--register-context-menu` command is designed for portable / development use. It never requires administrator privileges:
 
