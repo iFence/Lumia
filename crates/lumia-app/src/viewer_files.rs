@@ -5,11 +5,16 @@ use lumia_core::{FitMode, ViewportState};
 
 use crate::app::LumiaApp;
 use crate::{NextImage, PreviousImage};
-use crate::{EDIT_PANEL_WIDTH, PLUGIN_PANEL_WIDTH, STATUS_BAR_HEIGHT};
+use crate::{APP_TITLE, EDIT_PANEL_WIDTH, PLUGIN_PANEL_WIDTH, STATUS_BAR_HEIGHT};
 
 impl LumiaApp {
     pub(crate) fn current_image_index(&self) -> Option<usize> {
         self.navigation.current_index(self.image_path()?)
+    }
+
+    pub(crate) fn current_image_position(&self) -> Option<(usize, usize)> {
+        self.current_image_index()
+            .map(|index| (index + 1, self.sibling_count()))
     }
 
     pub(crate) fn sibling_count(&self) -> usize {
@@ -95,6 +100,21 @@ impl LumiaApp {
             .to_string()
     }
 
+    pub(crate) fn current_window_title(&self) -> String {
+        let Some(_) = self.image_path() else {
+            return APP_TITLE.to_string();
+        };
+        format_image_title(&self.image_name(), self.current_image_position())
+    }
+
+    pub(crate) fn sync_window_title(&mut self, window: &mut Window) {
+        let title = self.current_window_title();
+        if self.window_title != title {
+            self.window_title = title;
+            window.set_window_title(&self.window_title);
+        }
+    }
+
     pub(crate) fn scaled_image_size(&self, window: &Window) -> Option<(f32, f32)> {
         let (image_width, image_height) = self.displayed_source_dimensions()?;
         let scale = self.image_display_scale(window)?;
@@ -174,6 +194,13 @@ fn display_scale(
     }
 }
 
+fn format_image_title(image_name: &str, position: Option<(usize, usize)>) -> String {
+    match position {
+        Some((current, total)) => format!("[{current}/{total}] {image_name}"),
+        None => image_name.to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -197,5 +224,14 @@ mod tests {
             available_viewer_size(1200.0, 800.0, EDIT_PANEL_WIDTH, true),
             (880.0, 764.0)
         );
+    }
+
+    #[test]
+    fn image_title_prefixes_the_folder_position() {
+        assert_eq!(
+            format_image_title("photo.jpg", Some((3, 12))),
+            "[3/12] photo.jpg"
+        );
+        assert_eq!(format_image_title("photo.jpg", None), "photo.jpg");
     }
 }

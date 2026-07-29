@@ -38,13 +38,9 @@ impl LumiaApp {
 
         let unknown = tr(language, TextKey::ImageInfoUnknown);
         let mut lines = Vec::new();
-        let position = self
-            .current_image_index()
-            .map(|index| format!(" [{}/{}]", index + 1, self.sibling_count()))
-            .unwrap_or_default();
 
         lines.push(format!(
-            "{}: {}{position}",
+            "{}: {}",
             tr(language, TextKey::ImageInfoName),
             self.image_name()
         ));

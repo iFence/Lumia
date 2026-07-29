@@ -38,7 +38,7 @@ impl LumiaApp {
         self.ui.is_overview_panning = false;
         self.ui.context_menu_position = None;
         self.ui.last_mouse_position = None;
-        self.window_title = self.image_name();
+        self.window_title = self.current_window_title();
         if let Some(window) = window.as_deref_mut() {
             window.set_window_title(&self.window_title);
         }

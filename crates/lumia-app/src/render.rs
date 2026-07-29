@@ -13,6 +13,7 @@ use crate::Quit;
 
 impl Render for LumiaApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.sync_window_title(window);
         let component_theme_mode =
             if theme_resolves_to_dark(self.settings.theme, window.appearance()) {
                 ComponentThemeMode::Dark
