@@ -152,7 +152,13 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::About => "About",
             TextKey::Version => "Version",
             TextKey::Quit => "Quit",
-            TextKey::EmptyState => "Drop an image here, or open one with Ctrl+O",
+            TextKey::EmptyState => {
+                if cfg!(target_os = "macos") {
+                    "Drop an image here, or open one with Cmd+O"
+                } else {
+                    "Drop an image here, or open one with Ctrl+O"
+                }
+            }
             TextKey::EmptyStateOpenButton => "Open Image",
             TextKey::OpenUrl => "Open URL",
             TextKey::OpenUrlDialogTitle => "Open Image from URL",
@@ -289,7 +295,13 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::About => "关于",
             TextKey::Version => "版本",
             TextKey::Quit => "退出",
-            TextKey::EmptyState => "将图片拖到这里，或按 Ctrl+O 打开",
+            TextKey::EmptyState => {
+                if cfg!(target_os = "macos") {
+                    "将图片拖到这里，或按 Cmd+O 打开"
+                } else {
+                    "将图片拖到这里，或按 Ctrl+O 打开"
+                }
+            }
             TextKey::EmptyStateOpenButton => "打开图片",
             TextKey::OpenUrl => "打开 URL",
             TextKey::OpenUrlDialogTitle => "从 URL 打开图片",
