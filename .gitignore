@@ -8,6 +8,7 @@
 .DS_Store
 Thumbs.db
 
-docs/
+docs/adr
+docs/plans
 .claude
 .codegraph

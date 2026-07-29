@@ -11,7 +11,7 @@ import { lstat, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const OFFICIAL_PUBLIC_KEY_HEX =
-  "09820cc2243121fe1d00514fa4dffbd51d21cc758a5186664c24bab48e55062f";
+  "6b88de1c86a73ae666d4a44b54e3046900ff24a085a2515ada36d2b15cc55417";
 const INSTALL_DIRECTORY = "lumia-plugin-annotation";
 
 function parseArguments(argv) {
