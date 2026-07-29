@@ -140,8 +140,10 @@ fn aggregate_release_notes_respects_latest_upper_bound() {
 fn select_asset_picks_the_platform_installer() {
     #[cfg(target_os = "windows")]
     let expected = "Lumia-Setup-0.1.3-x64.exe";
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     let expected = "Lumia-macos-arm64.dmg";
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    let expected = "Lumia-macos-x64.dmg";
     #[cfg(all(unix, not(target_os = "macos")))]
     let expected = "lumia-linux-x64.tar.gz";
 

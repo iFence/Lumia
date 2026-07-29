@@ -77,7 +77,7 @@ fn annotation_plugin_is_packaged_separately_with_integrity_metadata() {
         .expect("release workflow");
     for artifact in [
         "Lumia-Annotation-windows-x64.lumiaplugin",
-        "Lumia-Annotation-macos-*.lumiaplugin",
+        "Lumia-Annotation-macos-${{ matrix.arch }}.lumiaplugin",
         "Lumia-Annotation-linux-x64.lumiaplugin",
     ] {
         assert!(release.contains(artifact), "missing {artifact}");
@@ -123,6 +123,27 @@ fn annotation_plugin_is_packaged_separately_with_integrity_metadata() {
         !macos_installer.contains("lumia-plugin-annotation"),
         "optional Annotation plugin must not enter the base app bundle"
     );
+}
+
+#[test]
+fn macos_release_builds_native_arm64_and_x64_packages() {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("lumia-app must be under workspace/crates");
+    let release = std::fs::read_to_string(workspace.join(".github/workflows/release.yml"))
+        .expect("release workflow");
+
+    for required in [
+        "runner: macos-15",
+        "runner: macos-15-intel",
+        "arch: arm64",
+        "arch: x64",
+        "Lumia-macos-${{ matrix.arch }}.dmg",
+        "Lumia-Annotation-macos-${{ matrix.arch }}.lumiaplugin",
+    ] {
+        assert!(release.contains(required), "missing {required}");
+    }
 }
 
 #[test]
