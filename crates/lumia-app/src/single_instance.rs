@@ -121,6 +121,27 @@ mod tests {
     #[cfg(target_os = "windows")]
     const FORWARD_TEST_PATH_ENV: &str = "LUMIA_SINGLE_INSTANCE_TEST_PATH";
 
+    #[cfg(target_os = "windows")]
+    const FORWARD_TEST_NAME_ENV: &str = "LUMIA_SINGLE_INSTANCE_TEST_NAME";
+
+    #[cfg(target_os = "windows")]
+    fn acquire_named(
+        name: &str,
+        initial_path: Option<&Path>,
+    ) -> anyhow::Result<Option<PrimaryInstance>> {
+        let request = initial_path
+            .map(Path::to_path_buf)
+            .map(InstanceRequest::OpenFile)
+            .unwrap_or(InstanceRequest::Activate);
+        let (sender, receiver) = async_channel::unbounded();
+        platform::acquire_named(name, &request, sender).map(|guard| {
+            guard.map(|guard| PrimaryInstance {
+                receiver,
+                _guard: guard,
+            })
+        })
+    }
+
     #[test]
     fn request_frame_round_trips_file_paths() {
         let request = InstanceRequest::OpenFile(PathBuf::from("fixtures/photo.png"));
@@ -144,7 +165,10 @@ mod tests {
     fn second_process_forwards_file_to_primary_instance() {
         use std::process::Command;
 
-        let primary = acquire(None).unwrap().expect("test owns primary instance");
+        let name = format!("Lumia.SingleInstance.Test.{}", uuid::Uuid::now_v7());
+        let primary = acquire_named(&name, None)
+            .unwrap()
+            .expect("test owns primary instance");
         let expected_path = PathBuf::from(r"C:\pictures\forwarded image.png");
         let status = Command::new(std::env::current_exe().unwrap())
             .args([
@@ -153,6 +177,7 @@ mod tests {
                 "single_instance::tests::secondary_process_forwarding_helper",
             ])
             .env(FORWARD_TEST_PATH_ENV, &expected_path)
+            .env(FORWARD_TEST_NAME_ENV, &name)
             .status()
             .unwrap();
 
@@ -171,6 +196,9 @@ mod tests {
             .map(PathBuf::from)
             .expect("forwarding helper requires a path");
 
-        assert!(acquire(Some(&path)).unwrap().is_none());
+        let name = std::env::var(FORWARD_TEST_NAME_ENV)
+            .expect("forwarding helper requires an instance name");
+
+        assert!(acquire_named(&name, Some(&path)).unwrap().is_none());
     }
 }

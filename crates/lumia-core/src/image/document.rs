@@ -89,7 +89,9 @@ impl ImageDocument {
                     path: path.to_path_buf(),
                     source,
                 })?;
-            let format_name = reader.format().map(|format| format!("{format:?}").to_lowercase());
+            let format_name = reader
+                .format()
+                .map(|format| format!("{format:?}").to_lowercase());
             let (width, height) =
                 reader
                     .into_dimensions()

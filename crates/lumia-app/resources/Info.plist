@@ -147,6 +147,12 @@
             <key>LSHandlerRank</key><string>Alternate</string>
             <key>LSItemContentTypes</key><array><string>com.ifence.lumia.photoshop-large-document</string></array>
         </dict>
+        <dict>
+            <key>CFBundleTypeName</key><string>Camera RAW image</string>
+            <key>CFBundleTypeRole</key><string>Viewer</string>
+            <key>LSHandlerRank</key><string>Alternate</string>
+            <key>LSItemContentTypes</key><array><string>com.ifence.lumia.camera-raw</string></array>
+        </dict>
     </array>
     <key>UTExportedTypeDeclarations</key>
     <array>
@@ -193,6 +199,18 @@
             <dict>
                 <key>public.filename-extension</key><array><string>psb</string></array>
                 <key>public.mime-type</key><string>image/vnd.adobe.photoshop</string>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeIdentifier</key><string>com.ifence.lumia.camera-raw</string>
+            <key>UTTypeConformsTo</key><array><string>public.image</string></array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>dng</string><string>cr2</string><string>cr3</string><string>crw</string><string>nef</string><string>nrw</string><string>arw</string><string>sr2</string><string>srf</string><string>raf</string><string>orf</string><string>rw2</string><string>rwl</string><string>pef</string><string>srw</string><string>3fr</string><string>fff</string><string>mef</string><string>mos</string><string>mrw</string><string>kdc</string><string>dcr</string><string>erf</string><string>x3f</string><string>iiq</string>
+                </array>
+                <key>public.mime-type</key><string>image/x-camera-raw</string>
             </dict>
         </dict>
     </array>

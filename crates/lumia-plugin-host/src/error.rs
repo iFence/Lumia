@@ -22,6 +22,8 @@ pub enum PluginHostError {
     InvalidResponseBody,
     #[error("plugin response timed out after {seconds} seconds")]
     ResponseTimeout { seconds: u64 },
+    #[error("plugin request was cancelled")]
+    Cancelled,
     #[error("plugin returned json-rpc version {actual}, expected {expected}")]
     JsonRpcVersion {
         expected: &'static str,

@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::io::{BufRead, BufReader, Write};
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -13,6 +14,7 @@ use lumia_plugin_api::{
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{PluginHostError, Result};
+mod interruptible;
 
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -285,6 +287,7 @@ pub fn validate_initialize(expected: &PluginManifest, result: &InitializeResult)
 }
 
 pub fn validate_decode_preview_manifest(manifest: &PluginManifest) -> Result<()> {
+    validate_supported_extensions(manifest)?;
     for capability in [PluginCapability::Probe, PluginCapability::DecodePreview] {
         if !manifest.capabilities.contains(&capability) {
             return Err(PluginHostError::MissingCapability(capability));
@@ -296,6 +299,36 @@ pub fn validate_decode_preview_manifest(manifest: &PluginManifest) -> Result<()>
     ] {
         if !manifest.permissions.contains(&permission) {
             return Err(PluginHostError::MissingPermission(permission));
+        }
+    }
+    Ok(())
+}
+
+pub fn validate_supported_extensions(manifest: &PluginManifest) -> Result<()> {
+    const MAX_EXTENSIONS: usize = 128;
+    const MAX_EXTENSION_LENGTH: usize = 16;
+
+    if manifest.supported_extensions.len() > MAX_EXTENSIONS {
+        return Err(PluginHostError::InvalidManifest(format!(
+            "supported_extensions exceeds {MAX_EXTENSIONS} entries"
+        )));
+    }
+    let mut seen = HashSet::new();
+    for extension in &manifest.supported_extensions {
+        let valid = !extension.is_empty()
+            && extension.len() <= MAX_EXTENSION_LENGTH
+            && extension
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit());
+        if !valid {
+            return Err(PluginHostError::InvalidManifest(format!(
+                "invalid supported extension: {extension}"
+            )));
+        }
+        if !seen.insert(extension) {
+            return Err(PluginHostError::InvalidManifest(format!(
+                "duplicate supported extension: {extension}"
+            )));
         }
     }
     Ok(())
@@ -327,6 +360,7 @@ mod tests {
                 PluginPermission::WriteTemporaryOutput,
             ],
             supported_inputs: vec!["image/vnd.adobe.photoshop".to_string()],
+            supported_extensions: vec!["psd".to_string(), "psb".to_string()],
             supported_outputs: vec!["image/png".to_string()],
             contributions: Default::default(),
             assets: Vec::new(),
@@ -362,5 +396,23 @@ mod tests {
 
         let mut oversized = std::io::Cursor::new(b"123456\n".as_slice());
         assert!(read_bounded_line(&mut oversized, 4).is_err());
+    }
+
+    #[test]
+    fn decoder_extensions_are_lowercase_unique_and_bounded() {
+        let valid = manifest();
+        validate_decode_preview_manifest(&valid).unwrap();
+
+        let mut uppercase = valid.clone();
+        uppercase.supported_extensions = vec!["DNG".into()];
+        assert!(validate_decode_preview_manifest(&uppercase).is_err());
+
+        let mut dotted = valid.clone();
+        dotted.supported_extensions = vec![".dng".into()];
+        assert!(validate_decode_preview_manifest(&dotted).is_err());
+
+        let mut duplicate = valid;
+        duplicate.supported_extensions = vec!["dng".into(), "dng".into()];
+        assert!(validate_decode_preview_manifest(&duplicate).is_err());
     }
 }

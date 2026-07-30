@@ -57,6 +57,11 @@ pub(crate) enum TextKey {
     AssociationManualRestore,
     DefaultAppsLaunchFailed,
     PhotoshopPreviewFailed,
+    ProfessionalUnsupported,
+    ProfessionalCorrupt,
+    ProfessionalResourceLimit,
+    ProfessionalDecodeFailed,
+    ProfessionalPluginUnavailable,
     LargeImagePreviewFailed,
     LargeImageDiskSpace,
     RetrySystemSettings,
@@ -91,6 +96,7 @@ pub(crate) enum TextKey {
     ImageInfoModified,
     ImageInfoCameraMake,
     ImageInfoCameraModel,
+    ImageInfoLens,
     ImageInfoSoftware,
     ImageInfoDateTaken,
     ImageInfoFlash,
@@ -203,6 +209,13 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::AssociationManualRestore => "Choose another default application manually for",
             TextKey::DefaultAppsLaunchFailed => "Could not open Windows Default Apps",
             TextKey::PhotoshopPreviewFailed => "Could not preview Photoshop document",
+            TextKey::ProfessionalUnsupported => "This image or camera is not supported",
+            TextKey::ProfessionalCorrupt => "This image is damaged or incomplete",
+            TextKey::ProfessionalResourceLimit => "This image exceeds the preview safety limit",
+            TextKey::ProfessionalDecodeFailed => "Could not decode this professional image",
+            TextKey::ProfessionalPluginUnavailable => {
+                "Install the official RAW plugin in Settings > Plugins, then restart Lumia"
+            }
             TextKey::LargeImagePreviewFailed => "Could not decode this large image",
             TextKey::LargeImageDiskSpace => "Not enough disk space to prepare this large image",
             TextKey::RetrySystemSettings => "Retry",
@@ -237,6 +250,7 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::ImageInfoModified => "Modified",
             TextKey::ImageInfoCameraMake => "Camera make",
             TextKey::ImageInfoCameraModel => "Camera model",
+            TextKey::ImageInfoLens => "Lens",
             TextKey::ImageInfoSoftware => "Software",
             TextKey::ImageInfoDateTaken => "Date taken",
             TextKey::ImageInfoFlash => "Flash",
@@ -346,6 +360,13 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::AssociationManualRestore => "请手动为以下格式选择其他默认应用",
             TextKey::DefaultAppsLaunchFailed => "无法打开 Windows 默认应用设置",
             TextKey::PhotoshopPreviewFailed => "无法预览 Photoshop 文档",
+            TextKey::ProfessionalUnsupported => "暂不支持此图片或相机型号",
+            TextKey::ProfessionalCorrupt => "图片已损坏或不完整",
+            TextKey::ProfessionalResourceLimit => "图片超出预览安全限制",
+            TextKey::ProfessionalDecodeFailed => "无法解码这张专业格式图片",
+            TextKey::ProfessionalPluginUnavailable => {
+                "请在“设置 > 插件”中安装官方 RAW 插件，然后重启 Lumia"
+            }
             TextKey::LargeImagePreviewFailed => "无法解码这张超大图片",
             TextKey::LargeImageDiskSpace => "磁盘空间不足，无法准备这张超大图片",
             TextKey::RetrySystemSettings => "重试",
@@ -380,6 +401,7 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::ImageInfoModified => "修改时间",
             TextKey::ImageInfoCameraMake => "相机制造商",
             TextKey::ImageInfoCameraModel => "相机型号",
+            TextKey::ImageInfoLens => "镜头",
             TextKey::ImageInfoSoftware => "软件",
             TextKey::ImageInfoDateTaken => "拍摄日期",
             TextKey::ImageInfoFlash => "闪光灯",

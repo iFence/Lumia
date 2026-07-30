@@ -126,6 +126,73 @@ fn annotation_plugin_is_packaged_separately_with_integrity_metadata() {
 }
 
 #[test]
+fn raw_plugin_is_pinned_packaged_separately_and_signed() {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("lumia-app must be under workspace/crates");
+    let release = std::fs::read_to_string(workspace.join(".github/workflows/release.yml"))
+        .expect("release workflow");
+    for artifact in [
+        "Lumia-RAW-windows-x64.lumiaplugin",
+        "Lumia-RAW-macos-${{ matrix.arch }}.lumiaplugin",
+        "Lumia-RAW-linux-x64.lumiaplugin",
+    ] {
+        assert!(release.contains(artifact), "missing {artifact}");
+    }
+
+    assert_eq!(
+        release
+            .matches("cc0_raw_samples_decode_to_bounded_png")
+            .count(),
+        3,
+        "all release platforms must decode the fixed RAW samples"
+    );
+    let samples = std::fs::read_to_string(workspace.join("scripts/fetch-raw-test-samples.mjs"))
+        .expect("RAW sample fetcher");
+    for required in ["CC0", "dng", "cr3", "nef", "arw", "raf"] {
+        assert!(samples.contains(required), "RAW samples miss {required}");
+    }
+    assert_eq!(samples.matches("sha256:").count(), 5);
+    let native_windows = std::fs::read_to_string(workspace.join("scripts/build-raw-native.ps1"))
+        .expect("Windows RAW native builder");
+    let native_unix = std::fs::read_to_string(workspace.join("scripts/build-raw-native.sh"))
+        .expect("Unix RAW native builder");
+    for required in [
+        "b93f6e45c194f5df9b02a43b1af9a54b4f41f33f",
+        "plugins/lumia-plugin-raw/native",
+        "ENABLE_X3FTOOLS",
+    ] {
+        assert!(
+            native_windows.contains(required),
+            "Windows builder misses {required}"
+        );
+        assert!(
+            native_unix.contains(required),
+            "Unix builder misses {required}"
+        );
+    }
+
+    let signer = std::fs::read_to_string(workspace.join("scripts/sign-plugin-package.mjs"))
+        .expect("plugin signer");
+    assert!(signer.contains("lumia.raw"));
+    assert!(signer.contains("lumia.plugin.sig"));
+
+    let wix = std::fs::read_to_string(workspace.join("crates/lumia-app/wix/main.wxs"))
+        .expect("WiX source");
+    assert!(
+        !wix.contains("lumia-plugin-raw"),
+        "optional RAW plugin must not enter the base MSI"
+    );
+    let macos_installer =
+        std::fs::read_to_string(workspace.join("scripts/build-macos-installer.sh"))
+            .expect("macOS installer");
+    assert!(
+        !macos_installer.contains("lumia-plugin-raw"),
+        "optional RAW plugin must not enter the base app bundle"
+    );
+}
+#[test]
 fn macos_release_builds_native_arm64_and_x64_packages() {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -165,6 +232,7 @@ fn release_metadata_declares_file_association_resources() {
         "public.heic",
         "com.ifence.lumia.dds",
         "com.ifence.lumia.photoshop-large-document",
+        "com.ifence.lumia.camera-raw",
     ] {
         assert!(plist.contains(content_type), "missing {content_type}");
     }

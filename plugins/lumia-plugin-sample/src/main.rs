@@ -80,6 +80,7 @@ fn manifest() -> PluginManifest {
             PluginPermission::WriteTemporaryOutput,
         ],
         supported_inputs: vec!["image/png".to_string(), "image/jpeg".to_string()],
+        supported_extensions: vec!["png".to_string(), "jpg".to_string(), "jpeg".to_string()],
         supported_outputs: vec!["image/png".to_string()],
         contributions: Default::default(),
         assets: Vec::new(),

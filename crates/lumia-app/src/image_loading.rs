@@ -7,7 +7,7 @@ use lumia_core::{FolderNavigation, ImageDocument};
 use crate::app::LumiaApp;
 use crate::large_image::{large_image_cache_dir, should_decode_large_image};
 use crate::load_state::PreparedImage;
-use crate::professional_decode::is_photoshop_path;
+use crate::professional_decode::is_professional_path;
 use crate::util::{format_large_image_error, format_load_error};
 
 const MAX_ANIMATION_FRAME_BYTES: u64 = 48 * 1024 * 1024;
@@ -103,7 +103,7 @@ impl LumiaApp {
                         }
                     };
                     let needs_heif_decode = is_heif(&path);
-                    let needs_photoshop_decode = is_photoshop_path(&path);
+                    let needs_professional_decode = is_professional_path(&path);
                     let needs_large_image_decode =
                         probe.document.metadata.as_ref().is_some_and(|metadata| {
                             let decoded_bytes = u64::from(metadata.width)
@@ -140,8 +140,8 @@ impl LumiaApp {
                             cancellation.clone(),
                             cx,
                         );
-                    } else if needs_photoshop_decode {
-                        this.start_current_photoshop_decode(
+                    } else if needs_professional_decode {
+                        this.start_current_professional_decode(
                             path.clone(),
                             generation,
                             cancellation.clone(),

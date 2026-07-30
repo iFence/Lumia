@@ -8,6 +8,14 @@ use crate::i18n::{tr, TextKey};
 
 impl LumiaApp {
     pub(crate) fn plugin_canvas_available(&self) -> bool {
+        if self.image_path().is_some_and(|path| {
+            path.extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(lumia_core::is_raw_image_extension)
+        }) {
+            return false;
+        }
+
         let Some(source_dimensions) = self.viewer.display_dimensions() else {
             return false;
         };

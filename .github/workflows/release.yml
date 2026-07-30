@@ -54,6 +54,26 @@ jobs:
       - name: Verify Annotation package with Lumia
         shell: pwsh
         run: ./scripts/verify-plugin-package.ps1 -Package target/Lumia-Annotation-windows-x64.lumiaplugin
+      - name: Build pinned LibRaw and RAW bridge
+        id: raw-native
+        shell: pwsh
+        run: ./scripts/build-raw-native.ps1
+      - name: Download fixed CC0 RAW test samples
+        run: node scripts/fetch-raw-test-samples.mjs
+      - name: Test RAW decoder against real samples
+        shell: pwsh
+        env:
+          LUMIA_RAW_BRIDGE_PATH: ${{ steps.raw-native.outputs.bridge }}
+          LUMIA_RAW_SAMPLE_DIR: target/raw-test-samples
+        run: cargo test -p lumia-plugin-raw cc0_raw_samples_decode_to_bounded_png -- --nocapture
+      - name: Package optional RAW plugin
+        shell: pwsh
+        env:
+          LUMIA_PLUGIN_SIGNING_KEY_PEM: ${{ secrets.LUMIA_PLUGIN_SIGNING_KEY_PEM }}
+        run: ./scripts/package-raw-plugin.ps1 -BridgeLibrary "${{ steps.raw-native.outputs.bridge }}" -LibRawLibrary "${{ steps.raw-native.outputs.libraw }}" -LibRawLicenseDirectory "${{ steps.raw-native.outputs.licenses }}"
+      - name: Verify RAW package with Lumia
+        shell: pwsh
+        run: ./scripts/verify-plugin-package.ps1 -Package target/Lumia-RAW-windows-x64.lumiaplugin
 
 
       - name: Upload to GitHub Release
@@ -65,6 +85,7 @@ jobs:
             target/wix/Lumia-*-x64-zh-CN.msi
             target/lumia-portable-windows-x64.zip
             target/Lumia-Annotation-windows-x64.lumiaplugin
+            target/Lumia-RAW-windows-x64.lumiaplugin
           fail_on_unmatched_files: true
 
   macos-release:
@@ -96,12 +117,29 @@ jobs:
         run: ./scripts/package-annotation-plugin.sh macos "${{ matrix.arch }}"
       - name: Verify Annotation package with Lumia
         run: target/release/lumia-app --verify-plugin-package "target/Lumia-Annotation-macos-${{ matrix.arch }}.lumiaplugin"
+      - name: Build pinned LibRaw and RAW bridge
+        id: raw-native
+        run: brew install jpeg-turbo && ./scripts/build-raw-native.sh
+      - name: Download fixed CC0 RAW test samples
+        run: node scripts/fetch-raw-test-samples.mjs
+      - name: Test RAW decoder against real samples
+        env:
+          LUMIA_RAW_BRIDGE_PATH: ${{ steps.raw-native.outputs.bridge }}
+          LUMIA_RAW_SAMPLE_DIR: target/raw-test-samples
+        run: cargo test -p lumia-plugin-raw cc0_raw_samples_decode_to_bounded_png -- --nocapture
+      - name: Package optional RAW plugin
+        env:
+          LUMIA_PLUGIN_SIGNING_KEY_PEM: ${{ secrets.LUMIA_PLUGIN_SIGNING_KEY_PEM }}
+        run: ./scripts/package-raw-plugin.sh macos "${{ matrix.arch }}" "${{ steps.raw-native.outputs.bridge }}" "${{ steps.raw-native.outputs.libraw }}" "${{ steps.raw-native.outputs.licenses }}"
+      - name: Verify RAW package with Lumia
+        run: target/release/lumia-app --verify-plugin-package "target/Lumia-RAW-macos-${{ matrix.arch }}.lumiaplugin"
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             target/Lumia-macos-${{ matrix.arch }}.dmg
             target/Lumia-Annotation-macos-${{ matrix.arch }}.lumiaplugin
+            target/Lumia-RAW-macos-${{ matrix.arch }}.lumiaplugin
           fail_on_unmatched_files: true
 
   linux-release:
@@ -123,7 +161,9 @@ jobs:
             libxkbcommon-x11-dev \
             libxcb-randr0-dev \
             libxcb1-dev \
-            libxrandr-dev
+            libxrandr-dev \
+            libjpeg-dev \
+            zlib1g-dev
       - name: Build release binaries
         run: cargo build --release -p lumia-app -p lumia-plugin-photoshop
       - name: Create release archive
@@ -155,10 +195,27 @@ jobs:
         run: ./scripts/package-annotation-plugin.sh linux x64
       - name: Verify Annotation package with Lumia
         run: target/release/lumia-app --verify-plugin-package target/Lumia-Annotation-linux-x64.lumiaplugin
+      - name: Build pinned LibRaw and RAW bridge
+        id: raw-native
+        run: ./scripts/build-raw-native.sh
+      - name: Download fixed CC0 RAW test samples
+        run: node scripts/fetch-raw-test-samples.mjs
+      - name: Test RAW decoder against real samples
+        env:
+          LUMIA_RAW_BRIDGE_PATH: ${{ steps.raw-native.outputs.bridge }}
+          LUMIA_RAW_SAMPLE_DIR: target/raw-test-samples
+        run: cargo test -p lumia-plugin-raw cc0_raw_samples_decode_to_bounded_png -- --nocapture
+      - name: Package optional RAW plugin
+        env:
+          LUMIA_PLUGIN_SIGNING_KEY_PEM: ${{ secrets.LUMIA_PLUGIN_SIGNING_KEY_PEM }}
+        run: ./scripts/package-raw-plugin.sh linux x64 "${{ steps.raw-native.outputs.bridge }}" "${{ steps.raw-native.outputs.libraw }}" "${{ steps.raw-native.outputs.licenses }}"
+      - name: Verify RAW package with Lumia
+        run: target/release/lumia-app --verify-plugin-package target/Lumia-RAW-linux-x64.lumiaplugin
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             target/lumia-linux-x64.tar.gz
             target/Lumia-Annotation-linux-x64.lumiaplugin
+            target/Lumia-RAW-linux-x64.lumiaplugin
           fail_on_unmatched_files: true

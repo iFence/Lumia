@@ -1,0 +1,15 @@
+{
+  "id": "lumia.raw",
+  "name": "Lumia RAW Preview",
+  "version": "0.1.0",
+  "entry": "lumia-plugin-raw",
+  "capabilities": ["probe", "decode_preview"],
+  "permissions": ["read_input_path", "write_temporary_output"],
+  "supported_inputs": ["image/x-camera-raw"],
+  "supported_extensions": [
+    "dng", "cr2", "cr3", "crw", "nef", "nrw", "arw", "sr2", "srf", "raf",
+    "orf", "rw2", "rwl", "pef", "srw", "3fr", "fff", "mef", "mos", "mrw",
+    "kdc", "dcr", "erf", "x3f", "iiq"
+  ],
+  "supported_outputs": ["image/png"]
+}

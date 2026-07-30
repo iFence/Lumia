@@ -19,6 +19,7 @@ pub(crate) fn probe(path: &Path) -> Result<ProbeResult, ProbeError> {
         width: Some(header.width),
         height: Some(header.height),
         is_hdr: header.depth == 32,
+        metadata: None,
     })
 }
 

@@ -45,15 +45,15 @@ impl LumiaApp {
                         tr(language, language_text_key(selected_language)),
                         move |menu, _, _| {
                             menu.menu_with_check(
-                                    tr(language, TextKey::English),
-                                    selected_language == Language::English,
-                                    Box::new(SelectLanguage(Language::English)),
-                                )
-                                .menu_with_check(
-                                    tr(language, TextKey::Chinese),
-                                    selected_language == Language::Chinese,
-                                    Box::new(SelectLanguage(Language::Chinese)),
-                                )
+                                tr(language, TextKey::English),
+                                selected_language == Language::English,
+                                Box::new(SelectLanguage(Language::English)),
+                            )
+                            .menu_with_check(
+                                tr(language, TextKey::Chinese),
+                                selected_language == Language::Chinese,
+                                Box::new(SelectLanguage(Language::Chinese)),
+                            )
                         },
                     )),
             )
@@ -69,20 +69,20 @@ impl LumiaApp {
                         tr(language, theme_mode_text_key(selected_theme)),
                         move |menu, _, _| {
                             menu.menu_with_check(
-                                    tr(language, TextKey::Light),
-                                    selected_theme == ThemeMode::Light,
-                                    Box::new(SelectThemeMode(ThemeMode::Light)),
-                                )
-                                .menu_with_check(
-                                    tr(language, TextKey::Dark),
-                                    selected_theme == ThemeMode::Dark,
-                                    Box::new(SelectThemeMode(ThemeMode::Dark)),
-                                )
-                                .menu_with_check(
-                                    tr(language, TextKey::FollowSystem),
-                                    selected_theme == ThemeMode::FollowSystem,
-                                    Box::new(SelectThemeMode(ThemeMode::FollowSystem)),
-                                )
+                                tr(language, TextKey::Light),
+                                selected_theme == ThemeMode::Light,
+                                Box::new(SelectThemeMode(ThemeMode::Light)),
+                            )
+                            .menu_with_check(
+                                tr(language, TextKey::Dark),
+                                selected_theme == ThemeMode::Dark,
+                                Box::new(SelectThemeMode(ThemeMode::Dark)),
+                            )
+                            .menu_with_check(
+                                tr(language, TextKey::FollowSystem),
+                                selected_theme == ThemeMode::FollowSystem,
+                                Box::new(SelectThemeMode(ThemeMode::FollowSystem)),
+                            )
                         },
                     )),
             )
@@ -98,25 +98,25 @@ impl LumiaApp {
                         tr(language, theme_accent_text_key(selected_accent)),
                         move |menu, _, _| {
                             menu.menu_with_check(
-                                    tr(language, TextKey::AccentBlue),
-                                    selected_accent == ThemeAccent::Blue,
-                                    Box::new(SelectThemeAccent(ThemeAccent::Blue)),
-                                )
-                                .menu_with_check(
-                                    tr(language, TextKey::AccentGreen),
-                                    selected_accent == ThemeAccent::Green,
-                                    Box::new(SelectThemeAccent(ThemeAccent::Green)),
-                                )
-                                .menu_with_check(
-                                    tr(language, TextKey::AccentOrange),
-                                    selected_accent == ThemeAccent::Orange,
-                                    Box::new(SelectThemeAccent(ThemeAccent::Orange)),
-                                )
-                                .menu_with_check(
-                                    tr(language, TextKey::AccentRose),
-                                    selected_accent == ThemeAccent::Rose,
-                                    Box::new(SelectThemeAccent(ThemeAccent::Rose)),
-                                )
+                                tr(language, TextKey::AccentBlue),
+                                selected_accent == ThemeAccent::Blue,
+                                Box::new(SelectThemeAccent(ThemeAccent::Blue)),
+                            )
+                            .menu_with_check(
+                                tr(language, TextKey::AccentGreen),
+                                selected_accent == ThemeAccent::Green,
+                                Box::new(SelectThemeAccent(ThemeAccent::Green)),
+                            )
+                            .menu_with_check(
+                                tr(language, TextKey::AccentOrange),
+                                selected_accent == ThemeAccent::Orange,
+                                Box::new(SelectThemeAccent(ThemeAccent::Orange)),
+                            )
+                            .menu_with_check(
+                                tr(language, TextKey::AccentRose),
+                                selected_accent == ThemeAccent::Rose,
+                                Box::new(SelectThemeAccent(ThemeAccent::Rose)),
+                            )
                         },
                     )),
             )

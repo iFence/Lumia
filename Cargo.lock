@@ -3642,6 +3642,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumia-plugin-raw"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "image",
+ "libloading",
+ "lumia-plugin-api",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
 name = "lumia-plugin-sample"
 version = "0.1.0"
 dependencies = [

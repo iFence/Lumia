@@ -5,6 +5,7 @@
   "entry": "lumia-plugin-photoshop",
   "capabilities": ["probe", "decode_preview"],
   "permissions": ["read_input_path", "write_temporary_output"],
+  "supported_extensions": ["psd", "psb"],
   "supported_inputs": ["image/vnd.adobe.photoshop"],
   "supported_outputs": ["image/png"]
 }

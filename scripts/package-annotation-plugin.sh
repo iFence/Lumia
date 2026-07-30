@@ -31,6 +31,8 @@ APP_VERSION="$(awk -F'"' '/^version = / { print $2; exit }' crates/lumia-app/Car
 PLUGIN_API_VERSION="$(awk '/PROTOCOL_VERSION: u32 = / { gsub(";", "", $6); print $6; exit }' crates/lumia-plugin-api/src/rpc.rs)"
 node scripts/sign-plugin-package.mjs \
   --root "$STAGING_DIR" \
+  --install-directory lumia-plugin-annotation \
+  --plugin-id lumia.annotation \
   --target-os "$PLATFORM" \
   --target-arch "$ARCH" \
   --minimum-lumia-version "$APP_VERSION" \

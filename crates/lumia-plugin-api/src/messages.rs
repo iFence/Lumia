@@ -45,13 +45,45 @@ pub struct ProbeParams {
     pub input: ImagePath,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProbeResult {
     pub can_decode: bool,
     pub format_name: Option<String>,
     pub width: Option<u32>,
     pub height: Option<u32>,
     pub is_hdr: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<PluginImageMetadata>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct PluginImageMetadata {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub camera_make: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub camera_model: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lens: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub iso: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exposure_time_seconds: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub aperture_f_number: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub focal_length_mm: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub date_taken: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub geo_coordinates: Option<PluginGeoCoordinates>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct PluginGeoCoordinates {
+    pub latitude: f64,
+    pub longitude: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub altitude_meters: Option<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -301,6 +333,7 @@ mod tests {
             capabilities: vec![PluginCapability::DecodePreview, PluginCapability::CloudAi],
             permissions: vec![super::super::manifest::PluginPermission::Network],
             supported_inputs: vec!["image/png".to_string()],
+            supported_extensions: vec!["png".to_string()],
             supported_outputs: vec!["image/png".to_string()],
             contributions: super::super::manifest::PluginContributions::default(),
             assets: Vec::new(),
@@ -363,5 +396,52 @@ mod tests {
         assert_eq!(value["tool_id"], "annotation.icon_stamp");
         assert_eq!(value["settings"]["type"], "icon_stamp");
         assert_eq!(value["settings"]["asset_id"], "pin");
+    }
+
+    #[test]
+    fn old_manifest_defaults_supported_extensions() {
+        let manifest: PluginManifest = serde_json::from_value(serde_json::json!({
+            "id": "legacy.decoder",
+            "name": "Legacy decoder",
+            "version": "1.0.0",
+            "entry": "legacy-decoder",
+            "capabilities": ["probe", "decode_preview"],
+            "permissions": ["read_input_path", "write_temporary_output"],
+            "supported_inputs": ["image/example"],
+            "supported_outputs": ["image/png"]
+        }))
+        .unwrap();
+        assert!(manifest.supported_extensions.is_empty());
+    }
+
+    #[test]
+    fn probe_metadata_uses_structured_stable_fields() {
+        let result = ProbeResult {
+            can_decode: true,
+            format_name: Some("DNG".into()),
+            width: Some(6000),
+            height: Some(4000),
+            is_hdr: false,
+            metadata: Some(PluginImageMetadata {
+                camera_make: Some("Example".into()),
+                camera_model: Some("Camera".into()),
+                lens: Some("50mm".into()),
+                iso: Some(200),
+                exposure_time_seconds: Some(0.008),
+                aperture_f_number: Some(2.8),
+                focal_length_mm: Some(50.0),
+                date_taken: Some("2026-01-02T03:04:05".into()),
+                geo_coordinates: Some(PluginGeoCoordinates {
+                    latitude: 31.2304,
+                    longitude: 121.4737,
+                    altitude_meters: Some(4.0),
+                }),
+            }),
+        };
+
+        let value = serde_json::to_value(result).unwrap();
+        assert_eq!(value["metadata"]["iso"], 200);
+        assert_eq!(value["metadata"]["geo_coordinates"]["latitude"], 31.2304);
+        assert_eq!(value["metadata"]["aperture_f_number"], 2.8);
     }
 }

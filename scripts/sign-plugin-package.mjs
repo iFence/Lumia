@@ -12,7 +12,7 @@ import path from "node:path";
 
 const OFFICIAL_PUBLIC_KEY_HEX =
   "6b88de1c86a73ae666d4a44b54e3046900ff24a085a2515ada36d2b15cc55417";
-const INSTALL_DIRECTORY = "lumia-plugin-annotation";
+const OFFICIAL_PLUGIN_IDS = new Set(["lumia.annotation", "lumia.raw"]);
 
 function parseArguments(argv) {
   const values = new Map();
@@ -98,41 +98,25 @@ async function main() {
   const stagingRoot = path.resolve(required(args, "root"));
   const targetOs = normalizeOs(required(args, "target-os"));
   const targetArch = normalizeArch(required(args, "target-arch"));
+  const installDirectory = required(args, "install-directory");
   const minimumLumiaVersion = required(args, "minimum-lumia-version");
   const pluginApiVersion = Number(required(args, "plugin-api-version"));
   if (!Number.isSafeInteger(pluginApiVersion) || pluginApiVersion < 1) {
     throw new Error("plugin API version must be a positive integer");
   }
 
-  const pluginRoot = path.join(stagingRoot, INSTALL_DIRECTORY);
-  const runtimeManifest = JSON.parse(
-    await readFile(path.join(pluginRoot, "lumia.plugin.json"), "utf8"),
+  const pluginRoot = path.join(stagingRoot, installDirectory);
+  const runtimeManifestBytes = await readFile(
+    path.join(pluginRoot, "lumia.plugin.json"),
   );
-  if (runtimeManifest.id !== "lumia.annotation") {
+  const runtimeManifest = JSON.parse(runtimeManifestBytes);
+  if (!OFFICIAL_PLUGIN_IDS.has(runtimeManifest.id)) {
     throw new Error(`unexpected plugin id ${runtimeManifest.id}`);
   }
-  const relativeFiles = await walkFiles(stagingRoot, INSTALL_DIRECTORY);
-  const files = [];
-  for (const relative of relativeFiles) {
-    files.push(await packageFile(stagingRoot, relative));
+  const expectedPluginId = args.get("plugin-id");
+  if (expectedPluginId && runtimeManifest.id !== expectedPluginId) {
+    throw new Error(`plugin id ${runtimeManifest.id} does not match ${expectedPluginId}`);
   }
-
-  const packageManifest = {
-    schema_version: 1,
-    plugin_id: runtimeManifest.id,
-    version: runtimeManifest.version,
-    plugin_api_version: pluginApiVersion,
-    minimum_lumia_version: minimumLumiaVersion,
-    target_os: targetOs,
-    target_arch: targetArch,
-    install_directory: INSTALL_DIRECTORY,
-    files,
-  };
-  const manifestBytes = Buffer.from(
-    `${JSON.stringify(packageManifest, null, 2)}\n`,
-    "utf8",
-  );
-
   let keyValue = process.env.LUMIA_PLUGIN_SIGNING_KEY_PEM;
   if (args.has("private-key-file")) {
     keyValue = await readFile(path.resolve(args.get("private-key-file")), "utf8");
@@ -151,6 +135,34 @@ async function main() {
   if (!rawPublicKey.equals(expectedPublicKey)) {
     throw new Error("signing key does not match Lumia's official plugin public key");
   }
+  const runtimeSignature = sign(null, runtimeManifestBytes, privateKey);
+  await writeFile(
+    path.join(pluginRoot, "lumia.plugin.sig"),
+    `${runtimeSignature.toString("base64")}\n`,
+    "utf8",
+  );
+
+  const relativeFiles = await walkFiles(stagingRoot, installDirectory);
+  const files = [];
+  for (const relative of relativeFiles) {
+    files.push(await packageFile(stagingRoot, relative));
+  }
+
+  const packageManifest = {
+    schema_version: 1,
+    plugin_id: runtimeManifest.id,
+    version: runtimeManifest.version,
+    plugin_api_version: pluginApiVersion,
+    minimum_lumia_version: minimumLumiaVersion,
+    target_os: targetOs,
+    target_arch: targetArch,
+    install_directory: installDirectory,
+    files,
+  };
+  const manifestBytes = Buffer.from(
+    `${JSON.stringify(packageManifest, null, 2)}\n`,
+    "utf8",
+  );
 
   const signature = sign(null, manifestBytes, privateKey);
   if (!verify(null, manifestBytes, publicKey, signature)) {

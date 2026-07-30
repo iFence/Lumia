@@ -26,4 +26,16 @@
     <glob pattern="*.psd"/>
     <glob pattern="*.psb"/>
   </mime-type>
+  <mime-type type="image/x-camera-raw">
+    <comment>Camera RAW image</comment>
+    <glob pattern="*.dng"/><glob pattern="*.cr2"/><glob pattern="*.cr3"/>
+    <glob pattern="*.crw"/><glob pattern="*.nef"/><glob pattern="*.nrw"/>
+    <glob pattern="*.arw"/><glob pattern="*.sr2"/><glob pattern="*.srf"/>
+    <glob pattern="*.raf"/><glob pattern="*.orf"/><glob pattern="*.rw2"/>
+    <glob pattern="*.rwl"/><glob pattern="*.pef"/><glob pattern="*.srw"/>
+    <glob pattern="*.3fr"/><glob pattern="*.fff"/><glob pattern="*.mef"/>
+    <glob pattern="*.mos"/><glob pattern="*.mrw"/><glob pattern="*.kdc"/>
+    <glob pattern="*.dcr"/><glob pattern="*.erf"/><glob pattern="*.x3f"/>
+    <glob pattern="*.iiq"/>
+  </mime-type>
 </mime-info>

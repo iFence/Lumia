@@ -38,10 +38,17 @@ mod tests {
 
     #[test]
     fn converts_encoded_file_urls_to_paths() {
-        assert_eq!(
-            file_path("file:///Users/test/Pictures/sample%20image.png"),
-            Some(PathBuf::from("/Users/test/Pictures/sample image.png"))
+        #[cfg(target_os = "windows")]
+        let (url, expected) = (
+            "file:///C:/Users/test/Pictures/sample%20image.png",
+            PathBuf::from(r"C:\Users\test\Pictures\sample image.png"),
         );
+        #[cfg(not(target_os = "windows"))]
+        let (url, expected) = (
+            "file:///Users/test/Pictures/sample%20image.png",
+            PathBuf::from("/Users/test/Pictures/sample image.png"),
+        );
+        assert_eq!(file_path(url), Some(expected));
     }
 
     #[test]

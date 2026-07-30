@@ -43,9 +43,17 @@ pub(super) fn acquire(
     request: &InstanceRequest,
     sender: Sender<InstanceRequest>,
 ) -> anyhow::Result<Option<Guard>> {
+    acquire_named(NAME, request, sender)
+}
+
+pub(super) fn acquire_named(
+    name: &str,
+    request: &InstanceRequest,
+    sender: Sender<InstanceRequest>,
+) -> anyhow::Result<Option<Guard>> {
     let session_id = current_session_id()?;
-    let mutex_name = wide(&format!(r"Local\{NAME}.{session_id}"));
-    let pipe_name = format!(r"\\.\pipe\{NAME}.{session_id}");
+    let mutex_name = wide(&format!(r"Local\{name}.{session_id}"));
+    let pipe_name = format!(r"\\.\pipe\{name}.{session_id}");
 
     let mutex = unsafe { CreateMutexW(ptr::null(), 0, mutex_name.as_ptr()) };
     if mutex.is_null() {

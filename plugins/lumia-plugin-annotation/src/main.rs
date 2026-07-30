@@ -245,6 +245,7 @@ fn manifest() -> PluginManifest {
         ],
         permissions: Vec::new(),
         supported_inputs: Vec::new(),
+        supported_extensions: Vec::new(),
         supported_outputs: vec![
             "image/png".to_string(),
             "image/jpeg".to_string(),

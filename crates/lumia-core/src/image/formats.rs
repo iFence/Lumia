@@ -96,12 +96,23 @@ pub const SUPPORTED_IMAGE_FORMAT_GROUPS: &[ImageFormatGroup] = &[
         name: "Adobe Photoshop",
         extensions: &["psd", "psb"],
     },
+    ImageFormatGroup {
+        id: "raw",
+        name: "Camera RAW",
+        extensions: RAW_IMAGE_EXTENSIONS,
+    },
 ];
 
 pub const SUPPORTED_IMAGE_EXTENSIONS: &[&str] = &[
     "avif", "jpg", "jpeg", "png", "gif", "webp", "tif", "tiff", "tga", "dds", "bmp", "ico", "hdr",
     "exr", "pbm", "pam", "ppm", "pgm", "ff", "farbfeld", "qoi", "svg", "heic", "heif", "psd",
-    "psb",
+    "psb", "dng", "cr2", "cr3", "crw", "nef", "nrw", "arw", "sr2", "srf", "raf", "orf", "rw2",
+    "rwl", "pef", "srw", "3fr", "fff", "mef", "mos", "mrw", "kdc", "dcr", "erf", "x3f", "iiq",
+];
+
+pub const RAW_IMAGE_EXTENSIONS: &[&str] = &[
+    "dng", "cr2", "cr3", "crw", "nef", "nrw", "arw", "sr2", "srf", "raf", "orf", "rw2", "rwl",
+    "pef", "srw", "3fr", "fff", "mef", "mos", "mrw", "kdc", "dcr", "erf", "x3f", "iiq",
 ];
 
 pub fn supported_image_format_groups() -> &'static [ImageFormatGroup] {
@@ -119,7 +130,15 @@ pub fn is_supported_image_extension(extension: &str) -> bool {
 }
 
 pub fn requires_plugin_preview_extension(extension: &str) -> bool {
-    extension.eq_ignore_ascii_case("psd") || extension.eq_ignore_ascii_case("psb")
+    extension.eq_ignore_ascii_case("psd")
+        || extension.eq_ignore_ascii_case("psb")
+        || is_raw_image_extension(extension)
+}
+
+pub fn is_raw_image_extension(extension: &str) -> bool {
+    RAW_IMAGE_EXTENSIONS
+        .iter()
+        .any(|candidate| candidate.eq_ignore_ascii_case(extension))
 }
 
 #[cfg(test)]
@@ -169,5 +188,18 @@ mod tests {
         assert!(is_supported_image_extension("PSD"));
         assert!(is_supported_image_extension("psb"));
         assert!(requires_plugin_preview_extension("PSD"));
+    }
+
+    #[test]
+    fn raw_group_is_always_recognized_as_plugin_preview() {
+        let group = SUPPORTED_IMAGE_FORMAT_GROUPS
+            .iter()
+            .find(|group| group.id == "raw")
+            .expect("RAW format group should be registered");
+        assert_eq!(group.name, "Camera RAW");
+        assert_eq!(group.extensions, RAW_IMAGE_EXTENSIONS);
+        assert!(is_supported_image_extension("DNG"));
+        assert!(is_raw_image_extension("Cr3"));
+        assert!(requires_plugin_preview_extension("NEF"));
     }
 }

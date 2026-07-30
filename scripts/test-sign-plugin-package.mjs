@@ -35,6 +35,10 @@ try {
       "scripts/sign-plugin-package.mjs",
       "--root",
       temporaryRoot,
+      "--install-directory",
+      installDirectory,
+      "--plugin-id",
+      "lumia.annotation",
       "--target-os",
       "linux",
       "--target-arch",
@@ -82,6 +86,64 @@ try {
   const unrelatedSignature = sign(null, manifestBytes, privateKey);
   if (!unrelatedSignature.equals(signature)) {
     throw new Error("Ed25519 signing should be deterministic");
+  }
+
+  const rawRoot = path.join(temporaryRoot, "raw-fixture");
+  const rawInstallDirectory = "lumia-plugin-raw";
+  const rawPluginRoot = path.join(rawRoot, rawInstallDirectory);
+  await mkdir(rawPluginRoot, { recursive: true });
+  await cp(
+    path.resolve("plugins", rawInstallDirectory, "lumia.plugin.json"),
+    path.join(rawPluginRoot, "lumia.plugin.json"),
+  );
+  const rawResult = spawnSync(
+    process.execPath,
+    [
+      "scripts/sign-plugin-package.mjs",
+      "--root",
+      rawRoot,
+      "--install-directory",
+      rawInstallDirectory,
+      "--plugin-id",
+      "lumia.raw",
+      "--target-os",
+      "windows",
+      "--target-arch",
+      "x64",
+      "--minimum-lumia-version",
+      "0.1.5",
+      "--plugin-api-version",
+      "2",
+      "--expected-public-key",
+      expectedPublicKey,
+    ],
+    {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        LUMIA_PLUGIN_SIGNING_KEY_PEM: privatePem,
+      },
+    },
+  );
+  if (rawResult.status !== 0) {
+    throw new Error(rawResult.stderr || "RAW signer exited unsuccessfully");
+  }
+  const rawPackage = JSON.parse(
+    await readFile(path.join(rawRoot, "lumia.package.json")),
+  );
+  const rawManifestBytes = await readFile(
+    path.join(rawPluginRoot, "lumia.plugin.json"),
+  );
+  const rawRuntimeSignature = Buffer.from(
+    (await readFile(path.join(rawPluginRoot, "lumia.plugin.sig"), "utf8")).trim(),
+    "base64",
+  );
+  if (
+    rawPackage.plugin_id !== "lumia.raw" ||
+    !verify(null, rawManifestBytes, publicKey, rawRuntimeSignature)
+  ) {
+    throw new Error("RAW runtime manifest was not signed correctly");
   }
   process.stdout.write("Plugin package signer fixture passed\n");
 } finally {

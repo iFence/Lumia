@@ -45,6 +45,8 @@ try {
     $pluginApiVersion = (Select-String -Path crates/lumia-plugin-api/src/rpc.rs -Pattern 'PROTOCOL_VERSION: u32 = ([0-9]+)').Matches[0].Groups[1].Value
     node scripts/sign-plugin-package.mjs `
         --root $staging `
+        --install-directory lumia-plugin-annotation `
+        --plugin-id lumia.annotation `
         --target-os windows `
         --target-arch $Architecture `
         --minimum-lumia-version $appVersion `

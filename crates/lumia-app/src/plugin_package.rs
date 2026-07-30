@@ -14,7 +14,7 @@ mod runtime;
 pub(crate) use runtime::inspect_packaged_plugin_manifest;
 
 const PACKAGE_SCHEMA_VERSION: u32 = 1;
-const OFFICIAL_PLUGIN_IDS: &[&str] = &["lumia.annotation"];
+const OFFICIAL_PLUGIN_IDS: &[&str] = &["lumia.annotation", "lumia.raw"];
 const PACKAGE_MANIFEST_NAME: &str = "lumia.package.json";
 const PACKAGE_SIGNATURE_NAME: &str = "lumia.package.sig";
 const MAX_COMPRESSED_PACKAGE_BYTES: u64 = 128 * 1024 * 1024;

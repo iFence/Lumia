@@ -112,6 +112,7 @@ fn append_exif_lines(lines: &mut Vec<String>, language: Language, exif: &ExifMet
     for (key, value) in [
         (TextKey::ImageInfoCameraMake, exif.camera_make.as_deref()),
         (TextKey::ImageInfoCameraModel, exif.camera_model.as_deref()),
+        (TextKey::ImageInfoLens, exif.lens.as_deref()),
         (TextKey::ImageInfoSoftware, exif.software.as_deref()),
         (TextKey::ImageInfoDateTaken, exif.date_taken.as_deref()),
         (TextKey::ImageInfoFlash, exif.flash.as_deref()),

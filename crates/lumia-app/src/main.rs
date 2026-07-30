@@ -33,6 +33,7 @@ mod plugin_state;
 mod preferences;
 mod preview_cache;
 mod professional_decode;
+mod professional_preview;
 mod render;
 mod settings_about;
 mod settings_associations;

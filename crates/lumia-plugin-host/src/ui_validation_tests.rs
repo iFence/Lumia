@@ -27,6 +27,7 @@ fn manifest() -> PluginManifest {
         ],
         permissions: Vec::new(),
         supported_inputs: Vec::new(),
+        supported_extensions: Vec::new(),
         supported_outputs: vec!["image/png".into()],
         contributions: PluginContributions {
             commands: vec![CommandContribution {

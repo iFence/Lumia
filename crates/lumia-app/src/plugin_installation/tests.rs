@@ -168,6 +168,7 @@ fn write_installed_manifest(plugin_root: &Path, version: &str) {
         capabilities: Vec::new(),
         permissions: Vec::new(),
         supported_inputs: Vec::new(),
+        supported_extensions: Vec::new(),
         supported_outputs: Vec::new(),
         contributions: Default::default(),
         assets: Vec::new(),

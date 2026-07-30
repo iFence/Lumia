@@ -106,6 +106,7 @@ pub(crate) fn manifest() -> PluginManifest {
             PluginPermission::WriteTemporaryOutput,
         ],
         supported_inputs: vec!["image/vnd.adobe.photoshop".to_string()],
+        supported_extensions: vec!["psd".to_string(), "psb".to_string()],
         supported_outputs: vec!["image/png".to_string()],
         contributions: Default::default(),
         assets: Vec::new(),

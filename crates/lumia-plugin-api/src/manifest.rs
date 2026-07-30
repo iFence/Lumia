@@ -14,6 +14,12 @@ pub struct PluginManifest {
     pub permissions: Vec<PluginPermission>,
     #[serde(default)]
     pub supported_inputs: Vec<String>,
+    /// Lowercase file extensions without a leading dot.
+    ///
+    /// This is optional on the wire so protocol-v2 manifests created before
+    /// extension-based decoder dispatch remain readable.
+    #[serde(default)]
+    pub supported_extensions: Vec<String>,
     #[serde(default)]
     pub supported_outputs: Vec<String>,
     #[serde(default)]

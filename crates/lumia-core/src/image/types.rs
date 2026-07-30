@@ -105,6 +105,7 @@ pub struct ExifMetadata {
     pub color_space: Option<String>,
     pub camera_make: Option<String>,
     pub camera_model: Option<String>,
+    pub lens: Option<String>,
     pub software: Option<String>,
     pub date_taken: Option<String>,
     pub flash: Option<String>,

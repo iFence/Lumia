@@ -1,41 +1,47 @@
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context as _, Result};
 use gpui::Context;
-use lumia_core::{ColorDescription, ImageMetadata, PixelFormat, TransferFunction};
-use lumia_plugin_api::{
-    DecodePreviewParams, DecodePreviewResult, ImagePath, ProbeParams, ProbeResult,
-};
-use lumia_plugin_host::PluginProcess;
+use lumia_core::Language;
+use lumia_plugin_api::PluginManifest;
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
-use crate::load_state::PreparedImage;
 use crate::plugin_catalog::photoshop_manifest;
+use crate::professional_preview::{decode_professional_preview, ProfessionalDecodeError};
 
-const MAX_PREVIEW_SIDE: u32 = 4096;
-
-pub(crate) fn is_photoshop_path(path: &Path) -> bool {
+pub(crate) fn is_professional_path(path: &Path) -> bool {
     path.extension()
         .and_then(|extension| extension.to_str())
         .is_some_and(lumia_core::requires_plugin_preview_extension)
 }
 
 impl LumiaApp {
-    pub(crate) fn start_current_photoshop_decode(
+    pub(crate) fn start_current_professional_decode(
         &mut self,
         path: PathBuf,
         generation: u64,
         cancellation: lumia_core::DecodeCancellation,
         cx: &mut Context<Self>,
     ) {
+        let Some(manifest) = self.professional_decoder_manifest(&path) else {
+            self.loads.finish_decode(generation);
+            self.ui.error_message = Some(professional_error_message(
+                self.settings.language,
+                &path,
+                ProfessionalDecodeError::PluginUnavailable,
+            ));
+            cx.notify();
+            return;
+        };
+
         cx.spawn(async move |this, cx| {
             let decode_path = path.clone();
+            let decode_cancellation = cancellation.clone();
             let result = cx
                 .background_executor()
-                .spawn(async move { decode_photoshop(&decode_path) })
+                .spawn(async move {
+                    decode_professional_preview(&decode_path, &manifest, &decode_cancellation)
+                })
                 .await;
             let _ = this.update(cx, |this, cx| {
                 if !this.loads.finish_decode(generation)
@@ -56,10 +62,14 @@ impl LumiaApp {
                             this.rebuild_rotated_image(None, cx);
                         }
                     }
+                    Err(ProfessionalDecodeError::Cancelled) => {}
                     Err(error) => {
-                        this.ui.error_message = Some(format!(
-                            "{}: {error:#}",
-                            tr(this.settings.language, TextKey::PhotoshopPreviewFailed)
+                        this.loads.clear_display_images();
+                        this.release_retired_images(None, cx);
+                        this.ui.error_message = Some(professional_error_message(
+                            this.settings.language,
+                            &path,
+                            error,
                         ));
                     }
                 }
@@ -68,90 +78,45 @@ impl LumiaApp {
         })
         .detach();
     }
-}
 
-struct ProfessionalPreview {
-    image: PreparedImage,
-    metadata: ImageMetadata,
-}
-
-fn decode_photoshop(path: &Path) -> Result<ProfessionalPreview> {
-    let manifest = photoshop_manifest()?;
-    let mut process = PluginProcess::spawn(&manifest).context("start Photoshop preview plugin")?;
-    process
-        .initialize_for(&manifest)
-        .context("initialize Photoshop preview plugin")?;
-
-    let input = ImagePath {
-        path: path.to_path_buf(),
-        media_type: Some("image/vnd.adobe.photoshop".to_string()),
-    };
-    let probe: ProbeResult = process
-        .request(
-            "image.probe",
-            ProbeParams {
-                input: input.clone(),
-            },
-        )
-        .context("probe Photoshop document")?;
-    if !probe.can_decode {
-        anyhow::bail!("plugin cannot decode this Photoshop document");
-    }
-
-    let output_path = preview_cache_path(path)?;
-    if !output_path.is_file() {
-        let result: DecodePreviewResult = process
-            .request(
-                "image.decode_preview",
-                DecodePreviewParams {
-                    input,
-                    output_path: output_path.clone(),
-                    max_width: MAX_PREVIEW_SIDE,
-                    max_height: MAX_PREVIEW_SIDE,
-                },
-            )
-            .context("decode Photoshop composite preview")?;
-        if result.output.path != output_path
-            || result.output.media_type.as_deref() != Some("image/png")
-        {
-            anyhow::bail!("plugin returned an unexpected preview output");
+    fn professional_decoder_manifest(&self, path: &Path) -> Option<PluginManifest> {
+        let extension = path.extension()?.to_str()?;
+        if let Some(plugin) = self.plugins.registry.decoder_for_extension(extension) {
+            let mut manifest = plugin.manifest.clone();
+            manifest.entry = plugin.entry_path();
+            return Some(manifest);
+        }
+        if extension.eq_ignore_ascii_case("psd") || extension.eq_ignore_ascii_case("psb") {
+            photoshop_manifest().ok()
+        } else {
+            None
         }
     }
-
-    let decoded = lumia_core::load_decoded_image_from_path(&output_path)
-        .context("load Photoshop preview PNG")?;
-    let metadata = ImageMetadata {
-        width: probe.width.unwrap_or(decoded.width),
-        height: probe.height.unwrap_or(decoded.height),
-        color: ColorDescription {
-            pixel_format: PixelFormat::U8,
-            transfer: TransferFunction::Srgb,
-            has_alpha: true,
-        },
-        format_name: probe.format_name,
-        exif: Default::default(),
-    };
-    Ok(ProfessionalPreview {
-        image: PreparedImage::from_decoded(decoded),
-        metadata,
-    })
 }
 
-fn preview_cache_path(path: &Path) -> Result<PathBuf> {
-    let metadata = std::fs::metadata(path).context("read Photoshop file metadata")?;
-    let mut hasher = DefaultHasher::new();
-    path.canonicalize()
-        .unwrap_or_else(|_| path.to_path_buf())
-        .hash(&mut hasher);
-    metadata.len().hash(&mut hasher);
-    metadata.modified().ok().hash(&mut hasher);
-    MAX_PREVIEW_SIDE.hash(&mut hasher);
-
-    let directory = std::env::temp_dir()
-        .join("lumia")
-        .join("photoshop-previews");
-    std::fs::create_dir_all(&directory).context("create Photoshop preview cache")?;
-    Ok(directory.join(format!("{:016x}.png", hasher.finish())))
+fn professional_error_message(
+    language: Language,
+    path: &Path,
+    error: ProfessionalDecodeError,
+) -> String {
+    let key = match error {
+        ProfessionalDecodeError::UnsupportedFormat => TextKey::ProfessionalUnsupported,
+        ProfessionalDecodeError::CorruptImage => TextKey::ProfessionalCorrupt,
+        ProfessionalDecodeError::ResourceLimit => TextKey::ProfessionalResourceLimit,
+        ProfessionalDecodeError::DecodeFailed | ProfessionalDecodeError::Cancelled => {
+            TextKey::ProfessionalDecodeFailed
+        }
+        ProfessionalDecodeError::PluginUnavailable
+            if path
+                .extension()
+                .and_then(|value| value.to_str())
+                .is_some_and(lumia_core::is_raw_image_extension) =>
+        {
+            TextKey::ProfessionalPluginUnavailable
+        }
+        ProfessionalDecodeError::PluginUnavailable => TextKey::PhotoshopPreviewFailed,
+    };
+    tr(language, key).to_string()
 }
 
 #[cfg(test)]
@@ -159,9 +124,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn photoshop_path_matching_is_case_insensitive() {
-        assert!(is_photoshop_path(Path::new("image.PSD")));
-        assert!(is_photoshop_path(Path::new("large.psb")));
-        assert!(!is_photoshop_path(Path::new("image.png")));
+    fn professional_path_matching_is_case_insensitive() {
+        assert!(is_professional_path(Path::new("image.PSD")));
+        assert!(is_professional_path(Path::new("large.psb")));
+        assert!(is_professional_path(Path::new("photo.DNG")));
+        assert!(is_professional_path(Path::new("photo.nEf")));
+        assert!(!is_professional_path(Path::new("image.png")));
     }
 }

@@ -64,6 +64,26 @@ impl PluginRegistry {
             .filter(|plugin| !plugin.manifest.contributions.commands.is_empty())
     }
 
+    pub(crate) fn decoder_for_extension(&self, extension: &str) -> Option<&InstalledPlugin> {
+        self.plugins.iter().find(|plugin| {
+            plugin
+                .manifest
+                .capabilities
+                .contains(&lumia_plugin_api::PluginCapability::Probe)
+                && plugin
+                    .manifest
+                    .capabilities
+                    .contains(&lumia_plugin_api::PluginCapability::DecodePreview)
+                && plugin
+                    .manifest
+                    .supported_extensions
+                    .iter()
+                    .any(|candidate| {
+                        candidate.eq_ignore_ascii_case(extension.trim_start_matches('.'))
+                    })
+        })
+    }
+
     pub(crate) fn get(&self, id: &str) -> Option<&InstalledPlugin> {
         self.plugins.iter().find(|plugin| plugin.manifest.id == id)
     }
@@ -147,6 +167,35 @@ fn discover_root(root: &Path, plugins: &mut Vec<InstalledPlugin>) {
         }
     }
 }
+fn validate_official_plugin_manifest(manifest: &PluginManifest) -> Result<()> {
+    let decoder = manifest
+        .capabilities
+        .contains(&lumia_plugin_api::PluginCapability::Probe)
+        && manifest
+            .capabilities
+            .contains(&lumia_plugin_api::PluginCapability::DecodePreview);
+    let ui = manifest
+        .capabilities
+        .contains(&lumia_plugin_api::PluginCapability::UiContributions)
+        || !manifest.contributions.commands.is_empty()
+        || !manifest.contributions.viewer_context_menu.is_empty()
+        || !manifest.contributions.right_panels.is_empty()
+        || !manifest.contributions.canvas_tools.is_empty();
+
+    if !decoder && !ui {
+        anyhow::bail!("plugin declares neither decoder nor UI capabilities");
+    }
+    if decoder {
+        validate_decode_preview_manifest(manifest).context("validate decoder capabilities")?;
+        if manifest.supported_extensions.is_empty() {
+            anyhow::bail!("decoder plugin declares no supported extensions");
+        }
+    }
+    if ui {
+        validate_ui_manifest(manifest).context("validate UI contributions")?;
+    }
+    Ok(())
+}
 
 pub(crate) fn load_official_ui_plugin(root: &Path) -> Result<InstalledPlugin> {
     let manifest_path = root.join("lumia.plugin.json");
@@ -158,7 +207,7 @@ pub(crate) fn load_official_ui_plugin(root: &Path) -> Result<InstalledPlugin> {
     if !is_official_plugin_id(&manifest.id) {
         anyhow::bail!("plugin {} is not in the official allowlist", manifest.id);
     }
-    validate_ui_manifest(&manifest).context("validate UI contributions")?;
+    validate_official_plugin_manifest(&manifest)?;
     let entry = resolved_entry_path(root, &manifest.entry);
     if !entry.is_file() {
         anyhow::bail!("plugin entry is missing: {}", entry.display());

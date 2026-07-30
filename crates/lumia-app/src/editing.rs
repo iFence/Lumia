@@ -139,7 +139,9 @@ impl LumiaApp {
             .and_then(|extension| extension.to_str())
             .unwrap_or_default()
             .to_ascii_lowercase();
-        if matches!(extension.as_str(), "gif" | "svg" | "psd" | "psb") {
+        if matches!(extension.as_str(), "gif" | "svg" | "psd" | "psb")
+            || lumia_core::is_raw_image_extension(&extension)
+        {
             return Some("format");
         }
         if self.large_image.is_active(path) {

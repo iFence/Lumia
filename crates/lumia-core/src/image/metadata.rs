@@ -30,6 +30,7 @@ pub(super) fn read_exif_metadata(path: &Path) -> ExifMetadata {
         camera_make: ascii_field(&exif, Tag::Make),
         camera_model: ascii_field(&exif, Tag::Model),
         software: ascii_field(&exif, Tag::Software),
+        lens: ascii_field(&exif, Tag::LensModel),
         date_taken: ascii_field(&exif, Tag::DateTimeOriginal).map(format_exif_datetime),
         flash: unsigned_field(&exif, Tag::Flash)
             .map(|value| if value & 1 == 1 { "Yes" } else { "No" }.to_owned()),

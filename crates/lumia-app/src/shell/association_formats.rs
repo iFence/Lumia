@@ -55,6 +55,15 @@ pub(super) const ASSOCIATION_FORMATS: &[AssociationFormat] = &[
         ],
         &["image/vnd.adobe.photoshop"],
     ),
+    format(
+        &[
+            "dng", "cr2", "cr3", "crw", "nef", "nrw", "arw", "sr2", "srf", "raf", "orf", "rw2",
+            "rwl", "pef", "srw", "3fr", "fff", "mef", "mos", "mrw", "kdc", "dcr", "erf", "x3f",
+            "iiq",
+        ],
+        &["com.ifence.lumia.camera-raw"],
+        &["image/x-camera-raw"],
+    ),
 ];
 
 const fn format(

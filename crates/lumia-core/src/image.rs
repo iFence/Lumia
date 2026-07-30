@@ -15,9 +15,9 @@ pub use edit::{
 };
 pub use error::ImageLoadError;
 pub use formats::{
-    is_supported_image_extension, requires_plugin_preview_extension, supported_image_extensions,
-    supported_image_format_groups, ImageFormatGroup, SUPPORTED_IMAGE_EXTENSIONS,
-    SUPPORTED_IMAGE_FORMAT_GROUPS,
+    is_raw_image_extension, is_supported_image_extension, requires_plugin_preview_extension,
+    supported_image_extensions, supported_image_format_groups, ImageFormatGroup,
+    RAW_IMAGE_EXTENSIONS, SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_IMAGE_FORMAT_GROUPS,
 };
 pub use heif::{decode_heic, decode_heic_thumbnail, decode_heic_with_cancellation};
 pub use large::decode_large_image_preview;
