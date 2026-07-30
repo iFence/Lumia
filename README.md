@@ -29,10 +29,10 @@ Lumia is organized around four capability layers:
 |---|---|---|
 | Core viewer | Image preview; zoom, pan, and display rotation; image information; EXIF display; folder browsing; basic sorting, filtering, and favorites; fast preview for common formats | Built into the app and optimized for startup time, open latency, memory use, and stability |
 | Built-in light editing | Rotate, crop, mirror, resize, simple compression, simple color adjustments, and export copy | Built in only when the operation is lightweight and copy-export oriented |
-| Official bundled plugins | RAW, HDR, HEIC/HEIF, professional/advanced format preview, and simple format conversion | Shipped with default builds, but implemented through the plugin protocol |
+| Official plugins | Bundled PSD/PSB composite preview, optional RAW preview, and future HDR, HEIC/HEIF, advanced-format preview, and simple format conversion | Implemented through the process-plugin protocol; each plugin may be bundled or released separately according to its size and dependencies |
 | Optional plugins | AI stylization, background removal, super-resolution, repair, outpainting, denoising, batch watermarking, batch conversion, compression plugins, cloud model plugins, and local model plugins | Installed or enabled separately through the same process-plugin boundary |
 
-Current implementation status: single-image preview, zoom, pan, display rotation, image information, sibling-image navigation, adjacent preloading, settings, lightweight crop/resize copy export, the stdio JSON-RPC plugin protocol, bundled PSD/PSB composite preview, and declarative plugin UI contributions are in place. EXIF, full folder browsing UI, favorites, filtering, additional professional-format plugins, and AI/batch plugins are product goals rather than complete features.
+Current implementation status: single-image preview, zoom, pan, display rotation, image information, sibling-image navigation, adjacent preloading, settings, lightweight crop/resize copy export, the stdio JSON-RPC plugin protocol, bundled PSD/PSB composite preview, optional signed RAW preview, and declarative plugin UI contributions are in place. Full folder browsing UI, favorites, filtering, additional professional-format plugins, and AI/batch plugins are product goals rather than complete features.
 
 ### Very large images
 
@@ -101,7 +101,7 @@ On macOS and Linux, clearing a format restores the handler captured when Lumia f
 
 ## Official Bundled Plugins
 
-Official plugins are installed, upgraded, and removed together with Lumia. Users do not need to download or copy the Photoshop plugin separately. Release artifacts preserve this application-relative layout:
+The bundled Photoshop preview plugin is installed, upgraded, and removed together with Lumia. Users do not need to download or copy it separately. Release artifacts preserve this application-relative layout:
 
 ```text
 Lumia/
@@ -112,7 +112,30 @@ Lumia/
       lumia.plugin.json
 ```
 
-The MSI, Windows portable ZIP, macOS app bundle, and Linux archive all contain this layout.
+The MSI, Windows portable ZIP, macOS app bundle, and Linux archive all contain this layout. The official RAW and Annotation plugins are published separately as signed `.lumiaplugin` packages.
+
+## Optional RAW Plugin
+
+The official `lumia.raw` plugin adds process-isolated camera RAW preview without placing LibRaw or another heavy decoder in Lumia's core process. It is released as a separate signed `.lumiaplugin` package and is not included in the default Lumia installer or portable archive. Lumia still recognizes supported RAW files when the plugin is absent and displays installation and restart guidance instead of treating them as unknown images.
+
+The plugin uses LibRaw 0.22.2 to decode an orientation-corrected, 8-bit sRGB PNG preview whose longest edge is at most 4096 pixels. It also maps available camera make and model, lens, ISO, shutter speed, aperture, focal length, capture time, and GPS coordinates into Lumia's image information panel.
+
+The signed Windows plugin package contains LibRaw and all of its native decoder dependencies. Users only install the `.lumiaplugin` package; no separate LibRaw, zlib, JPEG, or Microsoft Visual C++ runtime installation is required.
+
+Supported extensions are matched case-insensitively:
+
+`.dng`, `.cr2`, `.cr3`, `.crw`, `.nef`, `.nrw`, `.arw`, `.sr2`, `.srf`, `.raf`, `.orf`, `.rw2`, `.rwl`, `.pef`, `.srw`, `.3fr`, `.fff`, `.mef`, `.mos`, `.mrw`, `.kdc`, `.dcr`, `.erf`, `.x3f`, and `.iiq`.
+
+RAW support is read-only in this first release. Browsing, zoom, pan, display rotation, and image information remain available, while editing, annotation, and exports derived from preview pixels are disabled so the preview is never mistaken for full-resolution source data.
+
+To install the RAW plugin:
+
+1. Download the `Lumia-RAW-<platform>-<architecture>.lumiaplugin` asset matching your system from the GitHub Release.
+2. Open **Settings -> Plugins** and choose **Install from file**.
+3. Select the package, review its identity and permissions, then choose **Install**.
+4. Restart Lumia and open a supported RAW file.
+
+Remove or upgrade the plugin from the same **Settings -> Plugins** page. Package and payload signatures, target platform, plugin API compatibility, paths, sizes, and SHA-256 digests are verified before installation.
 
 ## Optional Annotation Plugin
 
@@ -171,6 +194,7 @@ The `--register-context-menu` command is designed for portable / development use
 - `crates/lumia-plugin-host`: process plugin launcher and newline-delimited stdio transport.
 - `plugins/lumia-plugin-sample`: minimal process plugin used to validate the protocol.
 - `plugins/lumia-plugin-photoshop`: official bundled PSD/PSB composite-preview plugin.
+- `plugins/lumia-plugin-raw`: optional official LibRaw-backed camera RAW preview plugin, including the native bridge sources.
 - `plugins/lumia-plugin-annotation`: optional official icon-annotation plugin and signed package metadata.
 
 ## Architecture
@@ -256,7 +280,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-GitHub Actions will build the Setup EXE, both localized MSI packages, portable zip, platform binaries, and separate signed Annotation plugin archives, then attach them to a new [Release](https://github.com/iFence/Lumia/releases).
+GitHub Actions will build the Setup EXE, both localized MSI packages, portable zip, platform binaries, and separate signed Annotation and RAW plugin archives, then verify and attach them to a new [Release](https://github.com/iFence/Lumia/releases).
 
 ## Image Format Strategy
 
@@ -264,10 +288,10 @@ GitHub Actions will build the Setup EXE, both localized MSI packages, portable z
 |---|---|---|
 | Common web and desktop formats | `.jpg` `.jpeg` `.png` `.gif` `.webp` `.bmp` `.ico` `.tga` `.tif` `.tiff` | Core viewer fast path where dependencies stay lightweight |
 | Additional lightweight formats | `.avif` `.dds` `.ff` `.farbfeld` `.pbm` `.pam` `.ppm` `.pgm` `.qoi` `.svg` | Core or plugin depending on dependency and rendering cost |
-| Professional and heavy preview formats | `.hdr` `.exr` `.heic` `.heif` `.psd` `.psb` plus future RAW formats | Official bundled plugins by default; PSD/PSB composite preview is implemented |
+| Professional and heavy preview formats | `.hdr` `.exr` `.heic` `.heif` `.psd` `.psb` and the camera RAW extensions listed above | PSD/PSB uses the bundled Photoshop plugin; RAW uses the optional signed `lumia.raw` plugin |
 | Conversion and batch output formats | Project-defined per plugin | Plugin protocol |
 
-Current registered extensions include 26 extensions across 18 format families. PSD/PSB support previews the stored composite image through the bundled process plugin; it does not expose layers or edit Photoshop documents. The current decoder accepts RGB, grayscale, indexed, or bitmap documents with a valid raw/RLE composite; unsupported color modes, 32-bit documents, ZIP-only composites, or missing composites fail with an explicit preview error. Registration does not mean every advanced format should remain implemented inside the core app.
+Current registered extensions include 51 extensions across 19 format families. PSD/PSB support previews the stored composite image through the bundled process plugin; it does not expose layers or edit Photoshop documents. RAW support uses the optional process plugin described above and remains read-only. Registration does not mean every advanced format should be implemented inside the core app.
 
 Build the application and bundled Photoshop plugin together with:
 
