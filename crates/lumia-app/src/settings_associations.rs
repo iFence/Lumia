@@ -1,15 +1,16 @@
 use gpui::{
-    div, px, rgb, Context, InteractiveElement, IntoElement, ParentElement,
+    div, px, rgb, Context, FontWeight, InteractiveElement, IntoElement, ParentElement,
     StatefulInteractiveElement, Styled,
 };
 use gpui_component::checkbox::Checkbox;
-use lumia_core::{supported_image_format_groups, SUPPORTED_IMAGE_EXTENSIONS};
+use lumia_core::SUPPORTED_IMAGE_EXTENSIONS;
 
 use crate::app::LumiaApp;
 use crate::file_association_state::FileAssociationFeedback;
 use crate::i18n::{tr, TextKey};
 use crate::palette::Palette;
-use crate::widgets::{settings_action_button, settings_label};
+use crate::settings_association_formats::FILE_ASSOCIATION_CATEGORIES;
+use crate::widgets::settings_action_button;
 
 impl LumiaApp {
     pub(crate) fn render_file_association_settings(
@@ -23,13 +24,49 @@ impl LumiaApp {
         let has_selection = !selected.is_empty();
         let is_dirty = self.ui.file_associations.is_dirty();
         let is_busy = self.ui.file_associations.is_busy;
+        let selected_summary = format!(
+            "{} {}/{}",
+            tr(language, TextKey::SelectedFormats),
+            selected.len(),
+            SUPPORTED_IMAGE_EXTENSIONS.len()
+        );
 
         let header = div()
             .flex()
-            .items_center()
+            .items_start()
             .justify_between()
             .gap_4()
-            .child(settings_label(tr(language, TextKey::FileAssociations)))
+            .child(
+                div()
+                    .flex_1()
+                    .flex()
+                    .flex_col()
+                    .gap_1()
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(
+                                div()
+                                    .text_sm()
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .child(tr(language, TextKey::FileAssociations)),
+                            )
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .text_color(rgb(palette.muted_text))
+                                    .child(selected_summary),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(rgb(palette.muted_text))
+                            .child(tr(language, TextKey::ImageFormatsDescription)),
+                    ),
+            )
             .child(
                 div()
                     .flex()
@@ -68,57 +105,86 @@ impl LumiaApp {
         let mut formats = div()
             .id("file-association-format-grid")
             .flex_1()
-            .grid()
-            .grid_cols(2)
-            .gap_2()
+            .flex()
+            .flex_col()
+            .gap_4()
             .content_start()
-            .overflow_y_scroll();
-        for group in supported_image_format_groups() {
-            let label = format!(
-                "{} ({})",
-                group.name,
-                group
-                    .extensions
-                    .iter()
-                    .map(|extension| format!(".{extension}"))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            );
-            let checked = group
+            .overflow_y_scroll()
+            .pr_1();
+        for category in FILE_ASSOCIATION_CATEGORIES {
+            let category_selected = category
                 .extensions
                 .iter()
-                .all(|extension| selected.contains(*extension));
-            let extensions = group.extensions;
-            let self_handle = self.self_handle.clone();
+                .filter(|extension| selected.contains(**extension))
+                .count();
+            let category_count = format!("{category_selected}/{}", category.extensions.len());
+            let mut grid = div().grid().grid_cols(4).gap_2();
+
+            for &extension in category.extensions {
+                let checked = selected.contains(extension);
+                let self_handle = self.self_handle.clone();
+                grid = grid.child(
+                    div()
+                        .id(format!("file-association-card-{extension}"))
+                        .w_full()
+                        .h(px(38.0))
+                        .px_2()
+                        .flex()
+                        .items_center()
+                        .rounded_md()
+                        .border_1()
+                        .border_color(rgb(if checked {
+                            palette.accent
+                        } else {
+                            palette.border
+                        }))
+                        .bg(rgb(if checked {
+                            palette.accent_soft
+                        } else {
+                            palette.subtle_bg
+                        }))
+                        .hover(move |style| style.bg(rgb(palette.button_hover)))
+                        .child(
+                            Checkbox::new(format!("file-association-{extension}"))
+                                .checked(checked)
+                                .label(extension.to_ascii_uppercase())
+                                .on_click(move |checked, _, cx| {
+                                    let _ = self_handle.update(cx, |this, cx| {
+                                        this.set_file_association_extension(
+                                            extension, *checked, cx,
+                                        );
+                                    });
+                                }),
+                        ),
+                );
+            }
+
             formats = formats.child(
                 div()
-                    .id(format!("file-association-card-{}", group.id))
+                    .id(format!("file-association-category-{}", category.id))
                     .w_full()
-                    .min_h(px(52.0))
-                    .p_3()
-                    .rounded_md()
-                    .border_1()
-                    .border_color(rgb(if checked {
-                        palette.accent
-                    } else {
-                        palette.border
-                    }))
-                    .bg(rgb(if checked {
-                        palette.accent_soft
-                    } else {
-                        palette.subtle_bg
-                    }))
-                    .hover(move |style| style.bg(rgb(palette.button_hover)))
+                    .flex()
+                    .flex_col()
+                    .gap_2()
                     .child(
-                        Checkbox::new(format!("file-association-{}", group.id))
-                            .checked(checked)
-                            .label(label)
-                            .on_click(move |checked, _, cx| {
-                                let _ = self_handle.update(cx, |this, cx| {
-                                    this.set_file_association_group(extensions, *checked, cx);
-                                });
-                            }),
-                    ),
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .child(tr(language, category.title)),
+                            )
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .text_color(rgb(palette.muted_text))
+                                    .child(category_count),
+                            ),
+                    )
+                    .child(grid),
             );
         }
 

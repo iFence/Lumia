@@ -36,6 +36,7 @@ mod professional_decode;
 mod professional_preview;
 mod render;
 mod settings_about;
+mod settings_association_formats;
 mod settings_associations;
 mod settings_general;
 mod settings_plugins;

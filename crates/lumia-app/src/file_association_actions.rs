@@ -60,24 +60,22 @@ impl LumiaApp {
         self.initialize_file_associations(cx);
     }
 
-    pub(crate) fn set_file_association_group(
+    pub(crate) fn set_file_association_extension(
         &mut self,
-        extensions: &'static [&'static str],
+        extension: &'static str,
         selected: bool,
         cx: &mut Context<Self>,
     ) {
-        for extension in extensions {
-            if selected {
-                self.ui
-                    .file_associations
-                    .selected_extensions
-                    .insert((*extension).to_string());
-            } else {
-                self.ui
-                    .file_associations
-                    .selected_extensions
-                    .remove(*extension);
-            }
+        if selected {
+            self.ui
+                .file_associations
+                .selected_extensions
+                .insert(extension.to_string());
+        } else {
+            self.ui
+                .file_associations
+                .selected_extensions
+                .remove(extension);
         }
         self.ui.file_associations.feedback = None;
         cx.notify();
