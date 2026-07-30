@@ -68,8 +68,16 @@ jobs:
           fail_on_unmatched_files: true
 
   macos-release:
-    name: macOS .dmg
-    runs-on: macos-latest
+    name: macOS ${{ matrix.arch }} .dmg
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -85,15 +93,15 @@ jobs:
       - name: Package optional Annotation plugin
         env:
           LUMIA_PLUGIN_SIGNING_KEY_PEM: ${{ secrets.LUMIA_PLUGIN_SIGNING_KEY_PEM }}
-        run: ./scripts/package-annotation-plugin.sh macos "$(uname -m)"
+        run: ./scripts/package-annotation-plugin.sh macos "${{ matrix.arch }}"
       - name: Verify Annotation package with Lumia
-        run: target/release/lumia-app --verify-plugin-package target/Lumia-Annotation-macos-*.lumiaplugin
+        run: target/release/lumia-app --verify-plugin-package "target/Lumia-Annotation-macos-${{ matrix.arch }}.lumiaplugin"
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            target/Lumia-macos-*.dmg
-            target/Lumia-Annotation-macos-*.lumiaplugin
+            target/Lumia-macos-${{ matrix.arch }}.dmg
+            target/Lumia-Annotation-macos-${{ matrix.arch }}.lumiaplugin
           fail_on_unmatched_files: true
 
   linux-release:

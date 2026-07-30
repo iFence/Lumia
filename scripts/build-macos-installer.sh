@@ -55,7 +55,15 @@ if [ "$NO_DMG" -eq 1 ]; then
 fi
 
 echo "Creating .dmg..."
-DMG_NAME="$APP_NAME-macos-$(uname -m).dmg"
+case "$(uname -m)" in
+    arm64) DMG_ARCH="arm64" ;;
+    x86_64) DMG_ARCH="x64" ;;
+    *)
+        echo "Unsupported macOS architecture: $(uname -m)" >&2
+        exit 1
+        ;;
+esac
+DMG_NAME="$APP_NAME-macos-$DMG_ARCH.dmg"
 STAGING="$(mktemp -d)"
 ln -s /Applications "$STAGING/Applications"
 cp -R "$APP_DIR" "$STAGING/"

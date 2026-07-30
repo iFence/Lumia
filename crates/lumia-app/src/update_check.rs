@@ -94,9 +94,13 @@ fn select_asset(assets: &[GithubAsset]) -> Option<UpdateAsset> {
         {
             name.starts_with("Lumia-Setup-") && name.ends_with("-x64.exe")
         }
-        #[cfg(target_os = "macos")]
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
         {
-            name.starts_with("Lumia-macos-") && name.ends_with(".dmg")
+            name == "Lumia-macos-arm64.dmg"
+        }
+        #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+        {
+            name == "Lumia-macos-x64.dmg"
         }
         #[cfg(all(unix, not(target_os = "macos")))]
         {

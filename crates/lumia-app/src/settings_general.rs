@@ -2,7 +2,7 @@ use gpui::{
     div, Context, InteractiveElement, IntoElement, ParentElement, StatefulInteractiveElement,
     Styled, Window,
 };
-use gpui_component::checkbox::Checkbox;
+use gpui_component::switch::Switch;
 use lumia_core::{Language, ThemeAccent, ThemeMode};
 
 use crate::app::LumiaApp;
@@ -131,7 +131,7 @@ impl LumiaApp {
                     .gap_4()
                     .child(settings_label(tr(language, TextKey::CheckUpdatesOnStartup)))
                     .child(
-                        Checkbox::new("settings-check-updates-startup")
+                        Switch::new("settings-check-updates-startup")
                             .checked(check_updates_on_startup)
                             .on_click({
                                 let self_handle = self_handle.clone();
