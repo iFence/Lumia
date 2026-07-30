@@ -44,8 +44,7 @@ impl LumiaApp {
                         "settings-language-select",
                         tr(language, language_text_key(selected_language)),
                         move |menu, _, _| {
-                            menu.label(tr(language, TextKey::Language))
-                                .menu_with_check(
+                            menu.menu_with_check(
                                     tr(language, TextKey::English),
                                     selected_language == Language::English,
                                     Box::new(SelectLanguage(Language::English)),
@@ -69,8 +68,7 @@ impl LumiaApp {
                         "settings-theme-select",
                         tr(language, theme_mode_text_key(selected_theme)),
                         move |menu, _, _| {
-                            menu.label(tr(language, TextKey::Theme))
-                                .menu_with_check(
+                            menu.menu_with_check(
                                     tr(language, TextKey::Light),
                                     selected_theme == ThemeMode::Light,
                                     Box::new(SelectThemeMode(ThemeMode::Light)),
@@ -99,8 +97,7 @@ impl LumiaApp {
                         "settings-theme-accent-select",
                         tr(language, theme_accent_text_key(selected_accent)),
                         move |menu, _, _| {
-                            menu.label(tr(language, TextKey::ThemeColor))
-                                .menu_with_check(
+                            menu.menu_with_check(
                                     tr(language, TextKey::AccentBlue),
                                     selected_accent == ThemeAccent::Blue,
                                     Box::new(SelectThemeAccent(ThemeAccent::Blue)),

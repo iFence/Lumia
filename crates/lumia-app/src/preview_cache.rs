@@ -373,7 +373,7 @@ mod tests {
                 transfer: TransferFunction::Srgb,
                 has_alpha: false,
             },
-            format_name: Some("Jpeg".into()),
+            format_name: Some("jpeg".into()),
             exif: Default::default(),
         }
     }

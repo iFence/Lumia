@@ -78,7 +78,7 @@ mod tests {
                 transfer: TransferFunction::Srgb,
                 has_alpha: false,
             },
-            format_name: Some("Png".into()),
+            format_name: Some("png".into()),
             exif: Default::default(),
         });
         document

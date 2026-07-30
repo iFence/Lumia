@@ -1,8 +1,9 @@
 use gpui::{
-    div, point, px, rgb, AnyElement, Context, InteractiveElement, IntoElement, MouseButton,
-    ParentElement, Pixels, Point, Styled, Window,
+    div, point, px, rgb, AnyElement, Context, InteractiveElement, IntoElement, Keystroke,
+    MouseButton, ParentElement, Pixels, Point, Styled, Window,
 };
 use gpui_component::{Icon, IconName};
+use lumia_core::ShortcutId;
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
@@ -14,7 +15,7 @@ use crate::{
     ZOOM_MENU_RIGHT, ZOOM_MENU_WIDTH,
 };
 
-const CONTEXT_MENU_WIDTH: f32 = 156.0;
+const CONTEXT_MENU_WIDTH: f32 = 192.0;
 const CONTEXT_MENU_MARGIN: f32 = 8.0;
 
 impl LumiaApp {
@@ -174,6 +175,7 @@ impl LumiaApp {
                 .child(context_menu_item(
                     "open-menu-item",
                     tr(language, TextKey::Open),
+                    Keystroke::parse(&self.get_shortcut_binding(ShortcutId::OpenFile)).ok(),
                     palette,
                     cx,
                     |this, _, _, cx| {
@@ -183,6 +185,7 @@ impl LumiaApp {
                 .child(context_menu_item(
                     "open-url-menu-item",
                     tr(language, TextKey::OpenUrl),
+                    None,
                     palette,
                     cx,
                     |this, _, window, cx| {
@@ -193,6 +196,7 @@ impl LumiaApp {
                     "slideshow-menu-item",
                     tr(language, slideshow_label),
                     slideshow_enabled,
+                    None,
                     palette,
                     cx,
                     |this, _, window, cx| {
@@ -204,6 +208,7 @@ impl LumiaApp {
                 .child(context_menu_item(
                     "settings-menu-item",
                     tr(language, TextKey::Settings),
+                    None,
                     palette,
                     cx,
                     |this, _, _, cx| {
@@ -213,6 +218,7 @@ impl LumiaApp {
                 .child(context_menu_item(
                     "about-menu-item",
                     tr(language, TextKey::About),
+                    None,
                     palette,
                     cx,
                     |this, _, _, cx| {
@@ -224,6 +230,7 @@ impl LumiaApp {
                 .child(context_menu_item(
                     "quit-menu-item",
                     tr(language, TextKey::Quit),
+                    Keystroke::parse(&self.get_shortcut_binding(ShortcutId::Quit)).ok(),
                     palette,
                     cx,
                     |this, _, _, cx| {
@@ -257,7 +264,7 @@ mod tests {
     fn context_menu_coordinate_stays_inside_trailing_edge() {
         assert_eq!(
             clamp_menu_coordinate(790.0, 800.0, CONTEXT_MENU_WIDTH, 0.0),
-            636.0
+            600.0
         );
         assert_eq!(
             clamp_menu_coordinate(590.0, 600.0, context_menu_height(0), STATUS_BAR_HEIGHT),

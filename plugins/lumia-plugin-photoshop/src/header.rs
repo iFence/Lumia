@@ -12,8 +12,8 @@ pub(crate) enum PhotoshopKind {
 impl PhotoshopKind {
     pub(crate) fn name(self) -> &'static str {
         match self {
-            Self::Psd => "PSD",
-            Self::Psb => "PSB",
+            Self::Psd => "psd",
+            Self::Psb => "psb",
         }
     }
 }

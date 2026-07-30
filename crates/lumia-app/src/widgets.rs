@@ -18,17 +18,19 @@ pub(crate) const CONTEXT_MENU_ITEM_HEIGHT: f32 = 28.0;
 pub(crate) fn context_menu_item(
     id: &'static str,
     label: &'static str,
+    shortcut: Option<Keystroke>,
     palette: Palette,
     cx: &mut Context<LumiaApp>,
     on_click: impl Fn(&mut LumiaApp, &MouseDownEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
 ) -> gpui::AnyElement {
-    context_menu_item_enabled(id, label, true, palette, cx, on_click)
+    context_menu_item_enabled(id, label, true, shortcut, palette, cx, on_click)
 }
 
 pub(crate) fn context_menu_item_enabled(
     id: &'static str,
     label: &'static str,
     enabled: bool,
+    shortcut: Option<Keystroke>,
     palette: Palette,
     cx: &mut Context<LumiaApp>,
     on_click: impl Fn(&mut LumiaApp, &MouseDownEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
@@ -40,6 +42,8 @@ pub(crate) fn context_menu_item_enabled(
         .px_3()
         .flex()
         .items_center()
+        .justify_between()
+        .gap_2()
         .text_color(rgb(if enabled {
             palette.text
         } else {
@@ -57,6 +61,7 @@ pub(crate) fn context_menu_item_enabled(
                 )
         })
         .child(label)
+        .children(shortcut.map(|keystroke| Kbd::new(keystroke).outline()))
         .into_any_element()
 }
 

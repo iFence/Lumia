@@ -62,7 +62,7 @@ fn load_from_path_reads_raster_metadata_and_allows_svg_without_metadata() {
     let metadata = document.metadata.expect("png metadata");
     assert_eq!(metadata.width, 1);
     assert_eq!(metadata.height, 1);
-    assert_eq!(metadata.format_name.as_deref(), Some("Png"));
+    assert_eq!(metadata.format_name.as_deref(), Some("png"));
     fs::remove_file(&png).expect("remove temp png");
 
     let svg = temp_path("image.svg");

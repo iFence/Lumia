@@ -73,7 +73,7 @@ impl ImageDocument {
                         transfer: TransferFunction::Unknown,
                         has_alpha: info.has_alpha,
                     },
-                    format_name: Some("HEIF".into()),
+                    format_name: Some("heif".into()),
                     exif: read_exif_metadata(path),
                 }),
                 Some(file_bytes),
@@ -89,7 +89,7 @@ impl ImageDocument {
                     path: path.to_path_buf(),
                     source,
                 })?;
-            let format_name = reader.format().map(|format| format!("{format:?}"));
+            let format_name = reader.format().map(|format| format!("{format:?}").to_lowercase());
             let (width, height) =
                 reader
                     .into_dimensions()
