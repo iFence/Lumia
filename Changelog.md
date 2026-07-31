@@ -1,42 +1,58 @@
 # Changelog
 
-本文件用于维护每个版本对外发布的更新说明。
+This file tracks the user-facing release notes for each version.
 
-编写约定：
-- 每个版本使用 `## v版本号` 作为标题，例如 `## v0.1.3`
-- 标题下方直接填写会展示在应用更新弹窗中的 Markdown 内容
-- 使用 `---` 或下一个版本标题结束当前版本说明
+Conventions:
+- Each version uses `## vX.Y.Z` as the heading, e.g. `## v0.1.3`
+- The content below the heading is what appears in the in-app update dialog
+- End each version section with `---` or by starting the next version heading
+
+## v0.2.0
+
+### ✨ New Features
+- **RAW preview plugin**: install the optional RAW plugin to browse camera RAW photos (e.g. CR2, NEF, ARW).
+- **View photo location on a map**: a new status-bar entry opens the photo's GPS shooting location in your system map.
+- **Info panel quick actions**: the image-info overlay now has one-click copy and close buttons for easier EXIF viewing and sharing.
+- **File association redesign**: the image format association settings have been overhauled for a more intuitive way to manage file types.
+
+### 🚀 Improvements
+- **More useful window title**: the title bar now shows the current image's position in its folder (e.g. "3/20"), so you can track browsing progress without opening the sidebar.
+- **Cleaner large-image viewing**: fixed thin seam artifacts that could appear when zooming very large images.
+- **More natural menu interactions**: edit and zoom menus now pop up right next to their trigger buttons; the status-bar edit menu toggles on click.
+- **Smarter empty-state hints**: the drag-to-open hint now shows the shortcut for your operating system (⌘ on macOS, Ctrl on Windows).
+
+---
 
 ## v0.1.5
 
-### ✨ 新增功能
-- 签名插件包安装：支持从文件安装官方签名的 `.lumiaplugin` 插件包，安装前验证签名、平台、架构和完整性。
-- 启动时更新检查：应用启动时自动查询 GitHub Release 是否有新版本，在设置-关于面板中显示更新提示。
+### ✨ New Features
+- **Signed plugin package installation**: install official signed `.lumiaplugin` packages from a file, with signature, platform, architecture, and integrity verified before install.
+- **Update check on startup**: Lumia checks GitHub Releases for a newer version on launch and shows a hint in Settings > About.
 
-### 🚀 优化改进
-- 完善 README 文档：添加版本号、下载量、许可证、平台等 GitHub 徽章，新增中文版 README。
-- 更新检查支持跳过特定版本，避免重复打扰。
+### 🚀 Improvements
+- **Improved README docs**: added version, download, license, and platform GitHub badges plus a Chinese README.
+- Update checks can skip a specific version so you are not bothered repeatedly.
 
 ---
 
 ## v0.1.3
 
-### ✨ 新增功能
-- 快速 JPEG 预览缓存：为相邻文件添加预加载机制，提升浏览流畅度。
-- 丰富的 EXIF 元数据提取与展示：支持更多 EXIF 标签的解析和显示。
+### ✨ New Features
+- **Fast JPEG preview cache**: preloads adjacent files for smoother browsing.
+- **Richer EXIF metadata**: parse and display more EXIF tags.
 
-### 🚀 优化改进
-- 修复 CI 发布工作流权限问题。
+### 🚀 Improvements
+- Fixed a CI release workflow permission issue.
 
 ---
 
 ## v0.1.2
 
-### ✨ 新增功能
-- 首个公开预览版本：基础图片浏览、缩放、平移、旋转。
-- 文件夹导航、EXIF 信息、文件关联与快捷键自定义。
+### ✨ New Features
+- First public preview release: basic image browsing, zoom, pan, and rotate.
+- Folder navigation, EXIF info, file associations, and customizable shortcuts.
 
-### 🚀 优化改进
-- 启动速度与内存占用针对日常浏览场景进行了调优。
+### 🚀 Improvements
+- Startup speed and memory usage tuned for everyday browsing.
 
 ---

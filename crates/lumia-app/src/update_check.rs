@@ -8,12 +8,17 @@ use semver::Version;
 
 use crate::app::LumiaApp;
 use crate::persistence::save_settings;
+use lumia_core::Language;
 
 const RELEASES_LATEST_URL: &str = "https://api.github.com/repos/iFence/lumia/releases/latest";
 const DEFAULT_BRANCH: &str = "master";
 
-fn changelog_url() -> String {
-    format!("https://raw.githubusercontent.com/iFence/lumia/{DEFAULT_BRANCH}/Changelog.md")
+fn changelog_url(language: Language) -> String {
+    let filename = match language {
+        Language::English => "Changelog.md",
+        Language::Chinese => "Changelog-zh-CN.md",
+    };
+    format!("https://raw.githubusercontent.com/iFence/lumia/{DEFAULT_BRANCH}/{filename}")
 }
 
 #[derive(Debug, Clone)]
@@ -228,6 +233,7 @@ struct UpdateInfo {
 async fn check_update(
     client: &Arc<dyn HttpClient>,
     current: &Version,
+    language: Language,
 ) -> anyhow::Result<Option<UpdateInfo>> {
     let json = fetch_text(client, RELEASES_LATEST_URL).await?;
     let release: GithubRelease =
@@ -246,7 +252,7 @@ async fn check_update(
     }
     let asset =
         select_asset(&release.assets).context("no matching installer asset for platform")?;
-    let notes = match fetch_text(client, &changelog_url()).await {
+    let notes = match fetch_text(client, &changelog_url(language)).await {
         Ok(content) => aggregate_release_notes(
             &parse_changelog(&content),
             current,
@@ -275,9 +281,10 @@ impl LumiaApp {
         let handle = self.self_handle.clone();
         let current =
             Version::parse(env!("CARGO_PKG_VERSION")).expect("CARGO_PKG_VERSION is valid semver");
+        let language = self.settings.language;
 
         cx.spawn(async move |_this, cx| {
-            let result = check_update(&client, &current).await;
+            let result = check_update(&client, &current, language).await;
             let _ = handle.update(cx, |this, cx| {
                 match result {
                     Ok(Some(info)) => {

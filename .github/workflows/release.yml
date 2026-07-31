@@ -8,8 +8,28 @@ permissions:
   contents: write
 
 jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract release notes for ${{ github.ref_name }}
+        run: |
+          mkdir -p target/release-notes
+          bash scripts/extract-release-notes.sh \
+            "${{ github.ref_name }}" \
+            Changelog.md \
+            > target/release-notes/body.md
+
+      - name: Create GitHub Release with changelog body
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: target/release-notes/body.md
+
   windows-release:
     name: Windows installer
+    needs: create-release
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -90,6 +110,7 @@ jobs:
 
   macos-release:
     name: macOS ${{ matrix.arch }} .dmg
+    needs: create-release
     strategy:
       fail-fast: false
       matrix:
@@ -144,6 +165,7 @@ jobs:
 
   linux-release:
     name: Linux tarball
+    needs: create-release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

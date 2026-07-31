@@ -180,6 +180,15 @@ fn select_asset_returns_none_when_no_match() {
 }
 
 #[test]
+fn changelog_url_maps_language_to_file() {
+    let url = changelog_url(Language::English);
+    assert!(url.ends_with("/Changelog.md"), "unexpected: {url}");
+
+    let url = changelog_url(Language::Chinese);
+    assert!(url.ends_with("/Changelog-zh-CN.md"), "unexpected: {url}");
+}
+
+#[test]
 fn update_check_ui_state_helpers() {
     let mut state = UpdateCheckUiState::default();
     assert!(!state.is_busy());
