@@ -1,12 +1,13 @@
 use gpui::{
-    div, img, px, AnyElement, InteractiveElement, IntoElement, ObjectFit, ParentElement, Styled,
-    StyledImage, Window,
+    AnyElement, InteractiveElement, IntoElement, ObjectFit, ParentElement, Styled, StyledImage,
+    Window, div, img, px,
 };
 use lumia_core::{ImagePixelRect, TileCoordinate, TileLevel};
 
-use crate::app::LumiaApp;
-
-const TILE_SIZE: u32 = 512;
+use crate::{
+    app::LumiaApp,
+    large_image::{LARGE_IMAGE_TILE_GUTTER, LARGE_IMAGE_TILE_SIZE},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LargeImageViewGeometry {
@@ -14,6 +15,57 @@ pub(crate) struct LargeImageViewGeometry {
     pub(crate) visible_source: ImagePixelRect,
     pub(crate) visible_tiles: Vec<TileCoordinate>,
     pub(crate) prefetch_tiles: Vec<TileCoordinate>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct TileDisplayRect {
+    left: f32,
+    top: f32,
+    width: f32,
+    height: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct LargeImageTileLayout {
+    clip: TileDisplayRect,
+    image: TileDisplayRect,
+}
+
+impl LargeImageTileLayout {
+    fn calculate(level: &TileLevel, coordinate: TileCoordinate, scale: f32) -> Option<Self> {
+        if !scale.is_finite() || scale <= 0.0 {
+            return None;
+        }
+        let clip = scaled_rect(level.source_rect(coordinate)?, scale)?;
+        let padded = scaled_rect(
+            level.source_rect_with_gutter(coordinate, LARGE_IMAGE_TILE_GUTTER)?,
+            scale,
+        )?;
+        Some(Self {
+            clip,
+            image: TileDisplayRect {
+                left: padded.left - clip.left,
+                top: padded.top - clip.top,
+                width: padded.width,
+                height: padded.height,
+            },
+        })
+    }
+}
+
+fn scaled_rect(rect: ImagePixelRect, scale: f32) -> Option<TileDisplayRect> {
+    let right = rect.x.checked_add(rect.width)?;
+    let bottom = rect.y.checked_add(rect.height)?;
+    let left = rect.x as f32 * scale;
+    let top = rect.y as f32 * scale;
+    let right = right as f32 * scale;
+    let bottom = bottom as f32 * scale;
+    Some(TileDisplayRect {
+        left,
+        top,
+        width: right - left,
+        height: bottom - top,
+    })
 }
 
 impl LargeImageViewGeometry {
@@ -41,7 +93,7 @@ impl LargeImageViewGeometry {
             return None;
         }
         let level = level_for_scale(scale);
-        let tile_level = TileLevel::new(image_width, image_height, level, TILE_SIZE)?;
+        let tile_level = TileLevel::new(image_width, image_height, level, LARGE_IMAGE_TILE_SIZE)?;
         let display_width = image_width as f32 * scale;
         let display_height = image_height as f32 * scale;
         let image_left = (viewport_width - display_width) / 2.0 + pan_x;
@@ -57,7 +109,7 @@ impl LargeImageViewGeometry {
         }
         let visible_source = ImagePixelRect::new(left, top, right - left, bottom - top);
         let visible_tiles = tile_level.intersecting_tiles(visible_source);
-        let margin = TILE_SIZE.saturating_mul(tile_level.divisor());
+        let margin = LARGE_IMAGE_TILE_SIZE.saturating_mul(tile_level.divisor());
         let prefetch_left = left.saturating_sub(margin);
         let prefetch_top = top.saturating_sub(margin);
         let prefetch_right = right.saturating_add(margin).min(image_width);
@@ -128,10 +180,15 @@ impl LumiaApp {
             self.viewer.viewport().pan_y,
             0,
         )?;
-        let level = TileLevel::new(image_width, image_height, geometry.level, TILE_SIZE)?;
+        let level = TileLevel::new(
+            image_width,
+            image_height,
+            geometry.level,
+            LARGE_IMAGE_TILE_SIZE,
+        )?;
         content = content.children(geometry.visible_tiles.into_iter().filter_map(|coordinate| {
             let tile = self.large_image.tile(&coordinate)?;
-            let source = level.source_rect(coordinate)?;
+            let layout = LargeImageTileLayout::calculate(&level, coordinate, scale)?;
             Some(
                 div()
                     .id(format!(
@@ -139,13 +196,18 @@ impl LumiaApp {
                         coordinate.level, coordinate.x, coordinate.y
                     ))
                     .absolute()
-                    .left(px(source.x as f32 * scale))
-                    .top(px(source.y as f32 * scale))
-                    .w(px(source.width as f32 * scale))
-                    .h(px(source.height as f32 * scale))
+                    .left(px(layout.clip.left))
+                    .top(px(layout.clip.top))
+                    .w(px(layout.clip.width))
+                    .h(px(layout.clip.height))
+                    .overflow_hidden()
                     .child(
                         img(tile.render_image())
-                            .size_full()
+                            .absolute()
+                            .left(px(layout.image.left))
+                            .top(px(layout.image.top))
+                            .w(px(layout.image.width))
+                            .h(px(layout.image.height))
                             .object_fit(ObjectFit::Fill),
                     ),
             )
@@ -169,9 +231,11 @@ mod tests {
             geometry.visible_source,
             ImagePixelRect::new(0, 0, 10_000, 5_000)
         );
-        assert!(geometry
-            .visible_tiles
-            .contains(&TileCoordinate::new(3, 0, 0)));
+        assert!(
+            geometry
+                .visible_tiles
+                .contains(&TileCoordinate::new(3, 0, 0))
+        );
     }
 
     #[test]
@@ -184,6 +248,24 @@ mod tests {
             geometry.visible_source,
             ImagePixelRect::new(4_500, 2_100, 1_000, 800)
         );
+    }
+
+    #[test]
+    fn gutter_layout_clips_images_on_shared_non_integer_scale_boundaries() {
+        let level = TileLevel::new(1400, 1100, 0, LARGE_IMAGE_TILE_SIZE).unwrap();
+        let left =
+            LargeImageTileLayout::calculate(&level, TileCoordinate::new(0, 0, 0), 1.25).unwrap();
+        let right =
+            LargeImageTileLayout::calculate(&level, TileCoordinate::new(0, 1, 0), 1.25).unwrap();
+
+        assert_eq!(left.clip.left + left.clip.width, right.clip.left);
+        assert_eq!(left.clip.width, 640.0);
+        assert_eq!(left.image.left, 0.0);
+        assert_eq!(left.image.width, 641.25);
+        assert_eq!(right.image.left, -1.25);
+        assert_eq!(right.image.width, 642.5);
+        assert!(left.image.width > left.clip.width);
+        assert!(right.image.left < 0.0);
     }
 
     #[test]

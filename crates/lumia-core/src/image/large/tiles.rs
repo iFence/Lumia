@@ -9,10 +9,10 @@ use image::ImageFormat;
 use png::{BitDepth, Decoder, Transformations};
 
 use super::{
+    LargeImageError, TileCoordinate, TileLevel,
     cache::{RasterCacheKey, RasterCacheReader, RasterCacheWriter, RasterLayout},
     mapped::write_mapped_bgra_raster,
     png::{png_channels, png_pixel},
-    LargeImageError, TileCoordinate, TileLevel,
 };
 use crate::{DecodeCancellation, DecodedImage};
 
@@ -38,6 +38,16 @@ impl LargeImageRaster {
         tile_size: u32,
         cancellation: &DecodeCancellation,
     ) -> Result<DecodedImage, LargeImageError> {
+        self.decode_tile_with_gutter(coordinate, tile_size, 0, cancellation)
+    }
+
+    pub fn decode_tile_with_gutter(
+        &self,
+        coordinate: TileCoordinate,
+        tile_size: u32,
+        gutter: u32,
+        cancellation: &DecodeCancellation,
+    ) -> Result<DecodedImage, LargeImageError> {
         if cancellation.is_cancelled() {
             return Err(LargeImageError::Cancelled);
         }
@@ -49,7 +59,7 @@ impl LargeImageRaster {
         )
         .ok_or(LargeImageError::InvalidTileCoordinate)?;
         let tile = level
-            .tile_rect(coordinate)
+            .tile_rect_with_gutter(coordinate, gutter)
             .ok_or(LargeImageError::InvalidTileCoordinate)?;
         let len = usize::try_from(
             u64::from(tile.width)
@@ -240,6 +250,40 @@ mod tests {
             .decode_tile(TileCoordinate::new(1, 0, 0), 512, &cancellation)
             .unwrap();
         assert_eq!((half.width, half.height), (500, 350));
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn gutter_tiles_share_neighbor_pixels_at_seams() {
+        let dir = temp_dir("gutter");
+        let source = dir.join("source.png");
+        let cache = dir.join("cache");
+        fs::create_dir_all(&dir).unwrap();
+        let image = RgbaImage::from_fn(1025, 3, |x, y| {
+            Rgba([(x % 251) as u8, (y % 241) as u8, 77, 255])
+        });
+        DynamicImage::ImageRgba8(image)
+            .save_with_format(&source, ImageFormat::Png)
+            .unwrap();
+        let cancellation = DecodeCancellation::default();
+        let raster = build_large_image_raster(&source, &cache, &cancellation).unwrap();
+
+        let left = raster
+            .decode_tile_with_gutter(TileCoordinate::new(0, 0, 0), 512, 1, &cancellation)
+            .unwrap();
+        let right = raster
+            .decode_tile_with_gutter(TileCoordinate::new(0, 1, 0), 512, 1, &cancellation)
+            .unwrap();
+        assert_eq!((left.width, left.height), (513, 3));
+        assert_eq!((right.width, right.height), (514, 3));
+
+        fn pixel(image: &DecodedImage, x: usize, y: usize) -> &[u8] {
+            let start = (y * image.width as usize + x) * 4;
+            &image.pixels_bgra8[start..start + 4]
+        }
+        assert_eq!(pixel(&left, 511, 1), pixel(&right, 0, 1));
+        assert_eq!(pixel(&left, 512, 1), pixel(&right, 1, 1));
+
         fs::remove_dir_all(dir).unwrap();
     }
 

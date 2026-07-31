@@ -3,8 +3,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use lumia_core::{large_image_worker_count, PixelBudget};
 use lumia_core::{DecodeCancellation, LargeImagePolicy, LargeImageRaster, TileCoordinate};
+use lumia_core::{PixelBudget, large_image_worker_count};
 
 use gpui::{Context, Window};
 
@@ -13,6 +13,11 @@ use crate::large_image_render::LargeImageViewGeometry;
 use crate::load_state::PreparedImage;
 use crate::tile_cache::TileCache;
 
+pub(crate) const LARGE_IMAGE_TILE_SIZE: u32 = 512;
+pub(crate) const LARGE_IMAGE_TILE_GUTTER: u32 = 1;
+const LARGE_IMAGE_TILE_DECODE_EDGE: u64 =
+    (LARGE_IMAGE_TILE_SIZE + LARGE_IMAGE_TILE_GUTTER * 2) as u64;
+const LARGE_IMAGE_TILE_MAX_BYTES: u64 = LARGE_IMAGE_TILE_DECODE_EDGE.pow(2) * 4;
 const LARGE_IMAGE_TILE_CACHE_BYTES: usize = 64 * 1024 * 1024;
 
 pub(crate) fn should_decode_large_image(path: &Path, width: u32, height: u32) -> bool {
@@ -311,7 +316,11 @@ impl LumiaApp {
             let Some(cancellation) = self.large_image.cancellation() else {
                 return;
             };
-            let Some(permit) = self.large_image.pixel_budget().try_acquire(512 * 512 * 4) else {
+            let Some(permit) = self
+                .large_image
+                .pixel_budget()
+                .try_acquire(LARGE_IMAGE_TILE_MAX_BYTES)
+            else {
                 return;
             };
             let raster = raster.clone();
@@ -321,7 +330,12 @@ impl LumiaApp {
                     .spawn(async move {
                         let _permit = permit;
                         raster
-                            .decode_tile(coordinate, 512, &cancellation)
+                            .decode_tile_with_gutter(
+                                coordinate,
+                                LARGE_IMAGE_TILE_SIZE,
+                                LARGE_IMAGE_TILE_GUTTER,
+                                &cancellation,
+                            )
                             .map(|decoded| {
                                 let bytes = decoded.pixels_bgra8.len();
                                 (PreparedImage::from_decoded(decoded), bytes)

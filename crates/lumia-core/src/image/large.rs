@@ -9,8 +9,8 @@ mod worker;
 
 pub use decode::decode_large_image_preview;
 pub use error::LargeImageError;
-pub use tiles::{build_large_image_raster, LargeImageRaster};
-pub use worker::{large_image_worker_count, PixelBudget};
+pub use tiles::{LargeImageRaster, build_large_image_raster};
+pub use worker::{PixelBudget, large_image_worker_count};
 
 const DEFAULT_MAX_TEXTURE_EDGE: u32 = 8192;
 const DEFAULT_MAX_DECODED_BYTES: u64 = 96 * 1024 * 1024;
@@ -156,8 +156,40 @@ impl TileLevel {
         ))
     }
 
-    pub fn source_rect(&self, coordinate: TileCoordinate) -> Option<ImagePixelRect> {
+    pub fn tile_rect_with_gutter(
+        &self,
+        coordinate: TileCoordinate,
+        gutter: u32,
+    ) -> Option<ImagePixelRect> {
         let rect = self.tile_rect(coordinate)?;
+        let x = rect.x.saturating_sub(gutter);
+        let y = rect.y.saturating_sub(gutter);
+        let right = rect
+            .x
+            .checked_add(rect.width)?
+            .saturating_add(gutter)
+            .min(self.width);
+        let bottom = rect
+            .y
+            .checked_add(rect.height)?
+            .saturating_add(gutter)
+            .min(self.height);
+        Some(ImagePixelRect::new(x, y, right - x, bottom - y))
+    }
+
+    pub fn source_rect(&self, coordinate: TileCoordinate) -> Option<ImagePixelRect> {
+        self.level_rect_to_source(self.tile_rect(coordinate)?)
+    }
+
+    pub fn source_rect_with_gutter(
+        &self,
+        coordinate: TileCoordinate,
+        gutter: u32,
+    ) -> Option<ImagePixelRect> {
+        self.level_rect_to_source(self.tile_rect_with_gutter(coordinate, gutter)?)
+    }
+
+    fn level_rect_to_source(&self, rect: ImagePixelRect) -> Option<ImagePixelRect> {
         let x = rect.x.checked_mul(self.divisor)?;
         let y = rect.y.checked_mul(self.divisor)?;
         let right = rect
@@ -255,6 +287,29 @@ mod tests {
     }
 
     #[test]
+    fn gutter_rects_include_neighbors_and_clamp_to_image_edges() {
+        let level = TileLevel::new(1400, 1100, 0, 512).unwrap();
+        assert_eq!(
+            level.tile_rect_with_gutter(TileCoordinate::new(0, 1, 1), 1),
+            Some(ImagePixelRect::new(511, 511, 514, 514))
+        );
+        assert_eq!(
+            level.tile_rect_with_gutter(TileCoordinate::new(0, 0, 0), 1),
+            Some(ImagePixelRect::new(0, 0, 513, 513))
+        );
+        assert_eq!(
+            level.tile_rect_with_gutter(TileCoordinate::new(0, 2, 2), 1),
+            Some(ImagePixelRect::new(1023, 1023, 377, 77))
+        );
+
+        let half = TileLevel::new(1400, 1100, 1, 512).unwrap();
+        assert_eq!(
+            half.source_rect_with_gutter(TileCoordinate::new(1, 1, 0), 1),
+            Some(ImagePixelRect::new(1022, 0, 378, 1026))
+        );
+    }
+
+    #[test]
     fn intersecting_tiles_are_stable_and_clamped_to_the_image() {
         let level = TileLevel::new(1000, 700, 0, 512).unwrap();
         let visible = ImagePixelRect::new(500, 500, 600, 300);
@@ -268,9 +323,11 @@ mod tests {
                 TileCoordinate::new(0, 1, 1),
             ]
         );
-        assert!(level
-            .intersecting_tiles(ImagePixelRect::new(1200, 800, 10, 10))
-            .is_empty());
+        assert!(
+            level
+                .intersecting_tiles(ImagePixelRect::new(1200, 800, 10, 10))
+                .is_empty()
+        );
     }
 
     #[test]
