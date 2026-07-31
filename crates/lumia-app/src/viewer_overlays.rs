@@ -40,12 +40,11 @@ impl LumiaApp {
         } else {
             0.0
         };
-        let bottom_inset =
-            if self.ui.status_bar_locked || self.ui.show_status_bar || self.ui.show_zoom_menu {
-                STATUS_BAR_HEIGHT
-            } else {
-                0.0
-            };
+        let bottom_inset = if self.status_bar_visible() {
+            STATUS_BAR_HEIGHT
+        } else {
+            0.0
+        };
         point(
             px(clamp_menu_coordinate(
                 f32::from(pointer.x),

@@ -61,10 +61,9 @@ impl Render for LumiaApp {
                     .children(self.render_edit_panel(palette, cx))
                     .children(self.render_plugin_panel(palette, cx)),
             )
-            .children(
-                (self.ui.status_bar_locked || self.ui.show_status_bar || self.ui.show_zoom_menu)
-                    .then(|| self.render_status_bar(window, palette, cx)),
-            )
+            .children(self.status_bar_visible().then(|| {
+                self.render_status_bar(window, palette, cx)
+            }))
             .children(self.render_settings_panel(window, palette, cx))
             .children(dialog_layer)
     }

@@ -223,7 +223,7 @@ impl LumiaApp {
     }
 
     fn overview_bottom_offset(&self) -> f32 {
-        if !self.ui.status_bar_locked && (self.ui.show_status_bar || self.ui.show_zoom_menu) {
+        if !self.ui.status_bar_locked && self.status_bar_visible() {
             STATUS_BAR_HEIGHT + PANEL_MARGIN
         } else {
             PANEL_MARGIN

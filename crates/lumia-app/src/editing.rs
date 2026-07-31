@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::time::Duration;
 
 use gpui::{App, AppContext, Context, Entity, Subscription, Window};
 use gpui_component::input::{InputEvent, InputState};
@@ -54,7 +53,6 @@ pub(crate) struct CropDrag {
 pub(crate) struct EditState {
     pub(crate) mode: Option<EditMode>,
     pub(crate) show_menu: bool,
-    pub(crate) menu_hover_generation: u64,
     pub(crate) source_width: u32,
     pub(crate) source_height: u32,
     pub(crate) rotation_quarter_turns: u8,
@@ -78,7 +76,6 @@ impl Default for EditState {
         Self {
             mode: None,
             show_menu: false,
-            menu_hover_generation: 0,
             source_width: 0,
             source_height: 0,
             rotation_quarter_turns: 0,
@@ -100,36 +97,6 @@ impl Default for EditState {
 }
 
 impl LumiaApp {
-    pub(crate) fn set_edit_menu_hover(
-        &mut self,
-        hovered: bool,
-        has_image: bool,
-        cx: &mut Context<Self>,
-    ) {
-        self.editing.menu_hover_generation = self.editing.menu_hover_generation.wrapping_add(1);
-        let generation = self.editing.menu_hover_generation;
-        if hovered {
-            let should_show = has_image;
-            if self.editing.show_menu != should_show {
-                self.editing.show_menu = should_show;
-                cx.notify();
-            }
-            return;
-        }
-        cx.spawn(async move |this, cx| {
-            cx.background_executor()
-                .timer(Duration::from_millis(500))
-                .await;
-            let _ = this.update(cx, |this, cx| {
-                if this.editing.menu_hover_generation == generation {
-                    this.editing.show_menu = false;
-                    cx.notify();
-                }
-            });
-        })
-        .detach();
-    }
-
     pub(crate) fn editing_unavailable_reason(&self) -> Option<&'static str> {
         let Some(path) = self.image_path() else {
             return Some("no-image");
@@ -188,7 +155,6 @@ impl LumiaApp {
         self.editing.input_subscriptions.clear();
         self.editing.mode = Some(mode);
         self.editing.show_menu = false;
-        self.editing.menu_hover_generation = self.editing.menu_hover_generation.wrapping_add(1);
         self.editing.source_width = width;
         self.editing.source_height = height;
         self.editing.rotation_quarter_turns = self.viewer.rotation_quarter_turns();

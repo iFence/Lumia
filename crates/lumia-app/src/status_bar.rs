@@ -12,9 +12,18 @@ use crate::i18n::{tr, TextKey};
 use crate::palette::Palette;
 use crate::util::format_file_size;
 use crate::widgets::edit_menu_item;
-use crate::{STATUS_BAR_HEIGHT, STATUS_CONTROL_HEIGHT, ZOOM_BUTTON_WIDTH};
+use crate::{STATUS_BAR_HEIGHT, STATUS_CONTROL_HEIGHT, STATUS_MENU_CONTROL_OFFSET, ZOOM_BUTTON_WIDTH};
 
 impl LumiaApp {
+    /// The status bar stays rendered while the zoom or edit menu is open, so
+    /// moving the pointer toward those menus does not hide it.
+    pub(crate) fn status_bar_visible(&self) -> bool {
+        self.ui.status_bar_locked
+            || self.ui.show_status_bar
+            || self.ui.show_zoom_menu
+            || self.editing.show_menu
+    }
+
     pub(crate) fn render_status_bar(
         &self,
         window: &Window,
@@ -360,9 +369,6 @@ impl LumiaApp {
         palette: Palette,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let handle = self.self_handle.clone();
-        let menu_handle = self.self_handle.clone();
-        let menu_move_handle = self.self_handle.clone();
         let enabled = has_image && self.can_edit_current_image();
         let language = self.settings.language;
         div()
@@ -377,11 +383,15 @@ impl LumiaApp {
             .text_sm()
             .text_color(rgb(palette.muted_text))
             .hover(move |style| style.bg(rgb(palette.status_hover)))
-            .on_hover(move |hovered, _, cx| {
-                let _ = handle.update(cx, |this, cx| {
-                    this.set_edit_menu_hover(*hovered, has_image, cx);
-                });
-            })
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |this, _, _, cx| {
+                    if has_image {
+                        this.editing.show_menu = !this.editing.show_menu;
+                        cx.notify();
+                    }
+                }),
+            )
             .child(dimensions)
             .child(
                 Icon::new(if self.editing.show_menu {
@@ -397,7 +407,7 @@ impl LumiaApp {
                     .id("status-dimensions-menu")
                     .absolute()
                     .left_0()
-                    .bottom(px(STATUS_CONTROL_HEIGHT))
+                    .bottom(px(STATUS_MENU_CONTROL_OFFSET))
                     .w(px(184.0))
                     .p_1()
                     .rounded_md()
@@ -405,16 +415,6 @@ impl LumiaApp {
                     .border_color(rgb(palette.border))
                     .bg(rgb(palette.panel_bg))
                     .shadow_lg()
-                    .on_hover(move |hovered, _, cx| {
-                        let _ = menu_handle.update(cx, |this, cx| {
-                            this.set_edit_menu_hover(*hovered, has_image, cx);
-                        });
-                    })
-                    .on_mouse_move(move |_, _, cx| {
-                        let _ = menu_move_handle.update(cx, |this, cx| {
-                            this.set_edit_menu_hover(true, has_image, cx);
-                        });
-                    })
                     .child(edit_menu_item(
                         "edit-menu-crop",
                         tr(language, TextKey::EditCrop),

@@ -48,8 +48,7 @@ impl LumiaApp {
                 .w(px(PLUGIN_PANEL_WIDTH))
                 .h_full()
                 .when(
-                    !self.ui.status_bar_locked
-                        && (self.ui.show_status_bar || self.ui.show_zoom_menu),
+                    !self.ui.status_bar_locked && self.status_bar_visible(),
                     |panel| panel.pb(px(STATUS_BAR_HEIGHT)),
                 )
                 .flex_none()

@@ -63,7 +63,15 @@ use serde::Deserialize;
 
 pub(crate) const STATUS_BAR_HEIGHT: f32 = 36.0;
 pub(crate) const STATUS_CONTROL_HEIGHT: f32 = 24.0;
-pub(crate) const STATUS_MENU_BOTTOM: f32 = (STATUS_BAR_HEIGHT + STATUS_CONTROL_HEIGHT) / 2.0;
+/// Small gap between a status-bar popup and the bar's top edge.
+pub(crate) const STATUS_MENU_GAP: f32 = 4.0;
+/// Distance from the status bar's bottom edge to the bottom edge of popups
+/// anchored to the bar, so they clear the bar with a gap.
+pub(crate) const STATUS_MENU_BOTTOM: f32 = STATUS_BAR_HEIGHT + STATUS_MENU_GAP;
+/// Distance from a status-bar control's bottom edge to the bottom edge of its
+/// popup, lifting it clear of the bar's top edge with a gap.
+pub(crate) const STATUS_MENU_CONTROL_OFFSET: f32 =
+    STATUS_CONTROL_HEIGHT + (STATUS_BAR_HEIGHT - STATUS_CONTROL_HEIGHT) / 2.0 + STATUS_MENU_GAP;
 pub(crate) const EDIT_PANEL_WIDTH: f32 = 320.0;
 pub(crate) const PLUGIN_PANEL_WIDTH: f32 = 288.0;
 pub(crate) const ZOOM_BUTTON_WIDTH: f32 = 80.0;
