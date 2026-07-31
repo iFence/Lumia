@@ -11,6 +11,12 @@ impl AssetSource for CustomAssets {
             "custom/actual-size.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../resources/icons/actual-size.svg"
             )))),
+            "custom/close.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../resources/icons/close.svg"
+            )))),
+            "custom/copy.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../resources/icons/copy.svg"
+            )))),
             "custom/fit-to-window.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../resources/icons/fit-to-window.svg"
             )))),
@@ -34,6 +40,8 @@ impl AssetSource for CustomAssets {
         if path == "custom" || path == "custom/" {
             Ok(vec![
                 "custom/actual-size.svg".into(),
+                "custom/close.svg".into(),
+                "custom/copy.svg".into(),
                 "custom/fit-to-window.svg".into(),
                 "custom/lock-aspect-ratio.svg".into(),
                 "custom/map-pin.svg".into(),

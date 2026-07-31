@@ -232,7 +232,7 @@ impl LumiaApp {
         if let Some(message) = &self.ui.error_message {
             viewer
                 .child(status_message("error-state", message, palette.error_text))
-                .children(self.render_image_info_overlay(window))
+                .children(self.render_image_info_overlay(window, cx))
                 .children(self.render_context_menu(palette, cx))
         } else if let Some(path) = self.image_path() {
             // HEIC pixels are decoded directly into a stable GPUI RenderImage.
@@ -298,12 +298,12 @@ impl LumiaApp {
                     status_message("large-image-detail-error", message, palette.error_text)
                 }))
                 .children(self.render_image_overview(window, palette, cx))
-                .children(self.render_image_info_overlay(window))
+                .children(self.render_image_info_overlay(window, cx))
                 .children(self.render_context_menu(palette, cx))
         } else {
             viewer
                 .child(self.render_empty_state(palette, cx))
-                .children(self.render_image_info_overlay(window))
+                .children(self.render_image_info_overlay(window, cx))
                 .children(self.render_context_menu(palette, cx))
         }
     }
