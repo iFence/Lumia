@@ -12,7 +12,10 @@ use crate::i18n::{tr, TextKey};
 use crate::palette::Palette;
 use crate::util::format_file_size;
 use crate::widgets::edit_menu_item;
-use crate::{STATUS_BAR_HEIGHT, STATUS_CONTROL_HEIGHT, STATUS_MENU_CONTROL_OFFSET, ZOOM_BUTTON_WIDTH};
+use crate::{
+    EDIT_MENU_WIDTH, STATUS_BAR_HEIGHT, STATUS_CONTROL_HEIGHT, STATUS_MENU_CONTROL_OFFSET,
+    ZOOM_BUTTON_WIDTH,
+};
 
 impl LumiaApp {
     /// The status bar stays rendered while the zoom or edit menu is open, so
@@ -186,7 +189,7 @@ impl LumiaApp {
                     ))
                     .child(self.render_status_lock_button(palette, cx)),
             )
-            .children(self.render_zoom_menu(palette, cx))
+            .children(self.render_zoom_menu(palette, window, cx))
     }
 
     fn render_status_lock_button(&self, palette: Palette, cx: &mut Context<Self>) -> AnyElement {
@@ -248,8 +251,8 @@ impl LumiaApp {
         } else {
             palette.muted_text
         };
-
-        div()
+        let self_handle = self.self_handle.clone();
+        let button = div()
             .id("status-zoom-menu-button")
             .w(px(ZOOM_BUTTON_WIDTH))
             .h(px(STATUS_CONTROL_HEIGHT))
@@ -283,7 +286,20 @@ impl LumiaApp {
                 })
                 .size(px(14.0))
                 .text_color(rgb(text_color)),
-            )
+            );
+        // Track the zoom button's on-screen bounds so the zoom menu can be
+        // centered under it and kept open while the pointer hovers it.
+        div()
+            .flex()
+            .items_center()
+            .on_children_prepainted(move |bounds, _, cx| {
+                if let Some(bounds) = bounds.first() {
+                    let _ = self_handle.update(cx, |this, _| {
+                        this.ui.zoom_menu_anchor = Some(*bounds);
+                    });
+                }
+            })
+            .child(button)
             .into_any_element()
     }
 
@@ -371,7 +387,13 @@ impl LumiaApp {
     ) -> AnyElement {
         let enabled = has_image && self.can_edit_current_image();
         let language = self.settings.language;
-        div()
+        let self_handle = self.self_handle.clone();
+        // Center the popup under the narrow dimensions button instead of
+        // anchoring it to the button's left edge, which pushed it to the right.
+        let menu_left = self.editing.menu_anchor.map_or(0.0, |anchor| {
+            (f32::from(anchor.size.width) - EDIT_MENU_WIDTH) / 2.0
+        });
+        let button = div()
             .id("status-dimensions")
             .relative()
             .h(px(STATUS_CONTROL_HEIGHT))
@@ -388,6 +410,7 @@ impl LumiaApp {
                 cx.listener(move |this, _, _, cx| {
                     if has_image {
                         this.editing.show_menu = !this.editing.show_menu;
+                        this.ui.show_zoom_menu = false;
                         cx.notify();
                     }
                 }),
@@ -406,9 +429,9 @@ impl LumiaApp {
                 div()
                     .id("status-dimensions-menu")
                     .absolute()
-                    .left_0()
+                    .left(px(menu_left))
                     .bottom(px(STATUS_MENU_CONTROL_OFFSET))
-                    .w(px(184.0))
+                    .w(px(EDIT_MENU_WIDTH))
                     .p_1()
                     .rounded_md()
                     .border_1()
@@ -445,7 +468,21 @@ impl LumiaApp {
                             .text_color(rgb(palette.muted_text))
                             .child(tr(language, TextKey::EditUnavailable))
                     }))
-            }))
+            }));
+        // Track the button's on-screen bounds so the root mouse-move handler
+        // can keep the edit menu open while the pointer hovers it, matching
+        // the zoom menu's keep-open zone.
+        div()
+            .flex()
+            .items_center()
+            .on_children_prepainted(move |bounds, _, cx| {
+                if let Some(bounds) = bounds.first() {
+                    let _ = self_handle.update(cx, |this, _| {
+                        this.editing.menu_anchor = Some(*bounds);
+                    });
+                }
+            })
+            .child(button)
             .into_any_element()
     }
 

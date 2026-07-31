@@ -80,6 +80,11 @@ pub(crate) const ZOOM_MENU_RIGHT: f32 = 48.0;
 pub(crate) const ZOOM_MENU_ITEM_HEIGHT: f32 = 28.0;
 pub(crate) const ZOOM_MENU_HEIGHT: f32 = 16.0 + 9.0 * ZOOM_MENU_ITEM_HEIGHT;
 pub(crate) const ZOOM_MENU_HOVER_MARGIN: f32 = 12.0;
+pub(crate) const EDIT_MENU_WIDTH: f32 = 184.0;
+pub(crate) const EDIT_MENU_ITEM_HEIGHT: f32 = 30.0;
+/// Height of the edit menu popup, including padding and room for the
+/// "unavailable" note, used to size its hover keep-open zone.
+pub(crate) const EDIT_MENU_HEIGHT: f32 = 16.0 + 3.0 * EDIT_MENU_ITEM_HEIGHT;
 pub(crate) const APP_TITLE: &str = "Lumia";
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]

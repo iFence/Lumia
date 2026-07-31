@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use gpui::{App, AppContext, Context, Entity, Subscription, Window};
+use gpui::{App, AppContext, Bounds, Context, Entity, Pixels, Subscription, Window};
 use gpui_component::input::{InputEvent, InputState};
 use lumia_core::{CropRect, ImageEditPolicy, ViewportState};
 
@@ -53,6 +53,9 @@ pub(crate) struct CropDrag {
 pub(crate) struct EditState {
     pub(crate) mode: Option<EditMode>,
     pub(crate) show_menu: bool,
+    /// Screen-space bounds of the dimensions button that anchors the edit
+    /// menu, used to keep the menu open while the pointer hovers it.
+    pub(crate) menu_anchor: Option<Bounds<Pixels>>,
     pub(crate) source_width: u32,
     pub(crate) source_height: u32,
     pub(crate) rotation_quarter_turns: u8,
@@ -76,6 +79,7 @@ impl Default for EditState {
         Self {
             mode: None,
             show_menu: false,
+            menu_anchor: None,
             source_width: 0,
             source_height: 0,
             rotation_quarter_turns: 0,
@@ -177,6 +181,7 @@ impl LumiaApp {
         }
         self.ui.context_menu_position = None;
         self.ui.show_zoom_menu = false;
+        self.ui.show_image_info = false;
         cx.notify();
     }
 

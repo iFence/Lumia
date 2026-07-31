@@ -217,6 +217,7 @@ impl LumiaApp {
             return;
         }
         self.ui.show_zoom_menu = !self.ui.show_zoom_menu;
+        self.editing.show_menu = false;
         cx.notify();
     }
 

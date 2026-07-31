@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use gpui::{Pixels, Point};
+use gpui::{Bounds, Pixels, Point};
 use lumia_core::{SettingsGroup, ShortcutId};
 
 use crate::file_association_state::FileAssociationUiState;
@@ -21,6 +21,9 @@ pub(crate) struct UiState {
     pub(crate) update_check: UpdateCheckUiState,
     pub(crate) recording_shortcut: Option<ShortcutId>,
     pub(crate) show_zoom_menu: bool,
+    /// Screen-space bounds of the zoom button, used to center the zoom menu
+    /// under it and to keep the menu open while the pointer hovers it.
+    pub(crate) zoom_menu_anchor: Option<Bounds<Pixels>>,
     pub(crate) show_status_bar: bool,
     pub(crate) status_bar_locked: bool,
 }
@@ -42,6 +45,7 @@ impl Default for UiState {
             update_check: UpdateCheckUiState::default(),
             recording_shortcut: None,
             show_zoom_menu: false,
+            zoom_menu_anchor: None,
             show_status_bar: false,
             status_bar_locked: false,
         }

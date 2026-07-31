@@ -64,18 +64,28 @@ impl LumiaApp {
     pub(crate) fn render_zoom_menu(
         &self,
         palette: Palette,
+        window: &Window,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
         if !self.ui.show_zoom_menu {
             return None;
         }
 
+        // Center the menu under the zoom button, like the edit menu. Fall back
+        // to the old right-edge position before the button has been measured.
+        let menu_left = self.ui.zoom_menu_anchor.map_or_else(
+            || f32::from(window.viewport_size().width) - ZOOM_MENU_RIGHT - ZOOM_MENU_WIDTH,
+            |anchor| {
+                f32::from(anchor.left()) + (f32::from(anchor.size.width) - ZOOM_MENU_WIDTH) / 2.0
+            },
+        );
+
         let presets = [32.0, 16.0, 8.0, 4.0, 2.0, 1.5, 1.0, 0.5, 0.1];
         Some(
             div()
                 .id("status-zoom-menu")
                 .absolute()
-                .right(px(ZOOM_MENU_RIGHT))
+                .left(px(menu_left))
                 .bottom(px(STATUS_MENU_BOTTOM))
                 .w(px(ZOOM_MENU_WIDTH))
                 .py_2()
