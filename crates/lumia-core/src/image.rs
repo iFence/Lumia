@@ -32,8 +32,8 @@ pub use raster::{
 };
 pub use types::{
     ColorDescription, DecodeCancellation, DecodePolicy, DecodedAnimationFrame, DecodedImage,
-    ExifMetadata, ImageDocument, ImageFileMetadata, ImageMetadata, ImageProbe, ImageSource,
-    PixelFormat, TransferFunction,
+    ExifMetadata, GpsCoordinates, ImageDocument, ImageFileMetadata, ImageMetadata, ImageProbe,
+    ImageSource, PixelFormat, TransferFunction,
 };
 
 #[cfg(test)]

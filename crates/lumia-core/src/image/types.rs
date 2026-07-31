@@ -117,6 +117,40 @@ pub struct ExifMetadata {
     pub exposure_program: Option<String>,
     pub metering_mode: Option<String>,
     pub gps: Option<String>,
+    #[serde(default)]
+    pub gps_coordinates: Option<GpsCoordinates>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GpsCoordinates {
+    latitude_e7: i32,
+    longitude_e7: i32,
+}
+
+impl GpsCoordinates {
+    const DEGREES_SCALE: f64 = 10_000_000.0;
+
+    pub fn from_degrees(latitude: f64, longitude: f64) -> Option<Self> {
+        if !latitude.is_finite()
+            || !longitude.is_finite()
+            || !(-90.0..=90.0).contains(&latitude)
+            || !(-180.0..=180.0).contains(&longitude)
+        {
+            return None;
+        }
+        Some(Self {
+            latitude_e7: (latitude * Self::DEGREES_SCALE).round() as i32,
+            longitude_e7: (longitude * Self::DEGREES_SCALE).round() as i32,
+        })
+    }
+
+    pub fn latitude_degrees(self) -> f64 {
+        f64::from(self.latitude_e7) / Self::DEGREES_SCALE
+    }
+
+    pub fn longitude_degrees(self) -> f64 {
+        f64::from(self.longitude_e7) / Self::DEGREES_SCALE
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -142,4 +176,18 @@ pub enum TransferFunction {
     Hlg,
     Pq,
     Unknown,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::GpsCoordinates;
+
+    #[test]
+    fn gps_coordinates_validate_and_preserve_decimal_degrees() {
+        let coordinates = GpsCoordinates::from_degrees(-33.856_784_4, 151.215_296_7).unwrap();
+        assert_eq!(coordinates.latitude_degrees(), -33.856_784_4);
+        assert_eq!(coordinates.longitude_degrees(), 151.215_296_7);
+        assert!(GpsCoordinates::from_degrees(90.1, 0.0).is_none());
+        assert!(GpsCoordinates::from_degrees(0.0, f64::NAN).is_none());
+    }
 }

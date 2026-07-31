@@ -108,7 +108,14 @@ impl LumiaApp {
                         },
                     ))
                     .child(self.render_status_text(file_size, palette))
-                    .child(self.render_dimensions_button(dimensions, has_image, palette, cx)),
+                    .child(self.render_dimensions_button(dimensions, has_image, palette, cx))
+                    .when(self.current_gps_coordinates().is_some(), |controls| {
+                        controls.child(self.render_status_location_button(
+                            viewer_enabled,
+                            palette,
+                            cx,
+                        ))
+                    }),
             )
             .child(
                 div()
@@ -267,6 +274,46 @@ impl LumiaApp {
                 })
                 .size(px(14.0))
                 .text_color(rgb(text_color)),
+            )
+            .into_any_element()
+    }
+
+    fn render_status_location_button(
+        &self,
+        enabled: bool,
+        palette: Palette,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let tooltip = tr(self.settings.language, TextKey::OpenImageLocation);
+        let icon_color = if enabled {
+            palette.text
+        } else {
+            palette.muted_text
+        };
+
+        div()
+            .id("status-image-location")
+            .w(px(28.0))
+            .h(px(24.0))
+            .flex()
+            .items_center()
+            .justify_center()
+            .rounded_sm()
+            .hover(move |style| style.bg(rgb(palette.status_hover)))
+            .tooltip(move |window, cx| Tooltip::new(tooltip).build(window, cx))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |this, _, _, _| {
+                    if enabled {
+                        this.open_current_image_location();
+                    }
+                }),
+            )
+            .child(
+                Icon::default()
+                    .path("custom/map-pin.svg")
+                    .size(px(16.0))
+                    .text_color(rgb(icon_color)),
             )
             .into_any_element()
     }

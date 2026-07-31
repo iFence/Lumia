@@ -20,6 +20,7 @@ mod image_overview;
 mod large_image;
 mod large_image_render;
 mod load_state;
+mod location;
 mod palette;
 mod persistence;
 mod platform_open;

@@ -17,6 +17,9 @@ impl AssetSource for CustomAssets {
             "custom/lock-aspect-ratio.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../resources/icons/lock-aspect-ratio.svg"
             )))),
+            "custom/map-pin.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../resources/icons/map-pin.svg"
+            )))),
             "custom/status-bar-lock.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../resources/icons/status-bar-lock.svg"
             )))),
@@ -33,6 +36,7 @@ impl AssetSource for CustomAssets {
                 "custom/actual-size.svg".into(),
                 "custom/fit-to-window.svg".into(),
                 "custom/lock-aspect-ratio.svg".into(),
+                "custom/map-pin.svg".into(),
                 "custom/status-bar-lock.svg".into(),
                 "custom/status-bar-unlock.svg".into(),
             ])

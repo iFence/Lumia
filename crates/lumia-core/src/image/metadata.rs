@@ -6,7 +6,7 @@ use std::{
 
 use exif::{Exif, Field, Rational, Tag, Value};
 
-use super::ExifMetadata;
+use super::{ExifMetadata, GpsCoordinates};
 
 pub(super) fn read_exif_metadata(path: &Path) -> ExifMetadata {
     let chroma_subsampling = read_jpeg_chroma_subsampling(path);
@@ -23,6 +23,10 @@ pub(super) fn read_exif_metadata(path: &Path) -> ExifMetadata {
             ..ExifMetadata::default()
         };
     };
+
+    let (gps, gps_coordinates) = gps(&exif)
+        .map(|(display, coordinates)| (Some(display), Some(coordinates)))
+        .unwrap_or_default();
 
     ExifMetadata {
         chroma_subsampling,
@@ -42,7 +46,8 @@ pub(super) fn read_exif_metadata(path: &Path) -> ExifMetadata {
         iso: unsigned_field(&exif, Tag::PhotographicSensitivity).map(|value| value.to_string()),
         exposure_program: unsigned_field(&exif, Tag::ExposureProgram).map(exposure_program),
         metering_mode: unsigned_field(&exif, Tag::MeteringMode).map(metering_mode),
-        gps: gps(&exif),
+        gps,
+        gps_coordinates,
     }
 }
 
@@ -152,11 +157,15 @@ fn metering_mode(value: u32) -> String {
     .to_owned()
 }
 
-fn gps(exif: &Exif) -> Option<String> {
+fn gps(exif: &Exif) -> Option<(String, GpsCoordinates)> {
     let latitude = coordinate(exif, Tag::GPSLatitude)?;
     let longitude = coordinate(exif, Tag::GPSLongitude)?;
     let latitude_ref = ascii_field(exif, Tag::GPSLatitudeRef).unwrap_or_else(|| "N".to_owned());
     let longitude_ref = ascii_field(exif, Tag::GPSLongitudeRef).unwrap_or_else(|| "E".to_owned());
+    let coordinates = GpsCoordinates::from_degrees(
+        decimal_coordinate(latitude, &latitude_ref),
+        decimal_coordinate(longitude, &longitude_ref),
+    )?;
     let mut value = format!(
         "{} {}, {} {}",
         latitude_ref,
@@ -167,7 +176,7 @@ fn gps(exif: &Exif) -> Option<String> {
     if let Some(altitude) = gps_altitude(exif) {
         value.push_str(&format!(", {altitude:.1}m"));
     }
-    Some(value)
+    Some((value, coordinates))
 }
 
 fn coordinate(exif: &Exif, tag: Tag) -> Option<[f64; 3]> {
@@ -183,6 +192,15 @@ fn coordinate(exif: &Exif, tag: Tag) -> Option<[f64; 3]> {
 
 fn format_coordinate(value: [f64; 3]) -> String {
     format!("{:.0}°{:.0}'{:.2}\"", value[0], value[1], value[2])
+}
+
+fn decimal_coordinate(value: [f64; 3], direction: &str) -> f64 {
+    let degrees = value[0] + value[1] / 60.0 + value[2] / 3600.0;
+    if direction.eq_ignore_ascii_case("S") || direction.eq_ignore_ascii_case("W") {
+        -degrees
+    } else {
+        degrees
+    }
 }
 
 fn gps_altitude(exif: &Exif) -> Option<f64> {
@@ -277,6 +295,14 @@ mod tests {
             "2023/06/09 10:23:54"
         );
         assert_eq!(format_coordinate([36.0, 44.0, 2.62]), "36°44'2.62\"");
+        assert_eq!(
+            decimal_coordinate([33.0, 51.0, 24.42], "S"),
+            -33.856_783_333_333_33
+        );
+        assert_eq!(
+            decimal_coordinate([151.0, 12.0, 55.08], "E"),
+            151.215_299_999_999_98
+        );
     }
 
     #[test]

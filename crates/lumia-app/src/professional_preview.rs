@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
 use lumia_core::{
-    ColorDescription, DecodeCancellation, ExifMetadata, ImageMetadata, PixelFormat,
+    ColorDescription, DecodeCancellation, ExifMetadata, GpsCoordinates, ImageMetadata, PixelFormat,
     TransferFunction,
 };
 use lumia_plugin_api::{
@@ -285,6 +285,13 @@ fn plugin_exif(metadata: Option<PluginImageMetadata>) -> ExifMetadata {
             ..ExifMetadata::default()
         };
     };
+    let altitude_meters = metadata
+        .geo_coordinates
+        .and_then(|coordinates| coordinates.altitude_meters);
+    let gps_coordinates = metadata.geo_coordinates.and_then(|coordinates| {
+        GpsCoordinates::from_degrees(coordinates.latitude, coordinates.longitude)
+    });
+
     ExifMetadata {
         color_space: Some("sRGB".into()),
         camera_make: metadata.camera_make,
@@ -299,13 +306,18 @@ fn plugin_exif(metadata: Option<PluginImageMetadata>) -> ExifMetadata {
             .aperture_f_number
             .map(|value| format!("f/{value:.1}")),
         iso: metadata.iso.map(|value| value.to_string()),
-        gps: metadata.geo_coordinates.map(|coordinates| {
-            let mut value = format!("{:.6}, {:.6}", coordinates.latitude, coordinates.longitude);
-            if let Some(altitude) = coordinates.altitude_meters {
+        gps: gps_coordinates.map(|coordinates| {
+            let mut value = format!(
+                "{:.6}, {:.6}",
+                coordinates.latitude_degrees(),
+                coordinates.longitude_degrees()
+            );
+            if let Some(altitude) = altitude_meters {
                 value.push_str(&format!(", {altitude:.1}m"));
             }
             value
         }),
+        gps_coordinates,
         ..ExifMetadata::default()
     }
 }
@@ -321,7 +333,7 @@ fn format_exposure_time(seconds: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lumia_plugin_api::{PluginCapability, PluginPermission};
+    use lumia_plugin_api::{PluginCapability, PluginGeoCoordinates, PluginPermission};
 
     fn manifest(version: &str) -> PluginManifest {
         PluginManifest {
@@ -340,6 +352,23 @@ mod tests {
             contributions: Default::default(),
             assets: Vec::new(),
         }
+    }
+
+    #[test]
+    fn plugin_gps_metadata_preserves_map_coordinates() {
+        let exif = plugin_exif(Some(PluginImageMetadata {
+            geo_coordinates: Some(PluginGeoCoordinates {
+                latitude: -33.856_784_4,
+                longitude: 151.215_296_7,
+                altitude_meters: Some(12.5),
+            }),
+            ..PluginImageMetadata::default()
+        }));
+
+        let coordinates = exif.gps_coordinates.unwrap();
+        assert_eq!(coordinates.latitude_degrees(), -33.856_784_4);
+        assert_eq!(coordinates.longitude_degrees(), 151.215_296_7);
+        assert_eq!(exif.gps.as_deref(), Some("-33.856784, 151.215297, 12.5m"));
     }
 
     #[test]
