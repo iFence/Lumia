@@ -39,6 +39,8 @@ impl Render for LumiaApp {
             .on_action(cx.listener(Self::toggle_fullscreen))
             .on_action(cx.listener(Self::exit_fullscreen))
             .on_action(cx.listener(Self::toggle_image_info))
+            .on_action(cx.listener(Self::open_settings))
+            .on_action(cx.listener(Self::open_about))
             .on_action(cx.listener(Self::next_image))
             .on_action(cx.listener(Self::previous_image))
             .on_action(cx.listener(Self::rotate_clockwise))

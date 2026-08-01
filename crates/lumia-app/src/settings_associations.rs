@@ -2,7 +2,7 @@ use gpui::{
     div, px, rgb, Context, FontWeight, InteractiveElement, IntoElement, ParentElement,
     StatefulInteractiveElement, Styled,
 };
-use gpui_component::checkbox::Checkbox;
+use gpui_component::{Icon, IconName};
 use lumia_core::SUPPORTED_IMAGE_EXTENSIONS;
 
 use crate::app::LumiaApp;
@@ -60,12 +60,6 @@ impl LumiaApp {
                                     .child(selected_summary),
                             ),
                     )
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(rgb(palette.muted_text))
-                            .child(tr(language, TextKey::ImageFormatsDescription)),
-                    ),
             )
             .child(
                 div()
@@ -118,7 +112,7 @@ impl LumiaApp {
                 .filter(|extension| selected.contains(**extension))
                 .count();
             let category_count = format!("{category_selected}/{}", category.extensions.len());
-            let mut grid = div().grid().grid_cols(4).gap_2();
+            let mut grid = div().grid().grid_cols(5).gap_2();
 
             for &extension in category.extensions {
                 let checked = selected.contains(extension);
@@ -132,30 +126,58 @@ impl LumiaApp {
                         .flex()
                         .items_center()
                         .rounded_md()
-                        .border_1()
-                        .border_color(rgb(if checked {
-                            palette.accent
-                        } else {
-                            palette.border
-                        }))
-                        .bg(rgb(if checked {
-                            palette.accent_soft
-                        } else {
-                            palette.subtle_bg
-                        }))
                         .hover(move |style| style.bg(rgb(palette.button_hover)))
-                        .child(
-                            Checkbox::new(format!("file-association-{extension}"))
-                                .checked(checked)
-                                .label(extension.to_ascii_uppercase())
-                                .on_click(move |checked, _, cx| {
+                        .child({
+                            let self_handle = self_handle.clone();
+                            div()
+                                .id(format!("file-association-{extension}"))
+                                .flex()
+                                .items_center()
+                                .gap_2()
+                                .cursor_pointer()
+                                .on_click(move |_, _, cx| {
                                     let _ = self_handle.update(cx, |this, cx| {
                                         this.set_file_association_extension(
-                                            extension, *checked, cx,
+                                            extension, !checked, cx,
                                         );
                                     });
-                                }),
-                        ),
+                                })
+                                .child(
+                                    div()
+                                        .w(px(16.0))
+                                        .h(px(16.0))
+                                        .rounded_sm()
+                                        .border_1()
+                                        .border_color(rgb(if checked {
+                                            palette.accent
+                                        } else {
+                                            palette.border
+                                        }))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .children(checked.then(|| {
+                                            div()
+                                                .w(px(16.0))
+                                                .h(px(16.0))
+                                                .rounded_sm()
+                                                .bg(rgb(palette.accent))
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
+                                                .child(
+                                                    Icon::new(IconName::Check)
+                                                        .size(px(12.0))
+                                                        .text_color(rgb(0xffffff)),
+                                                )
+                                        })),
+                                )
+                                .child(
+                                    div()
+                                        .text_sm()
+                                        .child(extension.to_ascii_uppercase()),
+                                )
+                        }),
                 );
             }
 

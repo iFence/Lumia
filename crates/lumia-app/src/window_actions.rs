@@ -3,7 +3,8 @@ use lumia_core::SettingsGroup;
 
 use crate::app::LumiaApp;
 use crate::{
-    ExitFullscreen, ToggleFullscreen, ToggleImageInfo, EDIT_MENU_HEIGHT, EDIT_MENU_WIDTH,
+    About, ExitFullscreen, OpenSettings, ToggleFullscreen, ToggleImageInfo, EDIT_MENU_HEIGHT,
+    EDIT_MENU_WIDTH,
     STATUS_BAR_HEIGHT, STATUS_MENU_BOTTOM, STATUS_MENU_CONTROL_OFFSET, ZOOM_MENU_HEIGHT,
     ZOOM_MENU_HOVER_MARGIN, ZOOM_MENU_RIGHT, ZOOM_MENU_WIDTH,
 };
@@ -58,15 +59,45 @@ impl LumiaApp {
         cx.notify();
     }
 
-    pub(crate) fn open_settings_panel(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn open_settings(
+        &mut self,
+        _: &OpenSettings,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.is_viewer_blocked() {
+            self.open_settings_panel(cx);
+        }
+    }
+
+    pub(crate) fn open_about(
+        &mut self,
+        _: &About,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.is_viewer_blocked() {
+            self.open_settings_panel_to(SettingsGroup::About, cx);
+        }
+    }
+
+    pub(crate) fn open_settings_panel_to(
+        &mut self,
+        group: SettingsGroup,
+        cx: &mut Context<Self>,
+    ) {
         self.stop_slideshow(cx);
         self.close_plugin_session(cx);
         self.ui.show_settings_panel = true;
-        self.ui.active_settings_group = SettingsGroup::General;
+        self.ui.active_settings_group = group;
         self.ui.file_associations.initialized = false;
         self.ui.file_associations.feedback = None;
         self.ui.context_menu_position = None;
         cx.notify();
+    }
+
+    pub(crate) fn open_settings_panel(&mut self, cx: &mut Context<Self>) {
+        self.open_settings_panel_to(SettingsGroup::General, cx);
     }
 
     pub(crate) fn close_settings_panel(&mut self, cx: &mut Context<Self>) {

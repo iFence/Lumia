@@ -14,6 +14,7 @@ Conventions:
 - **View photo location on a map**: a new status-bar entry opens the photo's GPS shooting location in your system map.
 - **Info panel quick actions**: the image-info overlay now has one-click copy and close buttons for easier EXIF viewing and sharing.
 - **File association redesign**: the image format association settings have been overhauled for a more intuitive way to manage file types.
+- **Context menu file operations**: right-click the viewer to copy or view EXIF info, copy the file path or open its location, or delete the current image to trash. Fullscreen toggle is also available from the context menu.
 
 ### 🚀 Improvements
 - **More useful window title**: the title bar now shows the current image's position in its folder (e.g. "3/20"), so you can track browsing progress without opening the sidebar.

@@ -44,6 +44,8 @@ pub(crate) fn shortcut_record_button_id(shortcut_id: ShortcutId) -> &'static str
         ShortcutId::ToggleImageInfo => "shortcut-record-toggle-image-info",
         ShortcutId::NextImage => "shortcut-record-next-image",
         ShortcutId::PreviousImage => "shortcut-record-previous-image",
+        ShortcutId::OpenSettings => "shortcut-record-open-settings",
+        ShortcutId::About => "shortcut-record-about",
         ShortcutId::Quit => "shortcut-record-quit",
     }
 }
@@ -59,6 +61,8 @@ pub(crate) fn shortcut_reset_button_id(shortcut_id: ShortcutId) -> &'static str 
         ShortcutId::ToggleImageInfo => "shortcut-reset-toggle-image-info",
         ShortcutId::NextImage => "shortcut-reset-next-image",
         ShortcutId::PreviousImage => "shortcut-reset-previous-image",
+        ShortcutId::OpenSettings => "shortcut-reset-open-settings",
+        ShortcutId::About => "shortcut-reset-about",
         ShortcutId::Quit => "shortcut-reset-quit",
     }
 }

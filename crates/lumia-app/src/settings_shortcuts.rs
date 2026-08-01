@@ -40,6 +40,11 @@ impl LumiaApp {
                 ShortcutId::PreviousImage,
                 TextKey::ShortcutPreviousImageLabel,
             ),
+            (
+                ShortcutId::OpenSettings,
+                TextKey::ShortcutOpenSettingsLabel,
+            ),
+            (ShortcutId::About, TextKey::ShortcutAboutLabel),
             (ShortcutId::Quit, TextKey::ShortcutQuitLabel),
         ];
         let shortcut_row_count = shortcut_rows.len();

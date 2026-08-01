@@ -4,8 +4,9 @@ use lumia_core::{default_shortcuts, Language, ShortcutId, ThemeAccent, ThemeMode
 use crate::app::LumiaApp;
 use crate::persistence::save_settings;
 use crate::{
-    ExitFullscreen, NextImage, OpenFile, PreviousImage, Quit, SelectLanguage, SelectThemeAccent,
-    SelectThemeMode, ToggleFullscreen, ToggleImageInfo, ZoomFit, ZoomIn, ZoomOut,
+    About, ExitFullscreen, NextImage, OpenFile, OpenSettings, PreviousImage, Quit, SelectLanguage,
+    SelectThemeAccent, SelectThemeMode, ToggleFullscreen, ToggleImageInfo, ZoomFit, ZoomIn,
+    ZoomOut,
 };
 
 impl LumiaApp {
@@ -104,6 +105,12 @@ impl LumiaApp {
         if let Some(key) = shortcuts.get(&ShortcutId::PreviousImage) {
             bindings.push(KeyBinding::new(key.as_str(), PreviousImage, Some("Lumia")));
         }
+        if let Some(key) = shortcuts.get(&ShortcutId::OpenSettings) {
+            bindings.push(KeyBinding::new(key.as_str(), OpenSettings, Some("Lumia")));
+        }
+        if let Some(key) = shortcuts.get(&ShortcutId::About) {
+            bindings.push(KeyBinding::new(key.as_str(), About, Some("Lumia")));
+        }
         if let Some(key) = shortcuts.get(&ShortcutId::Quit) {
             bindings.push(KeyBinding::new(key.as_str(), Quit, Some("Lumia")));
         }
@@ -186,6 +193,8 @@ fn is_lumia_shortcut_action(action: &dyn Action) -> bool {
         || action.as_any().is::<ToggleImageInfo>()
         || action.as_any().is::<NextImage>()
         || action.as_any().is::<PreviousImage>()
+        || action.as_any().is::<OpenSettings>()
+        || action.as_any().is::<About>()
         || action.as_any().is::<Quit>()
 }
 

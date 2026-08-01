@@ -49,12 +49,6 @@ impl LumiaApp {
                     )
                     .child(
                         div()
-                            .text_sm()
-                            .text_color(rgb(palette.muted_text))
-                            .child(tr(language, TextKey::PluginsDescription)),
-                    )
-                    .child(
-                        div()
                             .text_xs()
                             .text_color(rgb(palette.muted_text))
                             .child(tr(language, TextKey::OfficialPluginsOnly)),

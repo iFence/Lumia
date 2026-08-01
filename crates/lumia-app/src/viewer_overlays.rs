@@ -3,7 +3,7 @@ use gpui::{
     MouseButton, ParentElement, Pixels, Point, Styled, Window,
 };
 use gpui_component::{Icon, IconName};
-use lumia_core::ShortcutId;
+use lumia_core::{SettingsGroup, ShortcutId};
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
@@ -248,17 +248,6 @@ impl LumiaApp {
                     },
                 ))
                 .child(context_menu_item_enabled(
-                    "copy-file-path-menu-item",
-                    tr(language, TextKey::CopyFilePath),
-                    has_image,
-                    None,
-                    palette,
-                    cx,
-                    |this, _, _, cx| {
-                        this.copy_file_path(cx);
-                    },
-                ))
-                .child(context_menu_item_enabled(
                     "show-exif-menu-item",
                     tr(language, TextKey::ShowExifInfo),
                     has_image,
@@ -269,6 +258,17 @@ impl LumiaApp {
                         this.ui.show_image_info = true;
                         this.ui.context_menu_position = None;
                         cx.notify();
+                    },
+                ))
+                .child(context_menu_item_enabled(
+                    "copy-file-path-menu-item",
+                    tr(language, TextKey::CopyFilePath),
+                    has_image,
+                    None,
+                    palette,
+                    cx,
+                    |this, _, _, cx| {
+                        this.copy_file_path(cx);
                     },
                 ))
                 .child(context_menu_item_enabled(
@@ -297,7 +297,7 @@ impl LumiaApp {
                 .child(context_menu_item(
                     "settings-menu-item",
                     tr(language, TextKey::Settings),
-                    None,
+                    Keystroke::parse(&self.get_shortcut_binding(ShortcutId::OpenSettings)).ok(),
                     palette,
                     cx,
                     |this, _, _, cx| {
@@ -307,12 +307,11 @@ impl LumiaApp {
                 .child(context_menu_item(
                     "about-menu-item",
                     tr(language, TextKey::About),
-                    None,
+                    Keystroke::parse(&self.get_shortcut_binding(ShortcutId::About)).ok(),
                     palette,
                     cx,
                     |this, _, _, cx| {
-                        this.ui.context_menu_position = None;
-                        cx.notify();
+                        this.open_settings_panel_to(SettingsGroup::About, cx);
                     },
                 ))
                 .child(div().h(px(1.0)).my_1().bg(rgb(palette.border)))

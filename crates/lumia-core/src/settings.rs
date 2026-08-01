@@ -13,6 +13,8 @@ pub enum ShortcutId {
     ToggleImageInfo,
     NextImage,
     PreviousImage,
+    OpenSettings,
+    About,
     Quit,
 }
 
@@ -63,6 +65,8 @@ pub fn default_shortcuts() -> HashMap<ShortcutId, String> {
         map.insert(ShortcutId::ToggleImageInfo, "tab".into());
         map.insert(ShortcutId::NextImage, "right".into());
         map.insert(ShortcutId::PreviousImage, "left".into());
+        map.insert(ShortcutId::OpenSettings, "cmd-,".into());
+        map.insert(ShortcutId::About, "cmd-h".into());
         map.insert(ShortcutId::Quit, "cmd-q".into());
     }
     #[cfg(not(target_os = "macos"))]
@@ -76,6 +80,8 @@ pub fn default_shortcuts() -> HashMap<ShortcutId, String> {
         map.insert(ShortcutId::ToggleImageInfo, "tab".into());
         map.insert(ShortcutId::NextImage, "right".into());
         map.insert(ShortcutId::PreviousImage, "left".into());
+        map.insert(ShortcutId::OpenSettings, "ctrl-,".into());
+        map.insert(ShortcutId::About, "ctrl-h".into());
         map.insert(ShortcutId::Quit, "ctrl-q".into());
     }
     map

@@ -113,6 +113,8 @@ actions!(
         ToggleFullscreen,
         ExitFullscreen,
         ToggleImageInfo,
+        OpenSettings,
+        About,
         CheckForUpdates,
         Quit
     ]
