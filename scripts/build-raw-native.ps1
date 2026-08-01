@@ -123,7 +123,7 @@ try {
             -Repository "https://github.com/LibRaw/LibRaw-cmake.git" -Commit $cmakeCommit
     }
 
-    cmake -G "Visual Studio 17 2022" -A x64 -S $cmakeSource -B $libRawBuild `
+    cmake -A x64 -S $cmakeSource -B $libRawBuild `
         "-DCMAKE_CXX_FLAGS=/DLIBRAW_WIN32_UNICODEPATHS /EHsc" `
         "-DCMAKE_POLICY_DEFAULT_CMP0091=NEW" `
         "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded" `
@@ -159,7 +159,7 @@ try {
     if (-not $rawImportLibrary -or -not $rawRuntime) {
         throw "LibRaw build outputs are missing"
     }
-    cmake -G "Visual Studio 17 2022" -A x64 -S plugins/lumia-plugin-raw/native -B $bridgeBuild `
+    cmake -A x64 -S plugins/lumia-plugin-raw/native -B $bridgeBuild `
         "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded" `
         "-DLIBRAW_INCLUDE_DIR=$libRawSource" `
         "-DLIBRAW_LIBRARY=$rawImportLibrary"

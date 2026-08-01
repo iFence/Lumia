@@ -30,8 +30,8 @@ jobs:
   windows-release:
     name: Windows installer
     needs: create-release
-    # The native RAW build uses CMake's Visual Studio 17 2022 generator.
-    runs-on: windows-2022
+    # Keep the preinstalled RAW dependencies stable while CMake selects the installed VS toolchain.
+    runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -85,7 +85,7 @@ jobs:
         shell: pwsh
         env:
           LUMIA_RAW_BRIDGE_PATH: ${{ steps.raw-native.outputs.bridge }}
-          LUMIA_RAW_SAMPLE_DIR: target/raw-test-samples
+          LUMIA_RAW_SAMPLE_DIR: ${{ github.workspace }}/target/raw-test-samples
         run: cargo test -p lumia-plugin-raw cc0_raw_samples_decode_to_bounded_png -- --nocapture
       - name: Package optional RAW plugin
         shell: pwsh
@@ -147,7 +147,7 @@ jobs:
       - name: Test RAW decoder against real samples
         env:
           LUMIA_RAW_BRIDGE_PATH: ${{ steps.raw-native.outputs.bridge }}
-          LUMIA_RAW_SAMPLE_DIR: target/raw-test-samples
+          LUMIA_RAW_SAMPLE_DIR: ${{ github.workspace }}/target/raw-test-samples
         run: cargo test -p lumia-plugin-raw cc0_raw_samples_decode_to_bounded_png -- --nocapture
       - name: Package optional RAW plugin
         env:
@@ -226,7 +226,7 @@ jobs:
       - name: Test RAW decoder against real samples
         env:
           LUMIA_RAW_BRIDGE_PATH: ${{ steps.raw-native.outputs.bridge }}
-          LUMIA_RAW_SAMPLE_DIR: target/raw-test-samples
+          LUMIA_RAW_SAMPLE_DIR: ${{ github.workspace }}/target/raw-test-samples
         run: cargo test -p lumia-plugin-raw cc0_raw_samples_decode_to_bounded_png -- --nocapture
       - name: Package optional RAW plugin
         env:
