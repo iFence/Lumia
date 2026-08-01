@@ -30,7 +30,8 @@ jobs:
   windows-release:
     name: Windows installer
     needs: create-release
-    runs-on: windows-latest
+    # The native RAW build uses CMake's Visual Studio 17 2022 generator.
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
