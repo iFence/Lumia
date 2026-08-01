@@ -148,6 +148,20 @@ pub(super) fn open_url_in_browser(url: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+pub(super) fn open_file_location(path: &Path) -> anyhow::Result<()> {
+    // Linux file managers have no portable "reveal this file" switch, so open
+    // the containing folder and let the file manager present it.
+    let parent = path.parent().unwrap_or(path);
+    let status = Command::new("xdg-open")
+        .arg(parent)
+        .status()
+        .with_context(|| format!("xdg-open {parent:?}"))?;
+    if !status.success() {
+        bail!("`xdg-open {parent:?}` exited with {status}");
+    }
+    Ok(())
+}
+
 fn restore_managed_defaults() -> anyhow::Result<()> {
     let mut preferences = load_file_association_preferences();
     for (mime, previous) in preferences.previous_handlers.clone() {

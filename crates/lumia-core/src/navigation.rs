@@ -41,6 +41,10 @@ impl FolderNavigation {
         self.paths.iter().any(|candidate| candidate == path)
     }
 
+    pub fn remove(&mut self, path: &Path) {
+        self.paths.retain(|candidate| candidate != path);
+    }
+
     pub fn current_index(&self, current_path: &Path) -> Option<usize> {
         self.paths.iter().position(|path| path == current_path)
     }
@@ -114,6 +118,29 @@ mod tests {
             navigation.adjacent_paths(&current),
             vec![dir.join("b.heic")]
         );
+
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn remove_drops_only_the_deleted_path() {
+        let dir = temp_dir();
+        std::fs::create_dir(&dir).unwrap();
+        for name in ["a.jpg", "b.jpg", "c.jpg"] {
+            std::fs::write(dir.join(name), []).unwrap();
+        }
+
+        let mut navigation = FolderNavigation::scan(&dir.join("a.jpg")).unwrap();
+        navigation.remove(&dir.join("b.jpg"));
+        let names = navigation
+            .paths()
+            .iter()
+            .map(|path| path.file_name().unwrap().to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        assert_eq!(names, ["a.jpg", "c.jpg"]);
+        assert_eq!(navigation.len(), 2);
+        navigation.remove(&dir.join("missing.jpg"));
+        assert_eq!(navigation.len(), 2);
 
         std::fs::remove_dir_all(dir).unwrap();
     }

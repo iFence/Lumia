@@ -168,7 +168,13 @@ impl LumiaApp {
                     format_details.join(", ")
                 ));
             }
+            let exif_start = lines.len();
             append_exif_lines(&mut lines, language, &metadata.exif);
+            if lines.len() > exif_start {
+                // Insert a blank line separating the EXIF section from the
+                // basic file info above it.
+                lines.insert(exif_start, String::new());
+            }
         } else {
             lines.push(format!(
                 "{}: {unknown}",
@@ -186,6 +192,19 @@ impl LumiaApp {
             tr(language, TextKey::ImageInfoPath),
             path.display()
         ));
+        lines
+    }
+
+    pub(crate) fn exif_only_lines(&self, language: Language) -> Vec<String> {
+        let mut lines = Vec::new();
+        if let Some(exif) = self
+            .viewer
+            .document()
+            .and_then(|image| image.metadata.as_ref())
+            .map(|metadata| &metadata.exif)
+        {
+            append_exif_lines(&mut lines, language, exif);
+        }
         lines
     }
 }

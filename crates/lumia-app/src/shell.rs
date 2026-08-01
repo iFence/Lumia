@@ -79,6 +79,19 @@ pub(crate) fn open_url_in_browser(url: &str) -> anyhow::Result<()> {
     platform::open_url_in_browser(url)
 }
 
+/// Reveal `path` in the system file manager, selecting the file when the
+/// platform supports it.
+pub(crate) fn open_file_location(path: &std::path::Path) -> anyhow::Result<()> {
+    platform::open_file_location(path)
+}
+
+/// Move `path` to the operating system's trash / recycle bin so it can be
+/// recovered later, rather than deleting it permanently.
+pub(crate) fn delete_file_to_trash(path: &std::path::Path) -> anyhow::Result<()> {
+    trash::delete(path)?;
+    Ok(())
+}
+
 #[cfg(target_os = "windows")]
 pub(crate) fn repair_legacy_file_associations() -> anyhow::Result<()> {
     platform::repair_legacy_associations(&std::env::current_exe()?)

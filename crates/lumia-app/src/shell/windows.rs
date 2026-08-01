@@ -213,6 +213,14 @@ pub(super) fn open_url_in_browser(url: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+pub(super) fn open_file_location(path: &Path) -> anyhow::Result<()> {
+    std::process::Command::new("explorer")
+        .arg(format!("/select,{}", path.display()))
+        .spawn()
+        .with_context(|| format!("launch explorer /select,{}", path.display()))?;
+    Ok(())
+}
+
 fn apply_registry_plan(plan: &RegistryPlan) -> anyhow::Result<()> {
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
 

@@ -152,12 +152,23 @@ impl LumiaApp {
         cx: &mut Context<Self>,
     ) -> Option<impl IntoElement> {
         let language = self.settings.language;
+        let has_image = self.viewer.has_document();
+        // `metadata` is populated for every supported format, so check for
+        // actual EXIF fields rather than mere metadata presence — otherwise
+        // the copy action would silently produce empty text for images
+        // without camera EXIF data.
+        let has_exif = !self.exif_only_lines(language).is_empty();
         let slideshow_active = self.slideshow.is_active();
         let slideshow_enabled = slideshow_active || self.can_start_slideshow();
         let slideshow_label = if slideshow_active {
             TextKey::StopSlideshow
         } else {
             TextKey::Slideshow
+        };
+        let fullscreen_label = if self.ui.is_fullscreen {
+            TextKey::ExitFullscreen
+        } else {
+            TextKey::Fullscreen
         };
         let plugin_items = self.plugins.context_menu_items(
             language_code(self.settings.language),
@@ -212,7 +223,76 @@ impl LumiaApp {
                         this.toggle_slideshow(window, cx);
                     },
                 ))
+                .child(context_menu_item(
+                    "fullscreen-menu-item",
+                    tr(language, fullscreen_label),
+                    Keystroke::parse(&self.get_shortcut_binding(ShortcutId::ToggleFullscreen))
+                        .ok(),
+                    palette,
+                    cx,
+                    |this, _, window, cx| {
+                        this.toggle_window_fullscreen(window, cx);
+                    },
+                ))
                 .children(plugin_elements)
+                .child(div().h(px(1.0)).my_1().bg(rgb(palette.border)))
+                .child(context_menu_item_enabled(
+                    "copy-exif-menu-item",
+                    tr(language, TextKey::CopyExifInfo),
+                    has_exif,
+                    None,
+                    palette,
+                    cx,
+                    |this, _, _, cx| {
+                        this.copy_exif_info(cx);
+                    },
+                ))
+                .child(context_menu_item_enabled(
+                    "copy-file-path-menu-item",
+                    tr(language, TextKey::CopyFilePath),
+                    has_image,
+                    None,
+                    palette,
+                    cx,
+                    |this, _, _, cx| {
+                        this.copy_file_path(cx);
+                    },
+                ))
+                .child(context_menu_item_enabled(
+                    "show-exif-menu-item",
+                    tr(language, TextKey::ShowExifInfo),
+                    has_image,
+                    None,
+                    palette,
+                    cx,
+                    |this, _, _, cx| {
+                        this.ui.show_image_info = true;
+                        this.ui.context_menu_position = None;
+                        cx.notify();
+                    },
+                ))
+                .child(context_menu_item_enabled(
+                    "open-file-location-menu-item",
+                    tr(language, TextKey::OpenFileLocation),
+                    has_image,
+                    None,
+                    palette,
+                    cx,
+                    |this, _, _, cx| {
+                        this.open_file_location(cx);
+                    },
+                ))
+                .child(context_menu_item_enabled(
+                    "delete-menu-item",
+                    tr(language, TextKey::Delete),
+                    has_image,
+                    None,
+                    palette,
+                    cx,
+                    |this, _, window, cx| {
+                        this.delete_current_image(window, cx);
+                    },
+                ))
                 .child(div().h(px(1.0)).my_1().bg(rgb(palette.border)))
                 .child(context_menu_item(
                     "settings-menu-item",
@@ -252,7 +332,7 @@ impl LumiaApp {
 }
 
 fn context_menu_height(plugin_item_count: usize) -> f32 {
-    2.0 + 8.0 + (6 + plugin_item_count) as f32 * CONTEXT_MENU_ITEM_HEIGHT + 2.0 * 9.0
+    2.0 + 8.0 + (12 + plugin_item_count) as f32 * CONTEXT_MENU_ITEM_HEIGHT + 3.0 * 9.0
 }
 
 fn clamp_menu_coordinate(
@@ -277,7 +357,7 @@ mod tests {
         );
         assert_eq!(
             clamp_menu_coordinate(590.0, 600.0, context_menu_height(0), STATUS_BAR_HEIGHT),
-            360.0
+            183.0
         );
     }
 

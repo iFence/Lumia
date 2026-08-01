@@ -1,9 +1,10 @@
 use std::path::Path;
 
-use gpui::{Context, Window};
+use gpui::{ClipboardItem, Context, Window};
 use lumia_core::{FitMode, ViewportState};
 
 use crate::app::LumiaApp;
+use crate::i18n::{tr, TextKey};
 use crate::{NextImage, PreviousImage};
 use crate::{APP_TITLE, EDIT_PANEL_WIDTH, PLUGIN_PANEL_WIDTH, STATUS_BAR_HEIGHT};
 
@@ -98,6 +99,85 @@ impl LumiaApp {
             .and_then(|name| name.to_str())
             .unwrap_or("No image")
             .to_string()
+    }
+
+    pub(crate) fn copy_file_path(&mut self, cx: &mut Context<Self>) {
+        if let Some(path) = self.image_path() {
+            let text = path.to_string_lossy().to_string();
+            cx.write_to_clipboard(ClipboardItem::new_string(text));
+        }
+        self.ui.context_menu_position = None;
+        cx.notify();
+    }
+
+    pub(crate) fn copy_exif_info(&mut self, cx: &mut Context<Self>) {
+        let text = self.exif_only_lines(self.settings.language).join("\n");
+        if !text.is_empty() {
+            cx.write_to_clipboard(ClipboardItem::new_string(text));
+        }
+        self.ui.context_menu_position = None;
+        cx.notify();
+    }
+
+    pub(crate) fn open_file_location(&mut self, cx: &mut Context<Self>) {
+        if let Some(path) = self.image_path() {
+            let _ = crate::shell::open_file_location(path);
+        }
+        self.ui.context_menu_position = None;
+        cx.notify();
+    }
+
+    pub(crate) fn delete_current_image(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(path) = self.image_path().map(Path::to_path_buf) else {
+            self.ui.context_menu_position = None;
+            cx.notify();
+            return;
+        };
+        // Pick the sibling to show before removing the deleted file.
+        let next = self.navigation.step_path(&path, 1).map(Path::to_path_buf);
+        if let Err(_error) = crate::shell::delete_file_to_trash(&path) {
+            self.ui.error_message = Some(
+                tr(self.settings.language, TextKey::DeleteFailed).to_string(),
+            );
+            self.ui.context_menu_position = None;
+            cx.notify();
+            return;
+        }
+        self.navigation.remove(&path);
+        self.ui.context_menu_position = None;
+        if self.navigation.is_empty() {
+            self.clear_current_image(window, cx);
+        } else if let Some(next) = next {
+            self.load_image(next, Some(window), cx);
+        } else {
+            self.clear_current_image(window, cx);
+        }
+        cx.notify();
+    }
+
+    fn clear_current_image(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.close_plugin_session(cx);
+        self.close_edit_session(false, cx);
+        self.cancel_preview_preloads();
+        self.annotations.reset();
+        self.large_image.reset();
+        let retired_tiles = self.large_image.drain_retired_tiles().collect::<Vec<_>>();
+        for image in retired_tiles {
+            cx.drop_image(image.render_image(), Some(window));
+        }
+        self.loads.begin_current_load();
+        self.loads.clear_display_images();
+        self.release_retired_images(Some(window), cx);
+        self.viewer.clear();
+        self.ui.error_message = None;
+        self.ui.show_zoom_menu = false;
+        self.ui.is_panning = false;
+        self.ui.is_overview_panning = false;
+        self.ui.context_menu_position = None;
+        self.ui.last_mouse_position = None;
+        self.ui.show_image_info = false;
+        self.sync_window_title(window);
+        cx.notify();
     }
 
     pub(crate) fn current_window_title(&self) -> String {

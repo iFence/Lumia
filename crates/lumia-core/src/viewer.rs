@@ -16,6 +16,12 @@ impl ViewerSession {
         self.rotation_quarter_turns = 0;
     }
 
+    pub fn clear(&mut self) {
+        self.document = None;
+        self.viewport = ViewportState::default();
+        self.rotation_quarter_turns = 0;
+    }
+
     pub fn document(&self) -> Option<&ImageDocument> {
         self.document.as_ref()
     }
@@ -97,5 +103,20 @@ mod tests {
         assert_eq!(session.viewport(), &ViewportState::default());
         assert_eq!(session.rotation_quarter_turns(), 0);
         assert_eq!(session.display_dimensions(), Some((640, 480)));
+    }
+
+    #[test]
+    fn clearing_removes_document_and_resets_transform() {
+        let mut session = ViewerSession::default();
+        session.replace_document(document());
+        session.viewport_mut().set_zoom(2.0);
+        session.rotate_by(1);
+        assert!(session.has_document());
+
+        session.clear();
+        assert!(!session.has_document());
+        assert_eq!(session.image_path(), None);
+        assert_eq!(session.viewport(), &ViewportState::default());
+        assert_eq!(session.rotation_quarter_turns(), 0);
     }
 }
