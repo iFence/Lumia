@@ -3,6 +3,7 @@ use gpui::{
     div, px, rgb, Context, FontWeight, InteractiveElement, IntoElement, ParentElement,
     StatefulInteractiveElement, Styled,
 };
+use gpui_component::text::TextView;
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
@@ -91,8 +92,11 @@ impl LumiaApp {
                         div()
                             .id("about-release-notes")
                             .w_full()
+                            .min_w_0()
+                            .max_w_full()
                             .max_h(px(220.0))
                             .overflow_y_scroll()
+                            .overflow_x_hidden()
                             .rounded_md()
                             .border_1()
                             .border_color(rgb(palette.border))
@@ -100,7 +104,16 @@ impl LumiaApp {
                             .p_3()
                             .text_xs()
                             .text_color(rgb(palette.muted_text))
-                            .child(release_notes.clone()),
+                            .child(
+                                TextView::markdown(
+                                    "about-release-notes-markdown",
+                                    release_notes.clone(),
+                                )
+                                .w_full()
+                                .min_w_0()
+                                .max_w_full()
+                                .selectable(true),
+                            ),
                     )
                 }
             } else {
@@ -141,11 +154,14 @@ impl LumiaApp {
             .flex_1()
             .h_full()
             .flex()
+            .min_w_0()
+            .max_w_full()
             .flex_col()
             .items_center()
             .gap_3()
             .p_5()
             .overflow_y_scroll()
+            .overflow_x_hidden()
             .child(
                 div()
                     .text_xl()
@@ -189,6 +205,8 @@ impl LumiaApp {
                         .flex()
                         .flex_col()
                         .gap_2()
+                        .min_w_0()
+                        .max_w_full()
                         .child(
                             div()
                                 .text_sm()
