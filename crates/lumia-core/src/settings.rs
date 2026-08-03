@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -24,7 +24,10 @@ pub struct AppSettings {
     pub theme: ThemeMode,
     #[serde(default)]
     pub theme_accent: ThemeAccent,
-    #[serde(default = "default_shortcuts")]
+    #[serde(
+        default = "default_shortcuts",
+        deserialize_with = "deserialize_shortcuts"
+    )]
     pub shortcuts: HashMap<ShortcutId, String>,
     #[serde(default = "default_check_updates_on_startup")]
     pub check_updates_on_startup: bool,
@@ -34,6 +37,16 @@ pub struct AppSettings {
 
 fn default_check_updates_on_startup() -> bool {
     true
+}
+
+fn deserialize_shortcuts<'de, D>(deserializer: D) -> Result<HashMap<ShortcutId, String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let saved = HashMap::<ShortcutId, String>::deserialize(deserializer)?;
+    let mut shortcuts = default_shortcuts();
+    shortcuts.extend(saved);
+    Ok(shortcuts)
 }
 
 impl Default for AppSettings {
@@ -166,16 +179,30 @@ mod tests {
     }
 
     #[test]
-    fn partial_shortcuts_in_json_merged_with_defaults() {
-        // A user might have only customized one shortcut; the rest should stay default.
-        // But serde's `default` only applies when the field is entirely missing.
-        // When present with a subset, we need custom deserialization.
-        // For now just test the missing-field path.
+    fn explicitly_empty_shortcuts_use_defaults() {
         let json = r#"{"language":"English","theme":"Light","shortcuts":{}}"#;
         let parsed: AppSettings =
             serde_json::from_str(json).expect("deserialize with empty shortcuts");
         assert_eq!(parsed.theme_accent, ThemeAccent::Blue);
-        assert!(parsed.shortcuts.is_empty());
+        assert_eq!(parsed.shortcuts, default_shortcuts());
+    }
+
+    #[test]
+    fn partial_shortcuts_preserve_overrides_and_fill_missing_defaults() {
+        let json = r#"{"language":"English","theme":"Light","shortcuts":{"open_file":"alt-o"}}"#;
+        let parsed: AppSettings =
+            serde_json::from_str(json).expect("deserialize with partial shortcuts");
+        let defaults = default_shortcuts();
+
+        assert_eq!(
+            parsed.shortcuts.get(&ShortcutId::OpenFile),
+            Some(&"alt-o".to_string())
+        );
+        assert_eq!(
+            parsed.shortcuts.get(&ShortcutId::OpenSettings),
+            defaults.get(&ShortcutId::OpenSettings)
+        );
+        assert_eq!(parsed.shortcuts.len(), defaults.len());
     }
 
     #[test]
