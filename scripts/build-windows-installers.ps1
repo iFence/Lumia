@@ -16,7 +16,7 @@ try {
     $version = $app.version
     New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 
-    cargo build --release -p lumia-app -p lumia-plugin-photoshop
+    cargo build --release -p lumia-app -p lumia-plugin-photoshop -p lumia-plugin-jpeg-xl -p lumia-plugin-jpeg2000
     if ($LASTEXITCODE -ne 0) { throw "Release binary build failed" }
 
     $enUsMsi = Join-Path $OutputDirectory "Lumia-$version-x64-en-US.msi"

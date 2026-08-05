@@ -77,6 +77,10 @@ foreach ($msi in $msis) {
         LumiaExecutable = "lumia-app.exe"
         PhotoshopPluginExe = "lumia-plugin-photoshop.exe"
         PhotoshopManifestFile = "lumia.plugin.json"
+        JpegXlPluginExe = "lumia-plugin-jpeg-xl.exe"
+        JpegXlManifestFile = "lumia.plugin.json"
+        Jpeg2000PluginExe = "lumia-plugin-jpeg2000.exe"
+        Jpeg2000ManifestFile = "lumia.plugin.json"
     }
     foreach ($fileId in $requiredFiles.Keys) {
         $found = Get-MsiValue $database "SELECT ``FileName`` FROM ``File`` WHERE ``File``='$fileId'"

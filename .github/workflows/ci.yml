@@ -41,7 +41,7 @@ jobs:
       - run: cargo check --workspace --all-targets
       - run: cargo test --workspace
       - name: Build application and plugins
-        run: cargo build -p lumia-app -p lumia-plugin-photoshop -p lumia-plugin-annotation
+        run: cargo build -p lumia-app -p lumia-plugin-photoshop -p lumia-plugin-jpeg-xl -p lumia-plugin-jpeg2000 -p lumia-plugin-annotation
       - name: Verify Windows bundled binaries
         if: runner.os == 'Windows'
         shell: pwsh
@@ -55,6 +55,18 @@ jobs:
           if (-not (Test-Path plugins/lumia-plugin-photoshop/lumia.plugin.json)) {
             throw "Photoshop plugin manifest is missing"
           }
+          if (-not (Test-Path target/debug/lumia-plugin-jpeg-xl.exe)) {
+            throw "JPEG XL plugin binary is missing"
+          }
+          if (-not (Test-Path plugins/lumia-plugin-jpeg-xl/lumia.plugin.json)) {
+            throw "JPEG XL plugin manifest is missing"
+          }
+          if (-not (Test-Path target/debug/lumia-plugin-jpeg2000.exe)) {
+            throw "JPEG 2000 plugin binary is missing"
+          }
+          if (-not (Test-Path plugins/lumia-plugin-jpeg2000/lumia.plugin.json)) {
+            throw "JPEG 2000 plugin manifest is missing"
+          }
           if (-not (Test-Path target/debug/lumia-plugin-annotation.exe)) {
             throw "Annotation plugin binary is missing"
           }
@@ -67,5 +79,9 @@ jobs:
           test -x target/debug/lumia-app
           test -x target/debug/lumia-plugin-photoshop
           test -f plugins/lumia-plugin-photoshop/lumia.plugin.json
+          test -x target/debug/lumia-plugin-jpeg-xl
+          test -f plugins/lumia-plugin-jpeg-xl/lumia.plugin.json
+          test -x target/debug/lumia-plugin-jpeg2000
+          test -f plugins/lumia-plugin-jpeg2000/lumia.plugin.json
           test -x target/debug/lumia-plugin-annotation
           test -f plugins/lumia-plugin-annotation/lumia.plugin.sig

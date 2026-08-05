@@ -5,9 +5,9 @@ use uuid::Uuid;
 use super::metadata::read_exif_metadata;
 
 use super::{
-    is_supported_image_extension, requires_plugin_preview_extension, ColorDescription,
-    ImageDocument, ImageFileMetadata, ImageLoadError, ImageMetadata, ImageProbe, ImageSource,
-    PixelFormat, TransferFunction,
+    is_supported_image_extension, probe_animation_format, requires_plugin_preview_extension,
+    ColorDescription, ImageDocument, ImageFileMetadata, ImageLoadError, ImageMetadata, ImageProbe,
+    ImageSource, PixelFormat, TransferFunction,
 };
 
 impl ImageDocument {
@@ -116,6 +116,8 @@ impl ImageDocument {
             )
         };
 
+        let animation = probe_animation_format(path)?;
+
         Ok(ImageProbe {
             document: Self {
                 id: Uuid::now_v7(),
@@ -127,6 +129,7 @@ impl ImageDocument {
                 size_bytes: file_metadata.len(),
                 modified: file_metadata.modified().ok(),
             },
+            animation,
         })
     }
 }

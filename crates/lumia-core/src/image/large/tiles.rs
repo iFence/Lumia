@@ -9,10 +9,10 @@ use image::ImageFormat;
 use png::{BitDepth, Decoder, Transformations};
 
 use super::{
-    LargeImageError, TileCoordinate, TileLevel,
     cache::{RasterCacheKey, RasterCacheReader, RasterCacheWriter, RasterLayout},
     mapped::write_mapped_bgra_raster,
     png::{png_channels, png_pixel},
+    LargeImageError, TileCoordinate, TileLevel,
 };
 use crate::{DecodeCancellation, DecodedImage};
 

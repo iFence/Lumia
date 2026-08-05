@@ -104,13 +104,15 @@ impl LumiaApp {
                     };
                     let needs_heif_decode = is_heif(&path);
                     let needs_professional_decode = is_professional_path(&path);
+                    let animation = probe.animation;
                     let needs_large_image_decode =
                         probe.document.metadata.as_ref().is_some_and(|metadata| {
                             let decoded_bytes = u64::from(metadata.width)
                                 .saturating_mul(u64::from(metadata.height))
                                 .saturating_mul(4);
                             should_decode_large_image(&path, metadata.width, metadata.height)
-                                || (is_gif(&path) && decoded_bytes > MAX_ANIMATION_FRAME_BYTES)
+                                || (animation.is_some()
+                                    && decoded_bytes > MAX_ANIMATION_FRAME_BYTES)
                         });
                     let allow_full_heif_decode =
                         probe.document.metadata.as_ref().is_none_or(|metadata| {
@@ -156,9 +158,10 @@ impl LumiaApp {
                             cancellation.clone(),
                             cx,
                         );
-                    } else if is_gif(&path) {
-                        this.start_current_gif_decode(
+                    } else if let Some(format) = animation {
+                        this.start_current_animation_decode(
                             path.clone(),
+                            format,
                             generation,
                             cancellation.clone(),
                             cx,
@@ -444,12 +447,6 @@ fn is_heif(path: &Path) -> bool {
         .is_some_and(|extension| {
             extension.eq_ignore_ascii_case("heic") || extension.eq_ignore_ascii_case("heif")
         })
-}
-
-fn is_gif(path: &Path) -> bool {
-    path.extension()
-        .and_then(|extension| extension.to_str())
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("gif"))
 }
 
 fn is_svg(path: &Path) -> bool {

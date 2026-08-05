@@ -1,0 +1,11 @@
+{
+  "id": "lumia.jpeg-xl",
+  "name": "Lumia JPEG XL Preview",
+  "version": "0.1.0",
+  "entry": "lumia-plugin-jpeg-xl",
+  "capabilities": ["probe", "decode_preview"],
+  "permissions": ["read_input_path", "write_temporary_output"],
+  "supported_extensions": ["jxl"],
+  "supported_inputs": ["image/jxl"],
+  "supported_outputs": ["image/png"]
+}

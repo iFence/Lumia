@@ -8,10 +8,12 @@ pub(crate) struct FileAssociationCategory {
 }
 
 const COMMON_IMAGE_FORMATS: &[&str] = &[
-    "jpg", "jpeg", "png", "gif", "webp", "tif", "tiff", "tga", "dds", "bmp", "ico",
+    "jpg", "jpeg", "png", "apng", "gif", "webp", "tif", "tiff", "tga", "dds", "bmp", "ico",
 ];
 
-const MODERN_IMAGE_FORMATS: &[&str] = &["avif", "heic", "heif", "hdr", "exr", "qoi"];
+const MODERN_IMAGE_FORMATS: &[&str] = &[
+    "avif", "heic", "heif", "jxl", "jp2", "j2k", "j2c", "jpc", "hdr", "exr", "qoi",
+];
 
 const DESIGN_IMAGE_FORMATS: &[&str] = &["psd", "psb", "svg"];
 

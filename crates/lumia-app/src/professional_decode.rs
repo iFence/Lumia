@@ -6,7 +6,7 @@ use lumia_plugin_api::PluginManifest;
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
-use crate::plugin_catalog::photoshop_manifest;
+use crate::plugin_catalog::{jpeg2000_manifest, jpeg_xl_manifest, photoshop_manifest};
 use crate::professional_preview::{decode_professional_preview, ProfessionalDecodeError};
 
 pub(crate) fn is_professional_path(path: &Path) -> bool {
@@ -86,7 +86,14 @@ impl LumiaApp {
             manifest.entry = plugin.entry_path();
             return Some(manifest);
         }
-        if extension.eq_ignore_ascii_case("psd") || extension.eq_ignore_ascii_case("psb") {
+        if extension.eq_ignore_ascii_case("jxl") {
+            jpeg_xl_manifest().ok()
+        } else if ["jp2", "j2k", "j2c", "jpc"]
+            .iter()
+            .any(|candidate| candidate.eq_ignore_ascii_case(extension))
+        {
+            jpeg2000_manifest().ok()
+        } else if extension.eq_ignore_ascii_case("psd") || extension.eq_ignore_ascii_case("psb") {
             photoshop_manifest().ok()
         } else {
             None
@@ -114,7 +121,7 @@ fn professional_error_message(
         {
             TextKey::ProfessionalPluginUnavailable
         }
-        ProfessionalDecodeError::PluginUnavailable => TextKey::PhotoshopPreviewFailed,
+        ProfessionalDecodeError::PluginUnavailable => TextKey::ProfessionalBundledPluginUnavailable,
     };
     tr(language, key).to_string()
 }
@@ -129,6 +136,9 @@ mod tests {
         assert!(is_professional_path(Path::new("large.psb")));
         assert!(is_professional_path(Path::new("photo.DNG")));
         assert!(is_professional_path(Path::new("photo.nEf")));
+        assert!(is_professional_path(Path::new("photo.JXL")));
+        assert!(is_professional_path(Path::new("scan.JP2")));
+        assert!(is_professional_path(Path::new("scan.j2c")));
         assert!(!is_professional_path(Path::new("image.png")));
     }
 }

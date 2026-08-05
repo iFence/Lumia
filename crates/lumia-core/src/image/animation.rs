@@ -1,48 +1,110 @@
 use std::{fs::File, io::BufReader, path::Path, time::Duration};
 
-use image::{codecs::gif::GifDecoder, AnimationDecoder, ImageDecoder, ImageError, Limits};
+use image::{
+    codecs::{gif::GifDecoder, png::PngDecoder, webp::WebPDecoder},
+    metadata::LoopCount,
+    AnimationDecoder, ImageDecoder, ImageError, Limits,
+};
 
 use super::{
-    checked_bgra8_len, decoded_image_from_rgba, DecodeCancellation, DecodedAnimationFrame,
-    ImageLoadError,
+    checked_bgra8_len, decoded_image_from_rgba, AnimatedImageFormat, DecodeCancellation,
+    DecodedAnimationFrame, ImageLoadError,
 };
 
 const MIN_FRAME_DELAY: Duration = Duration::from_millis(10);
 
-pub fn stream_gif_frames(
+pub fn probe_animation_format(path: &Path) -> Result<Option<AnimatedImageFormat>, ImageLoadError> {
+    let extension = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .unwrap_or_default();
+    if extension.eq_ignore_ascii_case("gif") {
+        return Ok(Some(AnimatedImageFormat::Gif));
+    }
+    if extension.eq_ignore_ascii_case("png") || extension.eq_ignore_ascii_case("apng") {
+        let reader = open_buffered(path).map_err(|source| animation_error(path, source))?;
+        let decoder = PngDecoder::new(reader).map_err(|source| animation_error(path, source))?;
+        return decoder
+            .is_apng()
+            .map(|animated| animated.then_some(AnimatedImageFormat::Png))
+            .map_err(|source| animation_error(path, source));
+    }
+    if extension.eq_ignore_ascii_case("webp") {
+        let reader = open_buffered(path).map_err(|source| animation_error(path, source))?;
+        let decoder = WebPDecoder::new(reader).map_err(|source| animation_error(path, source))?;
+        return Ok(decoder.has_animation().then_some(AnimatedImageFormat::WebP));
+    }
+    Ok(None)
+}
+
+pub fn stream_animation_frames(
+    path: &Path,
+    format: AnimatedImageFormat,
+    max_frame_bytes: u64,
+    cancellation: &DecodeCancellation,
+    emit: impl FnMut(DecodedAnimationFrame) -> bool,
+) -> Result<(), ImageLoadError> {
+    match format {
+        AnimatedImageFormat::Gif => stream_decoder(
+            path,
+            max_frame_bytes,
+            cancellation,
+            || {
+                let mut decoder = GifDecoder::new(open_buffered(path)?)?;
+                let dimensions = decoder.dimensions();
+                let mut limits = decoder_limits(max_frame_bytes);
+                limits.max_alloc = Some(max_frame_bytes.saturating_mul(2));
+                decoder.set_limits(limits)?;
+                Ok((decoder, dimensions))
+            },
+            emit,
+        ),
+        AnimatedImageFormat::Png => stream_decoder(
+            path,
+            max_frame_bytes,
+            cancellation,
+            || {
+                let decoder = PngDecoder::with_limits(
+                    open_buffered(path)?,
+                    decoder_limits(max_frame_bytes.saturating_mul(3)),
+                )?;
+                let dimensions = decoder.dimensions();
+                Ok((decoder.apng()?, dimensions))
+            },
+            emit,
+        ),
+        AnimatedImageFormat::WebP => stream_decoder(
+            path,
+            max_frame_bytes,
+            cancellation,
+            || {
+                let decoder = WebPDecoder::new(open_buffered(path)?)?;
+                let dimensions = decoder.dimensions();
+                Ok((decoder, dimensions))
+            },
+            emit,
+        ),
+    }
+}
+
+fn stream_decoder<D>(
     path: &Path,
     max_frame_bytes: u64,
     cancellation: &DecodeCancellation,
+    mut open: impl FnMut() -> Result<(D, (u32, u32)), ImageError>,
     mut emit: impl FnMut(DecodedAnimationFrame) -> bool,
-) -> Result<(), ImageLoadError> {
-    let repeat = gif_repeat(path)?;
+) -> Result<(), ImageLoadError>
+where
+    D: AnimationDecoder<'static> + 'static,
+{
+    let (mut decoder, dimensions) = open().map_err(|source| animation_error(path, source))?;
+    validate_frame_budget(dimensions, max_frame_bytes)?;
+    let repeat = finite_loop_count(decoder.loop_count());
     let mut completed_loops = 0_u32;
     loop {
         if cancellation.is_cancelled() {
             return Err(ImageLoadError::Cancelled);
         }
-        let file = File::open(path).map_err(|source| ImageLoadError::Io {
-            path: path.to_path_buf(),
-            source,
-        })?;
-        let mut decoder = GifDecoder::new(BufReader::new(file))
-            .map_err(|source| animation_error(path, source))?;
-        let (width, height) = decoder.dimensions();
-        let frame_bytes = checked_bgra8_len(width, height)
-            .and_then(|bytes| u64::try_from(bytes).ok())
-            .unwrap_or(u64::MAX);
-        if frame_bytes > max_frame_bytes {
-            return Err(ImageLoadError::MemoryLimit {
-                bytes: frame_bytes,
-                limit: max_frame_bytes,
-            });
-        }
-        let mut limits = Limits::default();
-        limits.max_alloc = Some(max_frame_bytes.saturating_mul(2));
-        decoder
-            .set_limits(limits)
-            .map_err(|source| animation_error(path, source))?;
-
         for frame in decoder.into_frames() {
             if cancellation.is_cancelled() {
                 return Err(ImageLoadError::Cancelled);
@@ -50,6 +112,9 @@ pub fn stream_gif_frames(
             let frame = frame.map_err(|source| animation_error(path, source))?;
             let delay = Duration::from(frame.delay()).max(MIN_FRAME_DELAY);
             let buffer = frame.into_buffer();
+            let width = buffer.width();
+            let height = buffer.height();
+            validate_frame_budget((width, height), max_frame_bytes)?;
             let decoded = decoded_image_from_rgba(buffer.into_raw(), width, height)?;
             if !emit(DecodedAnimationFrame {
                 image: decoded,
@@ -62,29 +127,46 @@ pub fn stream_gif_frames(
         if repeat.is_some_and(|repeat| completed_loops >= repeat) {
             return Ok(());
         }
+        let opened = open().map_err(|source| animation_error(path, source))?;
+        validate_frame_budget(opened.1, max_frame_bytes)?;
+        decoder = opened.0;
     }
 }
 
-fn gif_repeat(path: &Path) -> Result<Option<u32>, ImageLoadError> {
-    let file = File::open(path).map_err(|source| ImageLoadError::Io {
-        path: path.to_path_buf(),
-        source,
-    })?;
-    let decoder = gif::DecodeOptions::new()
-        .read_info(BufReader::new(file))
-        .map_err(|source| {
-            animation_error(
-                path,
-                ImageError::Decoding(image::error::DecodingError::new(
-                    image::ImageFormat::Gif.into(),
-                    source,
-                )),
-            )
-        })?;
-    Ok(match decoder.repeat() {
-        gif::Repeat::Finite(0) | gif::Repeat::Infinite => None,
-        gif::Repeat::Finite(repeat) => Some(u32::from(repeat)),
-    })
+fn open_buffered(path: &Path) -> Result<BufReader<File>, ImageError> {
+    File::open(path)
+        .map(BufReader::new)
+        .map_err(ImageError::IoError)
+}
+
+fn decoder_limits(max_alloc: u64) -> Limits {
+    let mut limits = Limits::default();
+    limits.max_alloc = Some(max_alloc);
+    limits
+}
+
+fn validate_frame_budget(
+    (width, height): (u32, u32),
+    max_frame_bytes: u64,
+) -> Result<(), ImageLoadError> {
+    let frame_bytes = checked_bgra8_len(width, height)
+        .and_then(|bytes| u64::try_from(bytes).ok())
+        .unwrap_or(u64::MAX);
+    if frame_bytes > max_frame_bytes {
+        Err(ImageLoadError::MemoryLimit {
+            bytes: frame_bytes,
+            limit: max_frame_bytes,
+        })
+    } else {
+        Ok(())
+    }
+}
+
+fn finite_loop_count(loop_count: LoopCount) -> Option<u32> {
+    match loop_count {
+        LoopCount::Infinite => None,
+        LoopCount::Finite(count) => Some(count.get()),
+    }
 }
 
 fn animation_error(path: &Path, source: ImageError) -> ImageLoadError {
@@ -135,10 +217,16 @@ mod tests {
         drop(encoder);
 
         let mut frames = Vec::new();
-        stream_gif_frames(&path, 1024, &DecodeCancellation::default(), |frame| {
-            frames.push(frame);
-            frames.len() < 2
-        })
+        stream_animation_frames(
+            &path,
+            AnimatedImageFormat::Gif,
+            1024,
+            &DecodeCancellation::default(),
+            |frame| {
+                frames.push(frame);
+                frames.len() < 2
+            },
+        )
         .unwrap();
 
         assert_eq!(frames.len(), 2);
@@ -161,13 +249,19 @@ mod tests {
         drop(encoder);
 
         assert!(matches!(
-            stream_gif_frames(&path, 15, &DecodeCancellation::default(), |_| true),
+            stream_animation_frames(
+                &path,
+                AnimatedImageFormat::Gif,
+                15,
+                &DecodeCancellation::default(),
+                |_| true
+            ),
             Err(ImageLoadError::MemoryLimit { .. })
         ));
         let cancellation = DecodeCancellation::default();
         cancellation.cancel();
         assert!(matches!(
-            stream_gif_frames(&path, 16, &cancellation, |_| true),
+            stream_animation_frames(&path, AnimatedImageFormat::Gif, 16, &cancellation, |_| true),
             Err(ImageLoadError::Cancelled)
         ));
         fs::remove_file(path).unwrap();
@@ -185,13 +279,98 @@ mod tests {
         drop(encoder);
 
         let mut frame_count = 0;
-        stream_gif_frames(&path, 16, &DecodeCancellation::default(), |_| {
-            frame_count += 1;
-            true
-        })
+        stream_animation_frames(
+            &path,
+            AnimatedImageFormat::Gif,
+            16,
+            &DecodeCancellation::default(),
+            |_| {
+                frame_count += 1;
+                true
+            },
+        )
         .unwrap();
 
         assert_eq!(frame_count, 1);
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn apng_is_detected_and_streamed_with_declared_delays() {
+        let path = fixture_path("animated").with_extension("apng");
+        let file = File::create(&path).unwrap();
+        let mut encoder = png::Encoder::new(file, 1, 1);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        encoder.set_animated(2, 1).unwrap();
+        encoder.set_frame_delay(2, 100).unwrap();
+        let mut writer = encoder.write_header().unwrap();
+        writer.write_image_data(&[255, 0, 0, 255]).unwrap();
+        writer.set_frame_delay(3, 100).unwrap();
+        writer.write_image_data(&[0, 255, 0, 255]).unwrap();
+        writer.finish().unwrap();
+
+        assert_eq!(
+            probe_animation_format(&path).unwrap(),
+            Some(AnimatedImageFormat::Png)
+        );
+        let mut frames = Vec::new();
+        stream_animation_frames(
+            &path,
+            AnimatedImageFormat::Png,
+            16,
+            &DecodeCancellation::default(),
+            |frame| {
+                frames.push(frame);
+                true
+            },
+        )
+        .unwrap();
+
+        assert_eq!(frames.len(), 2);
+        assert_eq!(frames[0].image.pixels_bgra8, [0, 0, 255, 255]);
+        assert_eq!(frames[0].delay, Duration::from_millis(20));
+        assert_eq!(frames[1].delay, Duration::from_millis(30));
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn animated_webp_is_detected_and_streamed() {
+        const ANIMATED_WEBP: &[u8] = &[
+            0x52, 0x49, 0x46, 0x46, 0x9e, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50,
+            0x38, 0x58, 0x0a, 0x00, 0x00, 0x00, 0x12, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x41, 0x4e, 0x49, 0x4d, 0x06, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+            0x01, 0x00, 0x41, 0x4e, 0x4d, 0x46, 0x36, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0xf4, 0x01, 0x00, 0x02, 0x56, 0x50,
+            0x38, 0x4c, 0x1e, 0x00, 0x00, 0x00, 0x2f, 0x01, 0x40, 0x00, 0x00, 0x17, 0x30, 0xff,
+            0x02, 0x82, 0x22, 0xff, 0x47, 0x9b, 0xff, 0xf9, 0x0f, 0x34, 0x0b, 0x0a, 0xdb, 0xb6,
+            0x41, 0x61, 0x71, 0x10, 0xd1, 0xff, 0xc8, 0x03, 0x41, 0x4e, 0x4d, 0x46, 0x34, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
+            0xf4, 0x01, 0x00, 0x00, 0x56, 0x50, 0x38, 0x4c, 0x1c, 0x00, 0x00, 0x00, 0x2f, 0x01,
+            0x40, 0x00, 0x10, 0x17, 0x20, 0x10, 0x48, 0x61, 0x93, 0x3f, 0xff, 0x02, 0x82, 0x22,
+            0xff, 0x47, 0x9b, 0xff, 0x80, 0xbd, 0xc1, 0x18, 0x44, 0xf4, 0x3f, 0x04,
+        ];
+        let path = fixture_path("animated").with_extension("webp");
+        fs::write(&path, ANIMATED_WEBP).unwrap();
+
+        assert_eq!(
+            probe_animation_format(&path).unwrap(),
+            Some(AnimatedImageFormat::WebP)
+        );
+        let mut frame_count = 0;
+        stream_animation_frames(
+            &path,
+            AnimatedImageFormat::WebP,
+            16,
+            &DecodeCancellation::default(),
+            |_| {
+                frame_count += 1;
+                true
+            },
+        )
+        .unwrap();
+
+        assert_eq!(frame_count, 2);
         fs::remove_file(path).unwrap();
     }
 }

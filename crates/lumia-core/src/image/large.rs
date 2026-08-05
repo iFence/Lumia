@@ -9,8 +9,8 @@ mod worker;
 
 pub use decode::decode_large_image_preview;
 pub use error::LargeImageError;
-pub use tiles::{LargeImageRaster, build_large_image_raster};
-pub use worker::{PixelBudget, large_image_worker_count};
+pub use tiles::{build_large_image_raster, LargeImageRaster};
+pub use worker::{large_image_worker_count, PixelBudget};
 
 const DEFAULT_MAX_TEXTURE_EDGE: u32 = 8192;
 const DEFAULT_MAX_DECODED_BYTES: u64 = 96 * 1024 * 1024;
@@ -323,11 +323,9 @@ mod tests {
                 TileCoordinate::new(0, 1, 1),
             ]
         );
-        assert!(
-            level
-                .intersecting_tiles(ImagePixelRect::new(1200, 800, 10, 10))
-                .is_empty()
-        );
+        assert!(level
+            .intersecting_tiles(ImagePixelRect::new(1200, 800, 10, 10))
+            .is_empty());
     }
 
     #[test]

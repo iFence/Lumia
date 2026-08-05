@@ -12,6 +12,10 @@ use crate::plugin_package::{
 
 const PHOTOSHOP_MANIFEST: &str =
     include_str!("../../../plugins/lumia-plugin-photoshop/lumia.plugin.json");
+const JPEG_XL_MANIFEST: &str =
+    include_str!("../../../plugins/lumia-plugin-jpeg-xl/lumia.plugin.json");
+const JPEG2000_MANIFEST: &str =
+    include_str!("../../../plugins/lumia-plugin-jpeg2000/lumia.plugin.json");
 
 #[derive(Debug, Clone)]
 pub(crate) struct InstalledPlugin {
@@ -103,11 +107,53 @@ pub(crate) fn photoshop_manifest() -> Result<PluginManifest> {
     Ok(manifest)
 }
 
+pub(crate) fn jpeg_xl_manifest() -> Result<PluginManifest> {
+    let mut manifest: PluginManifest =
+        serde_json::from_str(JPEG_XL_MANIFEST).context("parse bundled JPEG XL manifest")?;
+    validate_decode_preview_manifest(&manifest)
+        .context("validate bundled JPEG XL plugin capabilities")?;
+    let current_exe = std::env::current_exe().context("locate Lumia executable")?;
+    manifest.entry = resolve_named_entry(&current_exe, "lumia-plugin-jpeg-xl");
+    Ok(manifest)
+}
+
+pub(crate) fn jpeg2000_manifest() -> Result<PluginManifest> {
+    let mut manifest: PluginManifest =
+        serde_json::from_str(JPEG2000_MANIFEST).context("parse bundled JPEG 2000 manifest")?;
+    validate_decode_preview_manifest(&manifest)
+        .context("validate bundled JPEG 2000 plugin capabilities")?;
+    let current_exe = std::env::current_exe().context("locate Lumia executable")?;
+    manifest.entry = resolve_named_entry(&current_exe, "lumia-plugin-jpeg2000");
+    Ok(manifest)
+}
+
 fn resolve_entry(current_exe: &Path) -> PathBuf {
     entry_candidates(current_exe)
         .into_iter()
         .find(|candidate| candidate.is_file())
         .unwrap_or_else(|| entry_candidates(current_exe).remove(0))
+}
+
+fn resolve_named_entry(current_exe: &Path, executable: &str) -> PathBuf {
+    let directory = current_exe.parent().unwrap_or_else(|| Path::new("."));
+    let executable = if cfg!(windows) {
+        format!("{executable}.exe")
+    } else {
+        executable.to_string()
+    };
+    let candidates = [
+        directory.join(&executable),
+        directory.join("plugins").join(&executable),
+        directory
+            .join("plugins")
+            .join(executable.trim_end_matches(".exe"))
+            .join(&executable),
+    ];
+    candidates
+        .iter()
+        .find(|candidate| candidate.is_file())
+        .cloned()
+        .unwrap_or_else(|| candidates[0].clone())
 }
 
 fn entry_candidates(current_exe: &Path) -> Vec<PathBuf> {
@@ -278,6 +324,24 @@ mod tests {
         assert_eq!(manifest.id, "lumia.photoshop");
         validate_decode_preview_manifest(&manifest).unwrap();
         assert_eq!(manifest.supported_inputs, ["image/vnd.adobe.photoshop"]);
+        assert_eq!(manifest.supported_outputs, ["image/png"]);
+    }
+
+    #[test]
+    fn jpeg_xl_manifest_declares_safe_preview_contract() {
+        let manifest: PluginManifest = serde_json::from_str(JPEG_XL_MANIFEST).unwrap();
+        assert_eq!(manifest.id, "lumia.jpeg-xl");
+        validate_decode_preview_manifest(&manifest).unwrap();
+        assert_eq!(manifest.supported_inputs, ["image/jxl"]);
+        assert_eq!(manifest.supported_outputs, ["image/png"]);
+    }
+
+    #[test]
+    fn jpeg2000_manifest_declares_safe_preview_contract() {
+        let manifest: PluginManifest = serde_json::from_str(JPEG2000_MANIFEST).unwrap();
+        assert_eq!(manifest.id, "lumia.jpeg2000");
+        validate_decode_preview_manifest(&manifest).unwrap();
+        assert_eq!(manifest.supported_extensions, ["jp2", "j2k", "j2c", "jpc"]);
         assert_eq!(manifest.supported_outputs, ["image/png"]);
     }
 

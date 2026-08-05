@@ -7,6 +7,8 @@ members = [
     "crates/lumia-setup",
     "plugins/lumia-plugin-raw",
     "plugins/lumia-plugin-photoshop",
+    "plugins/lumia-plugin-jpeg-xl",
+    "plugins/lumia-plugin-jpeg2000",
     "plugins/lumia-plugin-annotation",
     "plugins/lumia-plugin-sample",
 ]
@@ -34,6 +36,8 @@ libloading = "0.8.9"
 futures = "0.3"
 jpeg-decoder = "0.3.2"
 image = "0.25"
+jxl-oxide = { version = "0.12.6", features = ["image"] }
+jpeg2k = "0.10.1"
 hex = "0.4"
 gif = "0.14"
 kamadak-exif = "0.6.1"

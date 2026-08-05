@@ -24,19 +24,28 @@ APP_DIR="$TARGET_DIR/$APP_NAME.app"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
-PLUGIN_DIR="$MACOS_DIR/plugins/lumia-plugin-photoshop"
+PHOTOSHOP_PLUGIN_DIR="$MACOS_DIR/plugins/lumia-plugin-photoshop"
+JPEG_XL_PLUGIN_DIR="$MACOS_DIR/plugins/lumia-plugin-jpeg-xl"
+JPEG2000_PLUGIN_DIR="$MACOS_DIR/plugins/lumia-plugin-jpeg2000"
 
 echo "Building release binaries..."
-cargo build --release -p lumia-app -p lumia-plugin-photoshop
+cargo build --release -p lumia-app -p lumia-plugin-photoshop -p lumia-plugin-jpeg-xl -p lumia-plugin-jpeg2000
 
 echo "Assembling $APP_NAME.app..."
 rm -rf "$APP_DIR"
-mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$PLUGIN_DIR"
+mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$PHOTOSHOP_PLUGIN_DIR" "$JPEG_XL_PLUGIN_DIR" "$JPEG2000_PLUGIN_DIR"
 
 cp "target/release/lumia-app" "$MACOS_DIR/"
-cp "target/release/lumia-plugin-photoshop" "$PLUGIN_DIR/"
-cp "plugins/lumia-plugin-photoshop/lumia.plugin.json" "$PLUGIN_DIR/"
-chmod +x "$MACOS_DIR/lumia-app" "$PLUGIN_DIR/lumia-plugin-photoshop"
+cp "target/release/lumia-plugin-photoshop" "$PHOTOSHOP_PLUGIN_DIR/"
+cp "plugins/lumia-plugin-photoshop/lumia.plugin.json" "$PHOTOSHOP_PLUGIN_DIR/"
+cp "target/release/lumia-plugin-jpeg-xl" "$JPEG_XL_PLUGIN_DIR/"
+cp "plugins/lumia-plugin-jpeg-xl/lumia.plugin.json" "$JPEG_XL_PLUGIN_DIR/"
+cp "target/release/lumia-plugin-jpeg2000" "$JPEG2000_PLUGIN_DIR/"
+cp "plugins/lumia-plugin-jpeg2000/lumia.plugin.json" "$JPEG2000_PLUGIN_DIR/"
+chmod +x "$MACOS_DIR/lumia-app" \
+    "$PHOTOSHOP_PLUGIN_DIR/lumia-plugin-photoshop" \
+    "$JPEG_XL_PLUGIN_DIR/lumia-plugin-jpeg-xl" \
+    "$JPEG2000_PLUGIN_DIR/lumia-plugin-jpeg2000"
 
 # Icon: App.icns is committed in resources and referenced by Info.plist
 # via CFBundleIconFile, so the bundle shows the proper Dock/Finder icon.

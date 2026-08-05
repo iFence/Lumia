@@ -40,6 +40,14 @@ pub struct ImageFileMetadata {
 pub struct ImageProbe {
     pub document: ImageDocument,
     pub file: ImageFileMetadata,
+    pub animation: Option<AnimatedImageFormat>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AnimatedImageFormat {
+    Gif,
+    Png,
+    WebP,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

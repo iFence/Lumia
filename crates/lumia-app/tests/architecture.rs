@@ -68,6 +68,33 @@ fn official_photoshop_plugin_is_declared_in_every_release_package() {
 }
 
 #[test]
+fn official_modern_format_plugins_are_declared_in_every_release_package() {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("lumia-app must be under workspace/crates");
+    let release = std::fs::read_to_string(workspace.join(".github/workflows/release.yml"))
+        .expect("release workflow");
+    let macos_installer =
+        std::fs::read_to_string(workspace.join("scripts/build-macos-installer.sh"))
+            .expect("macOS installer");
+    let wix = std::fs::read_to_string(workspace.join("crates/lumia-app/wix/main.wxs"))
+        .expect("WiX source");
+    let linux_installer =
+        std::fs::read_to_string(workspace.join("crates/lumia-app/resources/install.sh"))
+            .expect("Linux installer");
+
+    for plugin in ["lumia-plugin-jpeg-xl", "lumia-plugin-jpeg2000"] {
+        assert!(release.contains(&format!("target/release/{plugin}")));
+        assert!(release.contains(&format!("plugins/{plugin}/lumia.plugin.json")));
+        assert!(macos_installer.contains(&format!("target/release/{plugin}")));
+        assert!(macos_installer.contains(&format!("plugins/{plugin}/lumia.plugin.json")));
+        assert!(wix.contains(&format!("{plugin}.exe")));
+        assert!(linux_installer.contains(plugin));
+    }
+}
+
+#[test]
 fn annotation_plugin_is_packaged_separately_with_integrity_metadata() {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()

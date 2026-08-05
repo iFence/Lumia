@@ -94,6 +94,24 @@
             <key>LSItemContentTypes</key><array><string>public.jpeg</string></array>
         </dict>
         <dict>
+            <key>CFBundleTypeName</key><string>JPEG XL image</string>
+            <key>CFBundleTypeRole</key><string>Viewer</string>
+            <key>LSHandlerRank</key><string>Alternate</string>
+            <key>LSItemContentTypes</key><array><string>public.jpeg-xl</string></array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key><string>JPEG 2000 image</string>
+            <key>CFBundleTypeRole</key><string>Viewer</string>
+            <key>LSHandlerRank</key><string>Alternate</string>
+            <key>LSItemContentTypes</key><array><string>public.jpeg-2000</string></array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key><string>JPEG 2000 codestream</string>
+            <key>CFBundleTypeRole</key><string>Viewer</string>
+            <key>LSHandlerRank</key><string>Alternate</string>
+            <key>LSItemContentTypes</key><array><string>com.ifence.lumia.jpeg2000-codestream</string></array>
+        </dict>
+        <dict>
             <key>CFBundleTypeName</key><string>Netpbm image</string>
             <key>CFBundleTypeRole</key><string>Viewer</string>
             <key>LSHandlerRank</key><string>Alternate</string>
@@ -104,6 +122,12 @@
             <key>CFBundleTypeRole</key><string>Viewer</string>
             <key>LSHandlerRank</key><string>Alternate</string>
             <key>LSItemContentTypes</key><array><string>public.png</string></array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key><string>Animated PNG image</string>
+            <key>CFBundleTypeRole</key><string>Viewer</string>
+            <key>LSHandlerRank</key><string>Alternate</string>
+            <key>LSItemContentTypes</key><array><string>com.ifence.lumia.apng</string></array>
         </dict>
         <dict>
             <key>CFBundleTypeName</key><string>QOI image</string>

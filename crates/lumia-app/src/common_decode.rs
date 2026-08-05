@@ -1,7 +1,7 @@
 use std::{path::PathBuf, time::Duration};
 
 use gpui::Context;
-use lumia_core::{DecodeCancellation, DecodePolicy, DecodedAnimationFrame};
+use lumia_core::{AnimatedImageFormat, DecodeCancellation, DecodePolicy, DecodedAnimationFrame};
 
 use crate::{app::LumiaApp, load_state::PreparedImage, util::format_load_error};
 
@@ -58,9 +58,10 @@ impl LumiaApp {
         .detach();
     }
 
-    pub(crate) fn start_current_gif_decode(
+    pub(crate) fn start_current_animation_decode(
         &mut self,
         path: PathBuf,
+        format: AnimatedImageFormat,
         generation: u64,
         cancellation: DecodeCancellation,
         cx: &mut Context<Self>,
@@ -69,10 +70,11 @@ impl LumiaApp {
         let worker_path = path.clone();
         let worker_cancellation = cancellation.clone();
         let _ = std::thread::Builder::new()
-            .name("lumia-gif-decode".into())
+            .name("lumia-animation-decode".into())
             .spawn(move || {
-                let result = lumia_core::stream_gif_frames(
+                let result = lumia_core::stream_animation_frames(
                     &worker_path,
+                    format,
                     MAX_ANIMATION_FRAME_BYTES,
                     &worker_cancellation,
                     |frame| sender.send_blocking(AnimationEvent::Frame(frame)).is_ok(),
@@ -84,6 +86,7 @@ impl LumiaApp {
 
         cx.spawn(async move |this, cx| {
             let mut first_frame = true;
+            let mut fallback_started = false;
             let mut previous_delay = Duration::ZERO;
             loop {
                 if !first_frame {
@@ -132,8 +135,16 @@ impl LumiaApp {
                             }
                             AnimationEvent::Error(lumia_core::ImageLoadError::Cancelled) => false,
                             AnimationEvent::Error(error) => {
-                                this.loads.finish_decode(generation);
                                 if first_frame {
+                                    fallback_started = true;
+                                    this.start_current_static_decode(
+                                        path.clone(),
+                                        generation,
+                                        cancellation.clone(),
+                                        cx,
+                                    );
+                                } else {
+                                    this.loads.finish_decode(generation);
                                     this.ui.error_message = Some(format_load_error(&error));
                                 }
                                 cx.notify();
@@ -147,11 +158,13 @@ impl LumiaApp {
                 }
                 first_frame = false;
             }
-            let _ = this.update(cx, |this, _| {
-                if this.loads.is_current(generation) {
-                    this.loads.finish_decode(generation);
-                }
-            });
+            if !fallback_started {
+                let _ = this.update(cx, |this, _| {
+                    if this.loads.is_current(generation) {
+                        this.loads.finish_decode(generation);
+                    }
+                });
+            }
         })
         .detach();
     }

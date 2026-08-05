@@ -63,12 +63,12 @@ pub(crate) enum TextKey {
     AssociationNeedsConfirmation,
     AssociationManualRestore,
     DefaultAppsLaunchFailed,
-    PhotoshopPreviewFailed,
     ProfessionalUnsupported,
     ProfessionalCorrupt,
     ProfessionalResourceLimit,
     ProfessionalDecodeFailed,
     ProfessionalPluginUnavailable,
+    ProfessionalBundledPluginUnavailable,
     LargeImagePreviewFailed,
     LargeImageDiskSpace,
     RetrySystemSettings,
@@ -229,13 +229,15 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             }
             TextKey::AssociationManualRestore => "Choose another default application manually for",
             TextKey::DefaultAppsLaunchFailed => "Could not open Windows Default Apps",
-            TextKey::PhotoshopPreviewFailed => "Could not preview Photoshop document",
             TextKey::ProfessionalUnsupported => "This image or camera is not supported",
             TextKey::ProfessionalCorrupt => "This image is damaged or incomplete",
             TextKey::ProfessionalResourceLimit => "This image exceeds the preview safety limit",
             TextKey::ProfessionalDecodeFailed => "Could not decode this professional image",
             TextKey::ProfessionalPluginUnavailable => {
                 "Install the official RAW plugin in Settings > Plugins, then restart Lumia"
+            }
+            TextKey::ProfessionalBundledPluginUnavailable => {
+                "The bundled preview plugin is missing or unavailable"
             }
             TextKey::LargeImagePreviewFailed => "Could not decode this large image",
             TextKey::LargeImageDiskSpace => "Not enough disk space to prepare this large image",
@@ -394,7 +396,6 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             }
             TextKey::AssociationManualRestore => "请手动为以下格式选择其他默认应用",
             TextKey::DefaultAppsLaunchFailed => "无法打开 Windows 默认应用设置",
-            TextKey::PhotoshopPreviewFailed => "无法预览 Photoshop 文档",
             TextKey::ProfessionalUnsupported => "暂不支持此图片或相机型号",
             TextKey::ProfessionalCorrupt => "图片已损坏或不完整",
             TextKey::ProfessionalResourceLimit => "图片超出预览安全限制",
@@ -402,6 +403,7 @@ pub(crate) fn tr(language: Language, key: TextKey) -> &'static str {
             TextKey::ProfessionalPluginUnavailable => {
                 "请在“设置 > 插件”中安装官方 RAW 插件，然后重启 Lumia"
             }
+            TextKey::ProfessionalBundledPluginUnavailable => "内置预览插件缺失或不可用",
             TextKey::LargeImagePreviewFailed => "无法解码这张超大图片",
             TextKey::LargeImageDiskSpace => "磁盘空间不足，无法准备这张超大图片",
             TextKey::RetrySystemSettings => "重试",

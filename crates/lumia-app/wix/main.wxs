@@ -123,6 +123,64 @@
                                         KeyPath="yes" />
                                 </Component>
                             </Directory>
+                            <Directory Id="JpegXlPluginFolder" Name="lumia-plugin-jpeg-xl">
+                                <Component Id="JpegXlPluginExecutable" Guid="DF8F93B6-B909-4FE5-A3AE-CB4E615D76BF">
+                                    <File
+                                        Id="JpegXlPluginExe"
+                                        Name="lumia-plugin-jpeg-xl.exe"
+                                        Source="$(var.CargoTargetBinDir)\lumia-plugin-jpeg-xl.exe" />
+                                    <RegistryValue
+                                        Root="HKCU"
+                                        Key="Software\Lumia\Installer\Components"
+                                        Name="JpegXlPluginExecutable"
+                                        Type="integer"
+                                        Value="1"
+                                        KeyPath="yes" />
+                                    <RemoveFolder Id="RemoveJpegXlPluginFolder" Directory="JpegXlPluginFolder" On="uninstall" />
+                                </Component>
+                                <Component Id="JpegXlPluginManifest" Guid="4F770A7B-C0D3-4DBD-9EB8-769701C56B41">
+                                    <File
+                                        Id="JpegXlManifestFile"
+                                        Name="lumia.plugin.json"
+                                        Source="plugins\lumia-plugin-jpeg-xl\lumia.plugin.json" />
+                                    <RegistryValue
+                                        Root="HKCU"
+                                        Key="Software\Lumia\Installer\Components"
+                                        Name="JpegXlPluginManifest"
+                                        Type="integer"
+                                        Value="1"
+                                        KeyPath="yes" />
+                                </Component>
+                            </Directory>
+                            <Directory Id="Jpeg2000PluginFolder" Name="lumia-plugin-jpeg2000">
+                                <Component Id="Jpeg2000PluginExecutable" Guid="721EA60E-AE5F-45C5-B84F-D77404113B5E">
+                                    <File
+                                        Id="Jpeg2000PluginExe"
+                                        Name="lumia-plugin-jpeg2000.exe"
+                                        Source="$(var.CargoTargetBinDir)\lumia-plugin-jpeg2000.exe" />
+                                    <RegistryValue
+                                        Root="HKCU"
+                                        Key="Software\Lumia\Installer\Components"
+                                        Name="Jpeg2000PluginExecutable"
+                                        Type="integer"
+                                        Value="1"
+                                        KeyPath="yes" />
+                                    <RemoveFolder Id="RemoveJpeg2000PluginFolder" Directory="Jpeg2000PluginFolder" On="uninstall" />
+                                </Component>
+                                <Component Id="Jpeg2000PluginManifest" Guid="A2AC3C06-C17A-4CA3-B5BE-F32FC0B53070">
+                                    <File
+                                        Id="Jpeg2000ManifestFile"
+                                        Name="lumia.plugin.json"
+                                        Source="plugins\lumia-plugin-jpeg2000\lumia.plugin.json" />
+                                    <RegistryValue
+                                        Root="HKCU"
+                                        Key="Software\Lumia\Installer\Components"
+                                        Name="Jpeg2000PluginManifest"
+                                        Type="integer"
+                                        Value="1"
+                                        KeyPath="yes" />
+                                </Component>
+                            </Directory>
                         </Directory>
                     </Directory>
                 </Directory>
@@ -189,6 +247,10 @@
             <ComponentRef Id="StartMenuShortcut" />
             <ComponentRef Id="PhotoshopPluginExecutable" />
             <ComponentRef Id="PhotoshopPluginManifest" />
+            <ComponentRef Id="JpegXlPluginExecutable" />
+            <ComponentRef Id="JpegXlPluginManifest" />
+            <ComponentRef Id="Jpeg2000PluginExecutable" />
+            <ComponentRef Id="Jpeg2000PluginManifest" />
         </Feature>
         <Feature
             Id="DesktopShortcutFeature"

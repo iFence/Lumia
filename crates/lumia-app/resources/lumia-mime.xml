@@ -1,5 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="image/apng">
+    <comment>Animated PNG image</comment>
+    <glob pattern="*.apng"/>
+  </mime-type>
+  <mime-type type="image/jxl">
+    <comment>JPEG XL image</comment>
+    <glob pattern="*.jxl"/>
+  </mime-type>
+  <mime-type type="image/jp2">
+    <comment>JPEG 2000 image</comment>
+    <glob pattern="*.jp2"/>
+  </mime-type>
+  <mime-type type="image/j2k">
+    <comment>JPEG 2000 codestream</comment>
+    <glob pattern="*.j2k"/>
+    <glob pattern="*.j2c"/>
+    <glob pattern="*.jpc"/>
+  </mime-type>
   <mime-type type="image/x-dds">
     <comment>DirectDraw Surface image</comment>
     <glob pattern="*.dds"/>

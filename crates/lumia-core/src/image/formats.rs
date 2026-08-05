@@ -19,7 +19,7 @@ pub const SUPPORTED_IMAGE_FORMAT_GROUPS: &[ImageFormatGroup] = &[
     ImageFormatGroup {
         id: "png",
         name: "PNG",
-        extensions: &["png"],
+        extensions: &["png", "apng"],
     },
     ImageFormatGroup {
         id: "gif",
@@ -92,6 +92,16 @@ pub const SUPPORTED_IMAGE_FORMAT_GROUPS: &[ImageFormatGroup] = &[
         extensions: &["heic", "heif"],
     },
     ImageFormatGroup {
+        id: "jpeg-xl",
+        name: "JPEG XL",
+        extensions: &["jxl"],
+    },
+    ImageFormatGroup {
+        id: "jpeg2000",
+        name: "JPEG 2000",
+        extensions: &["jp2", "j2k", "j2c", "jpc"],
+    },
+    ImageFormatGroup {
         id: "photoshop",
         name: "Adobe Photoshop",
         extensions: &["psd", "psb"],
@@ -104,10 +114,11 @@ pub const SUPPORTED_IMAGE_FORMAT_GROUPS: &[ImageFormatGroup] = &[
 ];
 
 pub const SUPPORTED_IMAGE_EXTENSIONS: &[&str] = &[
-    "avif", "jpg", "jpeg", "png", "gif", "webp", "tif", "tiff", "tga", "dds", "bmp", "ico", "hdr",
-    "exr", "pbm", "pam", "ppm", "pgm", "ff", "farbfeld", "qoi", "svg", "heic", "heif", "psd",
-    "psb", "dng", "cr2", "cr3", "crw", "nef", "nrw", "arw", "sr2", "srf", "raf", "orf", "rw2",
-    "rwl", "pef", "srw", "3fr", "fff", "mef", "mos", "mrw", "kdc", "dcr", "erf", "x3f", "iiq",
+    "avif", "jpg", "jpeg", "png", "apng", "gif", "webp", "tif", "tiff", "tga", "dds", "bmp", "ico",
+    "hdr", "exr", "pbm", "pam", "ppm", "pgm", "ff", "farbfeld", "qoi", "svg", "heic", "heif",
+    "jxl", "jp2", "j2k", "j2c", "jpc", "psd", "psb", "dng", "cr2", "cr3", "crw", "nef", "nrw",
+    "arw", "sr2", "srf", "raf", "orf", "rw2", "rwl", "pef", "srw", "3fr", "fff", "mef", "mos",
+    "mrw", "kdc", "dcr", "erf", "x3f", "iiq",
 ];
 
 pub const RAW_IMAGE_EXTENSIONS: &[&str] = &[
@@ -130,7 +141,11 @@ pub fn is_supported_image_extension(extension: &str) -> bool {
 }
 
 pub fn requires_plugin_preview_extension(extension: &str) -> bool {
-    extension.eq_ignore_ascii_case("psd")
+    extension.eq_ignore_ascii_case("jxl")
+        || ["jp2", "j2k", "j2c", "jpc"]
+            .iter()
+            .any(|candidate| candidate.eq_ignore_ascii_case(extension))
+        || extension.eq_ignore_ascii_case("psd")
         || extension.eq_ignore_ascii_case("psb")
         || is_raw_image_extension(extension)
 }

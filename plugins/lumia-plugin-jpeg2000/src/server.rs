@@ -1,0 +1,138 @@
+use std::io::{self, BufRead, Write};
+
+use lumia_plugin_api::{
+    CapabilitiesResult, InitializeResult, JsonRpcRequest, JsonRpcResponse, PluginCapability,
+    PluginManifest, PluginPermission, ProbeParams, PROTOCOL_VERSION,
+};
+use serde_json::json;
+
+use crate::decode::decode_preview;
+use crate::probe::{probe, ProbeError};
+
+pub(crate) fn run() {
+    let stdin = io::stdin();
+    let mut stdout = io::stdout();
+    for line in stdin.lock().lines() {
+        let response = match line {
+            Ok(line) => handle_line(&line),
+            Err(_) => break,
+        };
+        if serde_json::to_writer(&mut stdout, &response).is_err()
+            || writeln!(stdout).is_err()
+            || stdout.flush().is_err()
+        {
+            break;
+        }
+    }
+}
+
+fn handle_line(line: &str) -> JsonRpcResponse {
+    let request: JsonRpcRequest = match serde_json::from_str(line) {
+        Ok(request) => request,
+        Err(error) => {
+            return JsonRpcResponse::error(
+                lumia_plugin_api::RpcId::Number(0),
+                -32700,
+                format!("parse error: {error}"),
+            );
+        }
+    };
+    match request.method.as_str() {
+        "plugin.initialize" => JsonRpcResponse::result(
+            request.id,
+            json!(InitializeResult {
+                protocol_version: PROTOCOL_VERSION,
+                manifest: manifest(),
+            }),
+        ),
+        "plugin.capabilities" => JsonRpcResponse::result(
+            request.id,
+            json!(CapabilitiesResult {
+                capabilities: manifest().capabilities,
+            }),
+        ),
+        "image.probe" => match serde_json::from_value::<ProbeParams>(request.params) {
+            Ok(params) => match probe(&params.input.path) {
+                Ok(result) => JsonRpcResponse::result(request.id, json!(result)),
+                Err(error) => probe_error(request.id, error),
+            },
+            Err(_) => JsonRpcResponse::error(request.id, -32602, "invalid probe parameters"),
+        },
+        "image.decode_preview" => {
+            match serde_json::from_value::<lumia_plugin_api::DecodePreviewParams>(request.params) {
+                Ok(params) => match decode_preview(params) {
+                    Ok(result) => JsonRpcResponse::result(request.id, json!(result)),
+                    Err(error) => JsonRpcResponse::plugin_error(
+                        request.id,
+                        -32031,
+                        error.to_string(),
+                        error.kind(),
+                    ),
+                },
+                Err(_) => JsonRpcResponse::error(request.id, -32602, "invalid decode parameters"),
+            }
+        }
+        "plugin.shutdown" => {
+            JsonRpcResponse::result(request.id, json!(lumia_plugin_api::EmptyResult::default()))
+        }
+        method => JsonRpcResponse::error(request.id, -32601, format!("unknown method: {method}")),
+    }
+}
+
+fn probe_error(id: lumia_plugin_api::RpcId, error: ProbeError) -> JsonRpcResponse {
+    let kind = match error {
+        ProbeError::UnsupportedSignature => lumia_plugin_api::PluginErrorKind::UnsupportedFormat,
+        ProbeError::ResourceLimit => lumia_plugin_api::PluginErrorKind::ResourceLimit,
+        ProbeError::Io(_) => lumia_plugin_api::PluginErrorKind::PluginUnavailable,
+        ProbeError::MissingCodestream | ProbeError::CorruptHeader => {
+            lumia_plugin_api::PluginErrorKind::CorruptImage
+        }
+    };
+    JsonRpcResponse::plugin_error(id, -32030, error.to_string(), kind)
+}
+
+pub(crate) fn manifest() -> PluginManifest {
+    PluginManifest {
+        id: "lumia.jpeg2000".to_string(),
+        name: "Lumia JPEG 2000 Preview".to_string(),
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        entry: executable_name().into(),
+        capabilities: vec![PluginCapability::Probe, PluginCapability::DecodePreview],
+        permissions: vec![
+            PluginPermission::ReadInputPath,
+            PluginPermission::WriteTemporaryOutput,
+        ],
+        supported_inputs: vec!["image/jp2".to_string(), "image/j2k".to_string()],
+        supported_extensions: ["jp2", "j2k", "j2c", "jpc"]
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
+        supported_outputs: vec!["image/png".to_string()],
+        contributions: Default::default(),
+        assets: Vec::new(),
+    }
+}
+
+fn executable_name() -> &'static str {
+    if cfg!(windows) {
+        "lumia-plugin-jpeg2000.exe"
+    } else {
+        "lumia-plugin-jpeg2000"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn manifest_limits_support_to_part_one_still_images() {
+        let manifest = manifest();
+        assert_eq!(manifest.id, "lumia.jpeg2000");
+        assert_eq!(manifest.supported_extensions, ["jp2", "j2k", "j2c", "jpc"]);
+        assert!(!manifest
+            .supported_extensions
+            .iter()
+            .any(|value| value == "jpx"));
+    }
+}

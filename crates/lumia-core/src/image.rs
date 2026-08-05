@@ -31,11 +31,11 @@ pub use raster::{
     load_decoded_image_from_path_with_policy, rotate_bgra8, rotate_decoded_image,
 };
 pub use types::{
-    ColorDescription, DecodeCancellation, DecodePolicy, DecodedAnimationFrame, DecodedImage,
-    ExifMetadata, GpsCoordinates, ImageDocument, ImageFileMetadata, ImageMetadata, ImageProbe,
-    ImageSource, PixelFormat, TransferFunction,
+    AnimatedImageFormat, ColorDescription, DecodeCancellation, DecodePolicy, DecodedAnimationFrame,
+    DecodedImage, ExifMetadata, GpsCoordinates, ImageDocument, ImageFileMetadata, ImageMetadata,
+    ImageProbe, ImageSource, PixelFormat, TransferFunction,
 };
 
 #[cfg(test)]
 mod tests;
-pub use animation::stream_gif_frames;
+pub use animation::{probe_animation_format, stream_animation_frames};

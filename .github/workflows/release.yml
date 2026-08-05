@@ -55,15 +55,33 @@ jobs:
         run: |
           $root = "target/lumia-portable-windows-x64"
           $plugin = "$root/plugins/lumia-plugin-photoshop"
-          New-Item -ItemType Directory -Force -Path $plugin | Out-Null
+          $jxlPlugin = "$root/plugins/lumia-plugin-jpeg-xl"
+          $jpeg2000Plugin = "$root/plugins/lumia-plugin-jpeg2000"
+          New-Item -ItemType Directory -Force -Path $plugin, $jxlPlugin, $jpeg2000Plugin | Out-Null
           Copy-Item target/release/lumia-app.exe $root/
           Copy-Item target/release/lumia-plugin-photoshop.exe $plugin/
           Copy-Item plugins/lumia-plugin-photoshop/lumia.plugin.json $plugin/
+          Copy-Item target/release/lumia-plugin-jpeg-xl.exe $jxlPlugin/
+          Copy-Item plugins/lumia-plugin-jpeg-xl/lumia.plugin.json $jxlPlugin/
+          Copy-Item target/release/lumia-plugin-jpeg2000.exe $jpeg2000Plugin/
+          Copy-Item plugins/lumia-plugin-jpeg2000/lumia.plugin.json $jpeg2000Plugin/
           if (-not (Test-Path "$plugin/lumia-plugin-photoshop.exe")) {
             throw "Photoshop plugin executable is missing from portable bundle"
           }
           if (-not (Test-Path "$plugin/lumia.plugin.json")) {
             throw "Photoshop plugin manifest is missing from portable bundle"
+          }
+          if (-not (Test-Path "$jxlPlugin/lumia-plugin-jpeg-xl.exe")) {
+            throw "JPEG XL plugin executable is missing from portable bundle"
+          }
+          if (-not (Test-Path "$jxlPlugin/lumia.plugin.json")) {
+            throw "JPEG XL plugin manifest is missing from portable bundle"
+          }
+          if (-not (Test-Path "$jpeg2000Plugin/lumia-plugin-jpeg2000.exe")) {
+            throw "JPEG 2000 plugin executable is missing from portable bundle"
+          }
+          if (-not (Test-Path "$jpeg2000Plugin/lumia.plugin.json")) {
+            throw "JPEG 2000 plugin manifest is missing from portable bundle"
           }
           Compress-Archive -Path "$root/*" -DestinationPath target/lumia-portable-windows-x64.zip
 
@@ -132,6 +150,12 @@ jobs:
           PLUGIN_DIR="target/Lumia.app/Contents/MacOS/plugins/lumia-plugin-photoshop"
           test -x "$PLUGIN_DIR/lumia-plugin-photoshop"
           test -f "$PLUGIN_DIR/lumia.plugin.json"
+          JXL_PLUGIN_DIR="target/Lumia.app/Contents/MacOS/plugins/lumia-plugin-jpeg-xl"
+          test -x "$JXL_PLUGIN_DIR/lumia-plugin-jpeg-xl"
+          test -f "$JXL_PLUGIN_DIR/lumia.plugin.json"
+          JPEG2000_PLUGIN_DIR="target/Lumia.app/Contents/MacOS/plugins/lumia-plugin-jpeg2000"
+          test -x "$JPEG2000_PLUGIN_DIR/lumia-plugin-jpeg2000"
+          test -f "$JPEG2000_PLUGIN_DIR/lumia.plugin.json"
           test -f target/Lumia.app/Contents/Resources/App.icns
       - name: Package optional Annotation plugin
         env:
@@ -188,7 +212,7 @@ jobs:
             libjpeg-dev \
             zlib1g-dev
       - name: Build release binaries
-        run: cargo build --release -p lumia-app -p lumia-plugin-photoshop
+        run: cargo build --release -p lumia-app -p lumia-plugin-photoshop -p lumia-plugin-jpeg-xl -p lumia-plugin-jpeg2000
       - name: Create release archive
         run: |
           mkdir -p lumia-release
@@ -200,6 +224,20 @@ jobs:
           chmod +x "$PLUGIN_DIR/lumia-plugin-photoshop"
           test -x "$PLUGIN_DIR/lumia-plugin-photoshop"
           test -f "$PLUGIN_DIR/lumia.plugin.json"
+          JXL_PLUGIN_DIR="lumia-release/plugins/lumia-plugin-jpeg-xl"
+          mkdir -p "$JXL_PLUGIN_DIR"
+          cp target/release/lumia-plugin-jpeg-xl "$JXL_PLUGIN_DIR/"
+          cp plugins/lumia-plugin-jpeg-xl/lumia.plugin.json "$JXL_PLUGIN_DIR/"
+          chmod +x "$JXL_PLUGIN_DIR/lumia-plugin-jpeg-xl"
+          test -x "$JXL_PLUGIN_DIR/lumia-plugin-jpeg-xl"
+          test -f "$JXL_PLUGIN_DIR/lumia.plugin.json"
+          JPEG2000_PLUGIN_DIR="lumia-release/plugins/lumia-plugin-jpeg2000"
+          mkdir -p "$JPEG2000_PLUGIN_DIR"
+          cp target/release/lumia-plugin-jpeg2000 "$JPEG2000_PLUGIN_DIR/"
+          cp plugins/lumia-plugin-jpeg2000/lumia.plugin.json "$JPEG2000_PLUGIN_DIR/"
+          chmod +x "$JPEG2000_PLUGIN_DIR/lumia-plugin-jpeg2000"
+          test -x "$JPEG2000_PLUGIN_DIR/lumia-plugin-jpeg2000"
+          test -f "$JPEG2000_PLUGIN_DIR/lumia.plugin.json"
           cp crates/lumia-app/resources/lumia.desktop lumia-release/
           cp crates/lumia-app/resources/lumia-mime.xml lumia-release/
           cp crates/lumia-app/resources/icon.png lumia-release/
@@ -210,6 +248,14 @@ jobs:
             grep -q "./plugins/lumia-plugin-photoshop/lumia-plugin-photoshop"
           tar -tzf target/lumia-linux-x64.tar.gz |
             grep -q "./plugins/lumia-plugin-photoshop/lumia.plugin.json"
+          tar -tzf target/lumia-linux-x64.tar.gz |
+            grep -q "./plugins/lumia-plugin-jpeg-xl/lumia-plugin-jpeg-xl"
+          tar -tzf target/lumia-linux-x64.tar.gz |
+            grep -q "./plugins/lumia-plugin-jpeg-xl/lumia.plugin.json"
+          tar -tzf target/lumia-linux-x64.tar.gz |
+            grep -q "./plugins/lumia-plugin-jpeg2000/lumia-plugin-jpeg2000"
+          tar -tzf target/lumia-linux-x64.tar.gz |
+            grep -q "./plugins/lumia-plugin-jpeg2000/lumia.plugin.json"
           tar -tzf target/lumia-linux-x64.tar.gz |
             grep -q "./lumia-mime.xml"
       - name: Package optional Annotation plugin

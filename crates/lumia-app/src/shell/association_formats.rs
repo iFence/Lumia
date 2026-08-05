@@ -12,6 +12,7 @@ pub(super) const ASSOCIATION_FORMATS: &[AssociationFormat] = &[
     format(&["avif"], &["public.avif"], &["image/avif"]),
     format(&["jpg", "jpeg"], &["public.jpeg"], &["image/jpeg"]),
     format(&["png"], &["public.png"], &["image/png"]),
+    format(&["apng"], &["com.ifence.lumia.apng"], &["image/apng"]),
     format(&["gif"], &["public.gif"], &["image/gif"]),
     format(&["webp"], &["org.webmproject.webp"], &["image/webp"]),
     format(&["tif", "tiff"], &["public.tiff"], &["image/tiff"]),
@@ -46,6 +47,12 @@ pub(super) const ASSOCIATION_FORMATS: &[AssociationFormat] = &[
         &["heic", "heif"],
         &["public.heic", "public.heif"],
         &["image/heic", "image/heif"],
+    ),
+    format(&["jxl"], &["public.jpeg-xl"], &["image/jxl"]),
+    format(
+        &["jp2", "j2k", "j2c", "jpc"],
+        &["public.jpeg-2000", "com.ifence.lumia.jpeg2000-codestream"],
+        &["image/jp2", "image/j2k"],
     ),
     format(
         &["psd", "psb"],

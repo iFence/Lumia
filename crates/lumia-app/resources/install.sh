@@ -16,6 +16,10 @@ MIME_PACKAGES_DIR="${HOME}/.local/share/mime/packages"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_SOURCE_DIR="$SCRIPT_DIR/plugins/lumia-plugin-photoshop"
 PLUGIN_INSTALL_DIR="$BIN_DIR/plugins/lumia-plugin-photoshop"
+JPEG_XL_PLUGIN_SOURCE_DIR="$SCRIPT_DIR/plugins/lumia-plugin-jpeg-xl"
+JPEG_XL_PLUGIN_INSTALL_DIR="$BIN_DIR/plugins/lumia-plugin-jpeg-xl"
+JPEG2000_PLUGIN_SOURCE_DIR="$SCRIPT_DIR/plugins/lumia-plugin-jpeg2000"
+JPEG2000_PLUGIN_INSTALL_DIR="$BIN_DIR/plugins/lumia-plugin-jpeg2000"
 
 install_lumia() {
     echo "Installing Lumia..."
@@ -32,6 +36,22 @@ install_lumia() {
         echo "  ! Photoshop plugin manifest is missing from the release archive" >&2
         return 1
     fi
+    if [ ! -f "$JPEG_XL_PLUGIN_SOURCE_DIR/lumia-plugin-jpeg-xl" ]; then
+        echo "  ! JPEG XL preview plugin is missing from the release archive" >&2
+        return 1
+    fi
+    if [ ! -f "$JPEG_XL_PLUGIN_SOURCE_DIR/lumia.plugin.json" ]; then
+        echo "  ! JPEG XL plugin manifest is missing from the release archive" >&2
+        return 1
+    fi
+    if [ ! -f "$JPEG2000_PLUGIN_SOURCE_DIR/lumia-plugin-jpeg2000" ]; then
+        echo "  ! JPEG 2000 preview plugin is missing from the release archive" >&2
+        return 1
+    fi
+    if [ ! -f "$JPEG2000_PLUGIN_SOURCE_DIR/lumia.plugin.json" ]; then
+        echo "  ! JPEG 2000 plugin manifest is missing from the release archive" >&2
+        return 1
+    fi
 
     mkdir -p "$BIN_DIR" "$APPS_DIR" "$ICONS_DIR" "$MIME_PACKAGES_DIR"
 
@@ -46,6 +66,16 @@ install_lumia() {
     cp "$PLUGIN_SOURCE_DIR/lumia.plugin.json" "$PLUGIN_INSTALL_DIR/"
     chmod +x "$PLUGIN_INSTALL_DIR/lumia-plugin-photoshop"
     echo "  ✓ Photoshop preview plugin installed to $PLUGIN_INSTALL_DIR"
+    mkdir -p "$JPEG_XL_PLUGIN_INSTALL_DIR"
+    cp "$JPEG_XL_PLUGIN_SOURCE_DIR/lumia-plugin-jpeg-xl" "$JPEG_XL_PLUGIN_INSTALL_DIR/"
+    cp "$JPEG_XL_PLUGIN_SOURCE_DIR/lumia.plugin.json" "$JPEG_XL_PLUGIN_INSTALL_DIR/"
+    chmod +x "$JPEG_XL_PLUGIN_INSTALL_DIR/lumia-plugin-jpeg-xl"
+    echo "  ✓ JPEG XL preview plugin installed to $JPEG_XL_PLUGIN_INSTALL_DIR"
+    mkdir -p "$JPEG2000_PLUGIN_INSTALL_DIR"
+    cp "$JPEG2000_PLUGIN_SOURCE_DIR/lumia-plugin-jpeg2000" "$JPEG2000_PLUGIN_INSTALL_DIR/"
+    cp "$JPEG2000_PLUGIN_SOURCE_DIR/lumia.plugin.json" "$JPEG2000_PLUGIN_INSTALL_DIR/"
+    chmod +x "$JPEG2000_PLUGIN_INSTALL_DIR/lumia-plugin-jpeg2000"
+    echo "  ✓ JPEG 2000 preview plugin installed to $JPEG2000_PLUGIN_INSTALL_DIR"
 
     # Desktop entry (with absolute path to binary)
     if [ -f "$SCRIPT_DIR/lumia.desktop" ]; then
@@ -88,6 +118,8 @@ uninstall_lumia() {
     fi
     rm -f "$BIN_DIR/lumia-app"
     rm -rf "$PLUGIN_INSTALL_DIR"
+    rm -rf "$JPEG_XL_PLUGIN_INSTALL_DIR"
+    rm -rf "$JPEG2000_PLUGIN_INSTALL_DIR"
     rmdir "$BIN_DIR/plugins" 2>/dev/null || true
     rm -f "$APPS_DIR/lumia.desktop"
     rm -f "$ICONS_DIR/lumia.png"
