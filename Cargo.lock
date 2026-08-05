@@ -3767,7 +3767,7 @@ dependencies = [
 
 [[package]]
 name = "lumia-app"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -3809,7 +3809,7 @@ dependencies = [
 
 [[package]]
 name = "lumia-core"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "gif 0.14.1",
  "heic",
@@ -3834,7 +3834,7 @@ dependencies = [
 
 [[package]]
 name = "lumia-plugin-api"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -3842,7 +3842,7 @@ dependencies = [
 
 [[package]]
 name = "lumia-plugin-host"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "lumia-plugin-api",
  "serde",
@@ -3907,7 +3907,7 @@ dependencies = [
 
 [[package]]
 name = "lumia-setup"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "windows-sys 0.61.2",

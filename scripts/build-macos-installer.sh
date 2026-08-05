@@ -18,7 +18,7 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR"
 
 APP_NAME="Lumia"
-BUNDLE_ID="com.ifence.lumia"
+BUNDLE_ID="com.aspirin.lumia"
 TARGET_DIR="target"
 APP_DIR="$TARGET_DIR/$APP_NAME.app"
 CONTENTS_DIR="$APP_DIR/Contents"

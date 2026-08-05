@@ -10,7 +10,7 @@ use super::association_formats::{extensions_for_macos_content_type, ASSOCIATION_
 use crate::persistence::{load_file_association_preferences, save_file_association_preferences};
 use crate::shell::{FileAssociationApplyResult, FileAssociationSnapshot};
 
-const BUNDLE_ID: &str = "com.ifence.lumia";
+const BUNDLE_ID: &str = "com.aspirin.lumia";
 const ROLES_VIEWER: u32 = 0x0000_0002;
 const LSREGISTER: &str = "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister";
 

@@ -1,7 +1,7 @@
 [package]
 name = "lumia-setup"
-version = "0.2.0"
-authors = ["iFence"]
+version = "0.2.1"
+authors = ["aspirin"]
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

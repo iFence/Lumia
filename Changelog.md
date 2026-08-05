@@ -7,6 +7,20 @@ Conventions:
 - The content below the heading is what appears in the in-app update dialog
 - End each version section with `---` or by starting the next version heading
 
+## v0.2.1
+
+### ✨ New Features
+- **APNG and animated WebP playback**: animated PNG and WebP images now play alongside GIF using the core viewer's streaming animation path.
+- **Bundled JPEG XL preview**: SDR still JPEG XL (`.jxl`) images can now be opened through an official process-isolated plugin.
+- **Bundled JPEG 2000 preview**: JP2 and Part 1 codestream files (`.jp2`, `.j2k`, `.j2c`, `.jpc`) can now be previewed through an official process-isolated plugin.
+
+### 🚀 Improvements
+- **Safer animation decoding**: animation playback now observes frame memory limits, declared loop counts, cancellation, and bounded frame delays without collecting every frame in memory.
+- **Complete format integration**: the new formats are available in file associations and are included with the official plugins in Windows, macOS, and Linux release packages.
+- **Honest color handling**: HDR JPEG XL is rejected until Lumia has an HDR-capable display pipeline, preventing an SDR preview from being presented as accurate HDR output.
+
+---
+
 ## v0.2.0
 
 ### ✨ New Features

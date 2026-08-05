@@ -29,16 +29,16 @@ Lumia is organized around four capability layers:
 |---|---|---|
 | Core viewer | Image preview; zoom, pan, and display rotation; image information; EXIF display; folder browsing; basic sorting, filtering, and favorites; fast preview for common formats | Built into the app and optimized for startup time, open latency, memory use, and stability |
 | Built-in light editing | Rotate, crop, mirror, resize, simple compression, simple color adjustments, and export copy | Built in only when the operation is lightweight and copy-export oriented |
-| Official plugins | Bundled PSD/PSB composite preview, optional RAW preview, and future HDR, HEIC/HEIF, advanced-format preview, and simple format conversion | Implemented through the process-plugin protocol; each plugin may be bundled or released separately according to its size and dependencies |
+| Official plugins | Bundled PSD/PSB, JPEG XL, and JPEG 2000 preview; optional RAW preview; and future HDR, HEIC/HEIF, advanced-format preview, and simple format conversion | Implemented through the process-plugin protocol; each plugin may be bundled or released separately according to its size and dependencies |
 | Optional plugins | AI stylization, background removal, super-resolution, repair, outpainting, denoising, batch watermarking, batch conversion, compression plugins, cloud model plugins, and local model plugins | Installed or enabled separately through the same process-plugin boundary |
 
-Current implementation status: single-image preview, zoom, pan, display rotation, image information, sibling-image navigation, adjacent preloading, settings, lightweight crop/resize copy export, the stdio JSON-RPC plugin protocol, bundled PSD/PSB composite preview, optional signed RAW preview, and declarative plugin UI contributions are in place. Full folder browsing UI, favorites, filtering, additional professional-format plugins, and AI/batch plugins are product goals rather than complete features.
+Current implementation status: single-image preview, streaming GIF/APNG/animated WebP playback, zoom, pan, display rotation, image information, sibling-image navigation, adjacent preloading, settings, lightweight crop/resize copy export, the stdio JSON-RPC plugin protocol, bundled PSD/PSB, JPEG XL, and JPEG 2000 preview, optional signed RAW preview, and declarative plugin UI contributions are in place. Full folder browsing UI, favorites, filtering, additional professional-format plugins, and AI/batch plugins are product goals rather than complete features.
 
 ### Very large images
 
 Common raster images that exceed Lumia's safe decoded-memory or GPU texture limits use an in-process progressive path. Lumia first creates a bounded preview, then prepares a disk-backed BGRA cache and loads only the visible 512×512 tiles as the user zooms or pans. PNG is processed row by row; formats whose current pure-Rust decoder requires a complete destination use a temporary memory-mapped file instead of a multi-gigabyte Rust heap allocation.
 
-The cache is stored under the operating system temporary directory, is capped at 8 GiB, and removes incomplete or week-old entries on startup. Very large JPEG and WebP files can temporarily require disk space close to their decoded pixel size. Very large GIF files currently display the first frame in this progressive path.
+The cache is stored under the operating system temporary directory, is capped at 8 GiB, and removes incomplete or week-old entries on startup. Very large JPEG and WebP files can temporarily require disk space close to their decoded pixel size. Animated GIF, APNG, and WebP files whose frames exceed the safe animation budget display a bounded static preview through this progressive path.
 
 ## Installation
 
@@ -46,7 +46,7 @@ The cache is stored under the operating system temporary directory, is capped at
 
 Download the recommended Setup program (`Lumia-Setup-*-x64.exe`) or portable archive (`lumia-portable-windows-x64.zip`) from the [Releases](https://github.com/iFence/Lumia/releases) page.
 
-- **Setup (recommended)**: Choose 简体中文 or English, then follow the installer. Lumia and its official Photoshop preview plugin are installed for the current user under `%LOCALAPPDATA%\Programs\Lumia`, so administrator permission is not normally required. A Start Menu shortcut is always created; the optional Desktop shortcut is off by default. Setup also removes a detected legacy `Program Files` installation before continuing.
+- **Setup (recommended)**: Choose 简体中文 or English, then follow the installer. Lumia and its official Photoshop, JPEG XL, and JPEG 2000 preview plugins are installed for the current user under `%LOCALAPPDATA%\Programs\Lumia`, so administrator permission is not normally required. A Start Menu shortcut is always created; the optional Desktop shortcut is off by default. Setup also removes a detected legacy `Program Files` installation before continuing.
 - **MSI packages**: Separate `en-US` and `zh-CN` MSI files are available for silent deployment and troubleshooting. They use the same per-user defaults, but migration from the legacy per-machine MSI must be performed with Setup or by uninstalling the old version first.
 - **Portable**: Extract the complete `.zip` archive and run `lumia-app.exe`. Keep the included `plugins` directory beside the application. To add right-click support, run `lumia-app --register-context-menu` once.
 
@@ -81,7 +81,7 @@ Run the included `install.sh` script to install the application, official plugin
 
 This registers Lumia in your system's right-click "Open With" menu for all supported image formats. Use **Settings -> File Associations** to make Lumia the default for selected formats. To uninstall, run `./install.sh --uninstall`.
 
-If you've downloaded only the raw application binary, PSD/PSB preview is unavailable because the official plugin is not present. You can still register the core viewer manually:
+If you've downloaded only the raw application binary, PSD/PSB, JPEG XL, and JPEG 2000 preview are unavailable because the official plugins are not present. You can still register the core viewer manually:
 
 ```bash
 lumia-app --register-context-menu      # adds .desktop entry and icon
@@ -109,7 +109,7 @@ On macOS and Linux, clearing a format restores the handler captured when Lumia f
 
 ## Official Bundled Plugins
 
-The bundled Photoshop preview plugin is installed, upgraded, and removed together with Lumia. Users do not need to download or copy it separately. Release artifacts preserve this application-relative layout:
+The bundled Photoshop, JPEG XL, and JPEG 2000 preview plugins are installed, upgraded, and removed together with Lumia. Users do not need to download or copy them separately. Release artifacts preserve this application-relative layout:
 
 ```text
 Lumia/
@@ -118,9 +118,17 @@ Lumia/
     lumia-plugin-photoshop/
       lumia-plugin-photoshop[.exe]
       lumia.plugin.json
+    lumia-plugin-jpeg-xl/
+      lumia-plugin-jpeg-xl[.exe]
+      lumia.plugin.json
+    lumia-plugin-jpeg2000/
+      lumia-plugin-jpeg2000[.exe]
+      lumia.plugin.json
 ```
 
 The MSI, Windows portable ZIP, macOS app bundle, and Linux archive all contain this layout. The official RAW and Annotation plugins are published separately as signed `.lumiaplugin` packages.
+
+JPEG XL support currently covers SDR still images; HDR JPEG XL is rejected until Lumia gains an HDR-capable display pipeline. JPEG 2000 support covers JP2 and Part 1 still-image codestreams (`.jp2`, `.j2k`, `.j2c`, and `.jpc`), not JPX, JPM, or Motion JPEG 2000.
 
 ## Optional RAW Plugin
 
@@ -202,6 +210,8 @@ The `--register-context-menu` command is designed for portable / development use
 - `crates/lumia-plugin-host`: process plugin launcher and newline-delimited stdio transport.
 - `plugins/lumia-plugin-sample`: minimal process plugin used to validate the protocol.
 - `plugins/lumia-plugin-photoshop`: official bundled PSD/PSB composite-preview plugin.
+- `plugins/lumia-plugin-jpeg-xl`: official bundled JPEG XL still-image preview plugin.
+- `plugins/lumia-plugin-jpeg2000`: official bundled JPEG 2000 Part 1 preview plugin.
 - `plugins/lumia-plugin-raw`: optional official LibRaw-backed camera RAW preview plugin, including the native bridge sources.
 - `plugins/lumia-plugin-annotation`: optional official icon-annotation plugin and signed package metadata.
 
@@ -284,8 +294,8 @@ Validate the ICO structure and generated packages with:
 Push a `v*` tag to trigger the CI release workflow:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.2.1
+git push origin v0.2.1
 ```
 
 GitHub Actions will build the Setup EXE, both localized MSI packages, portable zip, platform binaries, and separate signed Annotation and RAW plugin archives, then verify and attach them to a new [Release](https://github.com/iFence/Lumia/releases).
@@ -294,15 +304,15 @@ GitHub Actions will build the Setup EXE, both localized MSI packages, portable z
 
 | Category | Extensions | Intended support path |
 |---|---|---|
-| Common web and desktop formats | `.jpg` `.jpeg` `.png` `.gif` `.webp` `.bmp` `.ico` `.tga` `.tif` `.tiff` | Core viewer fast path where dependencies stay lightweight |
+| Common web and desktop formats | `.jpg` `.jpeg` `.png` `.apng` `.gif` `.webp` `.bmp` `.ico` `.tga` `.tif` `.tiff` | Core viewer fast path where dependencies stay lightweight; GIF, APNG, and animated WebP use streaming playback |
 | Additional lightweight formats | `.avif` `.dds` `.ff` `.farbfeld` `.pbm` `.pam` `.ppm` `.pgm` `.qoi` `.svg` | Core or plugin depending on dependency and rendering cost |
-| Professional and heavy preview formats | `.hdr` `.exr` `.heic` `.heif` `.psd` `.psb` and the camera RAW extensions listed above | PSD/PSB uses the bundled Photoshop plugin; RAW uses the optional signed `lumia.raw` plugin |
+| Professional and heavy preview formats | `.hdr` `.exr` `.heic` `.heif` `.jxl` `.jp2` `.j2k` `.j2c` `.jpc` `.psd` `.psb` and the camera RAW extensions listed above | JPEG XL, JPEG 2000, and PSD/PSB use bundled process plugins; RAW uses the optional signed `lumia.raw` plugin |
 | Conversion and batch output formats | Project-defined per plugin | Plugin protocol |
 
-Current registered extensions include 51 extensions across 19 format families. PSD/PSB support previews the stored composite image through the bundled process plugin; it does not expose layers or edit Photoshop documents. RAW support uses the optional process plugin described above and remains read-only. Registration does not mean every advanced format should be implemented inside the core app.
+Current registered extensions include 57 extensions across 21 format families. PSD/PSB support previews the stored composite image through the bundled process plugin; it does not expose layers or edit Photoshop documents. JPEG XL and JPEG 2000 provide bounded still-image previews through their bundled plugins. RAW support uses the optional process plugin described above and remains read-only. Registration does not mean every advanced format should be implemented inside the core app.
 
-Build the application and bundled Photoshop plugin together with:
+Build the application and bundled preview plugins together with:
 
-    cargo build --release -p lumia-app -p lumia-plugin-photoshop
+    cargo build --release -p lumia-app -p lumia-plugin-photoshop -p lumia-plugin-jpeg-xl -p lumia-plugin-jpeg2000
 
-Both executables are emitted into the same target profile directory so Lumia can discover the plugin beside the application.
+The executables are emitted into the same target profile directory so Lumia can discover the plugins beside the application.

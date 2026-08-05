@@ -29,16 +29,16 @@ Lumia 围绕四个能力层级组织：
 |---|---|---|
 | 核心浏览器 | 图片预览；缩放、平移和显示旋转；图片信息；EXIF 显示；文件夹浏览；基本排序、筛选和收藏；常见格式的快速预览 | 内置于应用中，针对启动时间、打开延迟、内存占用和稳定性进行优化 |
 | 内置轻量编辑 | 旋转、裁剪、镜像、调整大小、简单压缩、简单色彩调整和导出副本 | 仅在操作轻量且面向副本导出的情况下内置 |
-| 官方插件 | 捆绑的 PSD/PSB 合成预览、可选的 RAW 预览，以及未来的 HDR、HEIC/HEIF、高级格式预览和简单格式转换 | 通过进程插件协议实现；每个插件可根据体积和依赖选择随应用捆绑或单独发布 |
+| 官方插件 | 捆绑的 PSD/PSB、JPEG XL 和 JPEG 2000 预览，可选的 RAW 预览，以及未来的 HDR、HEIC/HEIF、高级格式预览和简单格式转换 | 通过进程插件协议实现；每个插件可根据体积和依赖选择随应用捆绑或单独发布 |
 | 可选插件 | AI 风格化、背景移除、超分辨率、修复、外扩、降噪、批量水印、批量转换、压缩插件、云端模型插件和本地模型插件 | 通过相同的进程插件边界单独安装或启用 |
 
-当前实现状态：单图预览、缩放、平移、显示旋转、图片信息、相邻图片导航、相邻预加载、设置、轻量裁剪/调整大小副本导出、stdio JSON-RPC 插件协议、捆绑的 PSD/PSB 合成预览、可选的签名 RAW 预览，以及声明式插件 UI 贡献均已就位。完整的文件夹浏览界面、收藏、筛选、更多专业格式插件和 AI/批量插件是产品目标，尚未完全实现。
+当前实现状态：单图预览、GIF/APNG/动画 WebP 流式播放、缩放、平移、显示旋转、图片信息、相邻图片导航、相邻预加载、设置、轻量裁剪/调整大小副本导出、stdio JSON-RPC 插件协议、捆绑的 PSD/PSB、JPEG XL 和 JPEG 2000 预览、可选的签名 RAW 预览，以及声明式插件 UI 贡献均已就位。完整的文件夹浏览界面、收藏、筛选、更多专业格式插件和 AI/批量插件是产品目标，尚未完全实现。
 
 ### 超大图片
 
 对于超过 Lumia 安全解码内存或 GPU 纹理限制的常见光栅图像，使用进程内渐进式路径。Lumia 首先生成一个有界预览，然后准备一个磁盘支持的 BGRA 缓存，仅在用户缩放或平移时加载可见的 512×512 图块。PNG 逐行处理；对于当前纯 Rust 解码器需要完整目标缓冲区的格式，使用临时内存映射文件代替数 GB 的 Rust 堆分配。
 
-缓存存储在操作系统临时目录下，上限为 8 GiB，启动时清除不完整或超过一周的条目。非常大的 JPEG 和 WebP 文件可能暂时需要接近其解码像素大小的磁盘空间。非常大的 GIF 文件目前在此渐进式路径中显示第一帧。
+缓存存储在操作系统临时目录下，上限为 8 GiB，启动时清除不完整或超过一周的条目。非常大的 JPEG 和 WebP 文件可能暂时需要接近其解码像素大小的磁盘空间。对于帧超过安全动画预算的 GIF、APNG 和 WebP，此渐进式路径会显示有界的静态预览。
 
 ## 安装
 
@@ -46,7 +46,7 @@ Lumia 围绕四个能力层级组织：
 
 从 [Releases](https://github.com/iFence/Lumia/releases) 页面下载推荐的安装程序（`Lumia-Setup-*-x64.exe`）或便携版压缩包（`lumia-portable-windows-x64.zip`）。
 
-- **安装程序（推荐）**：选择简体中文或 English，然后按照安装向导操作。Lumia 及其官方 Photoshop 预览插件安装在 `%LOCALAPPDATA%\Programs\Lumia` 下，通常不需要管理员权限。始终创建开始菜单快捷方式；可选的桌面快捷方式默认不创建。安装程序在继续之前还会移除检测到的旧版 `Program Files` 安装。
+- **安装程序（推荐）**：选择简体中文或 English，然后按照安装向导操作。Lumia 及其官方 Photoshop、JPEG XL 和 JPEG 2000 预览插件安装在 `%LOCALAPPDATA%\Programs\Lumia` 下，通常不需要管理员权限。始终创建开始菜单快捷方式；可选的桌面快捷方式默认不创建。安装程序在继续之前还会移除检测到的旧版 `Program Files` 安装。
 - **MSI 包**：提供单独的 `en-US` 和 `zh-CN` MSI 文件，用于静默部署和故障排除。它们使用相同的每用户默认设置，但从旧版每机器 MSI 迁移必须使用安装程序或先卸载旧版本。
 - **便携版**：解压完整的 `.zip` 压缩包并运行 `lumia-app.exe`。保持包含的 `plugins` 目录与应用程序放在一起。要添加右键菜单支持，运行一次 `lumia-app --register-context-menu`。
 
@@ -81,7 +81,7 @@ cd lumia-release
 
 这会在系统的右键"打开方式"菜单中为所有支持的图片格式注册 Lumia。使用 **设置 -> 文件关联** 将 Lumia 设为选定格式的默认应用。要卸载，运行 `./install.sh --uninstall`。
 
-如果你仅下载了原始应用程序二进制文件，由于缺少官方插件，PSD/PSB 预览不可用。你仍然可以手动注册核心浏览器：
+如果你仅下载了原始应用程序二进制文件，由于缺少官方插件，PSD/PSB、JPEG XL 和 JPEG 2000 预览不可用。你仍然可以手动注册核心浏览器：
 
 ```bash
 lumia-app --register-context-menu      # 添加 .desktop 入口和图标
@@ -109,7 +109,7 @@ Windows 10 和 11 需要用户在系统设置中确认默认应用。Lumia 注�
 
 ## 官方捆绑插件
 
-捆绑的 Photoshop 预览插件会随 Lumia 一起安装、升级和移除。用户无需单独下载或复制它。发布产物保持以下应用程序相对布局：
+捆绑的 Photoshop、JPEG XL 和 JPEG 2000 预览插件会随 Lumia 一起安装、升级和移除。用户无需单独下载或复制它们。发布产物保持以下应用程序相对布局：
 
 ```text
 Lumia/
@@ -118,9 +118,17 @@ Lumia/
     lumia-plugin-photoshop/
       lumia-plugin-photoshop[.exe]
       lumia.plugin.json
+    lumia-plugin-jpeg-xl/
+      lumia-plugin-jpeg-xl[.exe]
+      lumia.plugin.json
+    lumia-plugin-jpeg2000/
+      lumia-plugin-jpeg2000[.exe]
+      lumia.plugin.json
 ```
 
 MSI、Windows 便携版 ZIP、macOS 应用包和 Linux 归档文件均包含此布局。官方 RAW 和标注插件则以单独签名的 `.lumiaplugin` 包形式发布。
+
+JPEG XL 目前支持 SDR 静态图片；在 Lumia 具备 HDR 显示管线之前，HDR JPEG XL 会被拒绝。JPEG 2000 目前支持 JP2 和 Part 1 静态码流（`.jp2`、`.j2k`、`.j2c` 和 `.jpc`），不支持 JPX、JPM 或 Motion JPEG 2000。
 
 ## 可选 RAW 插件
 
@@ -180,6 +188,8 @@ Lumia 在安装前验证包的签名、官方插件 ID、目标操作系统和�
 - `crates/lumia-plugin-host`：进程插件启动器和基于换行符分隔的 stdio 传输。
 - `plugins/lumia-plugin-sample`：用于验证协议的最小进程插件。
 - `plugins/lumia-plugin-photoshop`：官方捆绑的 PSD/PSB 合成预览插件。
+- `plugins/lumia-plugin-jpeg-xl`：官方捆绑的 JPEG XL 静态图片预览插件。
+- `plugins/lumia-plugin-jpeg2000`：官方捆绑的 JPEG 2000 Part 1 预览插件。
 - `plugins/lumia-plugin-raw`：可选的官方相机 RAW 预览插件，基于 LibRaw，并包含原生桥接源码。
 - `plugins/lumia-plugin-annotation`：可选的官方图标标注插件和签名包元数据。
 
@@ -262,8 +272,8 @@ $env:WIX = "$env:LOCALAPPDATA\wixtoolset"
 推送 `v*` 标签以触发 CI 发布工作流：
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.2.1
+git push origin v0.2.1
 ```
 
 GitHub Actions 将构建 Setup EXE、两个本地化的 MSI 包、便携版 zip、平台二进制文件，以及单独签名的标注和 RAW 插件归档，然后验证并附加到新的 [Release](https://github.com/iFence/Lumia/releases)。
@@ -272,15 +282,15 @@ GitHub Actions 将构建 Setup EXE、两个本地化的 MSI 包、便携版 zip�
 
 | 类别 | 扩展名 | 预期的支持路径 |
 |---|---|---|
-| 常见网页和桌面格式 | `.jpg` `.jpeg` `.png` `.gif` `.webp` `.bmp` `.ico` `.tga` `.tif` `.tiff` | 核心浏览器快速路径，依赖保持轻量 |
+| 常见网页和桌面格式 | `.jpg` `.jpeg` `.png` `.apng` `.gif` `.webp` `.bmp` `.ico` `.tga` `.tif` `.tiff` | 核心浏览器快速路径，依赖保持轻量；GIF、APNG 和动画 WebP 使用流式播放 |
 | 其他轻量格式 | `.avif` `.dds` `.ff` `.farbfeld` `.pbm` `.pam` `.ppm` `.pgm` `.qoi` `.svg` | 根据依赖和渲染成本决定核心或插件 |
-| 专业和重型预览格式 | `.hdr` `.exr` `.heic` `.heif` `.psd` `.psb` 以及上文列出的相机 RAW 扩展名 | PSD/PSB 使用捆绑的 Photoshop 插件；RAW 使用可选的签名 `lumia.raw` 插件 |
+| 专业和重型预览格式 | `.hdr` `.exr` `.heic` `.heif` `.jxl` `.jp2` `.j2k` `.j2c` `.jpc` `.psd` `.psb` 以及上文列出的相机 RAW 扩展名 | JPEG XL、JPEG 2000 和 PSD/PSB 使用捆绑的进程插件；RAW 使用可选的签名 `lumia.raw` 插件 |
 | 转换和批量输出格式 | 由项目按插件定义 | 插件协议 |
 
-当前注册的扩展名涵盖 19 个格式系列的 51 种扩展名。PSD/PSB 支持通过捆绑的进程插件预览存储的合成图像；它不暴露图层也不编辑 Photoshop 文档。RAW 支持使用上文描述的可选进程插件，并保持只读。注册并不意味着每个高级格式都应在核心应用内实现。
+当前注册的扩展名涵盖 21 个格式系列的 57 种扩展名。PSD/PSB 支持通过捆绑的进程插件预览存储的合成图像；它不暴露图层也不编辑 Photoshop 文档。JPEG XL 和 JPEG 2000 通过各自的捆绑插件提供有界的静态图片预览。RAW 支持使用上文描述的可选进程插件，并保持只读。注册并不意味着每个高级格式都应在核心应用内实现。
 
-使用以下命令一起构建应用程序和捆绑的 Photoshop 插件：
+使用以下命令一起构建应用程序和捆绑的预览插件：
 
-    cargo build --release -p lumia-app -p lumia-plugin-photoshop
+    cargo build --release -p lumia-app -p lumia-plugin-photoshop -p lumia-plugin-jpeg-xl -p lumia-plugin-jpeg2000
 
-两个可执行文件输出到相同的目标配置目录，以便 Lumia 可以在应用程序旁边发现插件。
+这些可执行文件输出到相同的目标配置目录，以便 Lumia 可以在应用程序旁边发现插件。

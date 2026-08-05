@@ -64,7 +64,7 @@ fn official_photoshop_plugin_is_declared_in_every_release_package() {
     let plist = std::fs::read_to_string(workspace.join("crates/lumia-app/resources/Info.plist"))
         .expect("macOS bundle metadata");
     assert!(plist.contains("com.adobe.photoshop-image"));
-    assert!(plist.contains("com.ifence.lumia.photoshop-large-document"));
+    assert!(plist.contains("com.aspirin.lumia.photoshop-large-document"));
 }
 
 #[test]
@@ -257,9 +257,9 @@ fn release_metadata_declares_file_association_resources() {
         "public.jpeg",
         "public.png",
         "public.heic",
-        "com.ifence.lumia.dds",
-        "com.ifence.lumia.photoshop-large-document",
-        "com.ifence.lumia.camera-raw",
+        "com.aspirin.lumia.dds",
+        "com.aspirin.lumia.photoshop-large-document",
+        "com.aspirin.lumia.camera-raw",
     ] {
         assert!(plist.contains(content_type), "missing {content_type}");
     }

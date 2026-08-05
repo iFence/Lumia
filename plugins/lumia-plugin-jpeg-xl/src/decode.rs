@@ -131,6 +131,7 @@ impl DecodeError {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use image::GenericImageView;
@@ -154,12 +155,18 @@ mod tests {
         0x00,
     ];
 
+    static NEXT_TEMP_DIR: AtomicU64 = AtomicU64::new(0);
+
     fn temp_dir() -> PathBuf {
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        std::env::temp_dir().join(format!("lumia-jpeg-xl-{nonce}"))
+        let sequence = NEXT_TEMP_DIR.fetch_add(1, Ordering::Relaxed);
+        std::env::temp_dir().join(format!(
+            "lumia-jpeg-xl-{}-{nonce}-{sequence}",
+            std::process::id()
+        ))
     }
 
     #[test]

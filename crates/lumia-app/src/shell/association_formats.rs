@@ -12,23 +12,27 @@ pub(super) const ASSOCIATION_FORMATS: &[AssociationFormat] = &[
     format(&["avif"], &["public.avif"], &["image/avif"]),
     format(&["jpg", "jpeg"], &["public.jpeg"], &["image/jpeg"]),
     format(&["png"], &["public.png"], &["image/png"]),
-    format(&["apng"], &["com.ifence.lumia.apng"], &["image/apng"]),
+    format(&["apng"], &["com.aspirin.lumia.apng"], &["image/apng"]),
     format(&["gif"], &["public.gif"], &["image/gif"]),
     format(&["webp"], &["org.webmproject.webp"], &["image/webp"]),
     format(&["tif", "tiff"], &["public.tiff"], &["image/tiff"]),
     format(&["tga"], &["com.truevision.tga-image"], &["image/x-tga"]),
-    format(&["dds"], &["com.ifence.lumia.dds"], &["image/x-dds"]),
+    format(&["dds"], &["com.aspirin.lumia.dds"], &["image/x-dds"]),
     format(&["bmp"], &["com.microsoft.bmp"], &["image/bmp"]),
     format(
         &["ico"],
         &["com.microsoft.ico"],
         &["image/vnd.microsoft.icon"],
     ),
-    format(&["hdr"], &["com.ifence.lumia.hdr"], &["image/vnd.radiance"]),
-    format(&["exr"], &["com.ifence.lumia.exr"], &["image/x-exr"]),
+    format(
+        &["hdr"],
+        &["com.aspirin.lumia.hdr"],
+        &["image/vnd.radiance"],
+    ),
+    format(&["exr"], &["com.aspirin.lumia.exr"], &["image/x-exr"]),
     format(
         &["pbm", "pam", "ppm", "pgm"],
-        &["com.ifence.lumia.netpbm"],
+        &["com.aspirin.lumia.netpbm"],
         &[
             "image/x-portable-bitmap",
             "image/x-portable-anymap",
@@ -38,10 +42,10 @@ pub(super) const ASSOCIATION_FORMATS: &[AssociationFormat] = &[
     ),
     format(
         &["ff", "farbfeld"],
-        &["com.ifence.lumia.farbfeld"],
+        &["com.aspirin.lumia.farbfeld"],
         &["image/x-farbfeld"],
     ),
-    format(&["qoi"], &["com.ifence.lumia.qoi"], &["image/x-qoi"]),
+    format(&["qoi"], &["com.aspirin.lumia.qoi"], &["image/x-qoi"]),
     format(&["svg"], &["public.svg-image"], &["image/svg+xml"]),
     format(
         &["heic", "heif"],
@@ -51,14 +55,14 @@ pub(super) const ASSOCIATION_FORMATS: &[AssociationFormat] = &[
     format(&["jxl"], &["public.jpeg-xl"], &["image/jxl"]),
     format(
         &["jp2", "j2k", "j2c", "jpc"],
-        &["public.jpeg-2000", "com.ifence.lumia.jpeg2000-codestream"],
+        &["public.jpeg-2000", "com.aspirin.lumia.jpeg2000-codestream"],
         &["image/jp2", "image/j2k"],
     ),
     format(
         &["psd", "psb"],
         &[
             "com.adobe.photoshop-image",
-            "com.ifence.lumia.photoshop-large-document",
+            "com.aspirin.lumia.photoshop-large-document",
         ],
         &["image/vnd.adobe.photoshop"],
     ),
@@ -68,7 +72,7 @@ pub(super) const ASSOCIATION_FORMATS: &[AssociationFormat] = &[
             "rwl", "pef", "srw", "3fr", "fff", "mef", "mos", "mrw", "kdc", "dcr", "erf", "x3f",
             "iiq",
         ],
-        &["com.ifence.lumia.camera-raw"],
+        &["com.aspirin.lumia.camera-raw"],
         &["image/x-camera-raw"],
     ),
 ];

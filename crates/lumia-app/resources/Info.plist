@@ -8,11 +8,11 @@
     <key>CFBundleDisplayName</key>
     <string>Lumia</string>
     <key>CFBundleIdentifier</key>
-    <string>com.ifence.lumia</string>
+    <string>com.aspirin.lumia</string>
     <key>CFBundleVersion</key>
-    <string>0.1.0</string>
+    <string>0.2.1</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1.0</string>
+    <string>0.2.1</string>
     <key>CFBundleExecutable</key>
     <string>lumia-app</string>
     <key>CFBundleIconFile</key>
@@ -43,19 +43,19 @@
             <key>CFBundleTypeName</key><string>DDS image</string>
             <key>CFBundleTypeRole</key><string>Viewer</string>
             <key>LSHandlerRank</key><string>Alternate</string>
-            <key>LSItemContentTypes</key><array><string>com.ifence.lumia.dds</string></array>
+            <key>LSItemContentTypes</key><array><string>com.aspirin.lumia.dds</string></array>
         </dict>
         <dict>
             <key>CFBundleTypeName</key><string>EXR image</string>
             <key>CFBundleTypeRole</key><string>Viewer</string>
             <key>LSHandlerRank</key><string>Alternate</string>
-            <key>LSItemContentTypes</key><array><string>com.ifence.lumia.exr</string></array>
+            <key>LSItemContentTypes</key><array><string>com.aspirin.lumia.exr</string></array>
         </dict>
         <dict>
             <key>CFBundleTypeName</key><string>Farbfeld image</string>
             <key>CFBundleTypeRole</key><string>Viewer</string>
             <key>LSHandlerRank</key><string>Alternate</string>
-            <key>LSItemContentTypes</key><array><string>com.ifence.lumia.farbfeld</string></array>
+            <key>LSItemContentTypes</key><array><string>com.aspirin.lumia.farbfeld</string></array>
         </dict>
         <dict>
             <key>CFBundleTypeName</key><string>GIF image</string>
@@ -67,7 +67,7 @@
             <key>CFBundleTypeName</key><string>HDR image</string>
             <key>CFBundleTypeRole</key><string>Viewer</string>
             <key>LSHandlerRank</key><string>Alternate</string>
-            <key>LSItemContentTypes</key><array><string>com.ifence.lumia.hdr</string></array>
+            <key>LSItemContentTypes</key><array><string>com.aspirin.lumia.hdr</string></array>
         </dict>
         <dict>
             <key>CFBundleTypeName</key><string>HEIC image</string>
@@ -109,13 +109,13 @@
             <key>CFBundleTypeName</key><string>JPEG 2000 codestream</string>
             <key>CFBundleTypeRole</key><string>Viewer</string>
             <key>LSHandlerRank</key><string>Alternate</string>
-            <key>LSItemContentTypes</key><array><string>com.ifence.lumia.jpeg2000-codestream</string></array>
+            <key>LSItemContentTypes</key><array><string>com.aspirin.lumia.jpeg2000-codestream</string></array>
         </dict>
         <dict>
             <key>CFBundleTypeName</key><string>Netpbm image</string>
             <key>CFBundleTypeRole</key><string>Viewer</string>
             <key>LSHandlerRank</key><string>Alternate</string>
-            <key>LSItemContentTypes</key><array><string>com.ifence.lumia.netpbm</string></array>
+            <key>LSItemContentTypes</key><array><string>com.aspirin.lumia.netpbm</string></array>
         </dict>
         <dict>
             <key>CFBundleTypeName</key><string>PNG image</string>
@@ -127,13 +127,13 @@
             <key>CFBundleTypeName</key><string>Animated PNG image</string>
             <key>CFBundleTypeRole</key><string>Viewer</string>
             <key>LSHandlerRank</key><string>Alternate</string>
-            <key>LSItemContentTypes</key><array><string>com.ifence.lumia.apng</string></array>
+            <key>LSItemContentTypes</key><array><string>com.aspirin.lumia.apng</string></array>
         </dict>
         <dict>
             <key>CFBundleTypeName</key><string>QOI image</string>
             <key>CFBundleTypeRole</key><string>Viewer</string>
             <key>LSHandlerRank</key><string>Alternate</string>
-            <key>LSItemContentTypes</key><array><string>com.ifence.lumia.qoi</string></array>
+            <key>LSItemContentTypes</key><array><string>com.aspirin.lumia.qoi</string></array>
         </dict>
         <dict>
             <key>CFBundleTypeName</key><string>SVG image</string>
@@ -169,55 +169,55 @@
             <key>CFBundleTypeName</key><string>Adobe Photoshop large document</string>
             <key>CFBundleTypeRole</key><string>Viewer</string>
             <key>LSHandlerRank</key><string>Alternate</string>
-            <key>LSItemContentTypes</key><array><string>com.ifence.lumia.photoshop-large-document</string></array>
+            <key>LSItemContentTypes</key><array><string>com.aspirin.lumia.photoshop-large-document</string></array>
         </dict>
         <dict>
             <key>CFBundleTypeName</key><string>Camera RAW image</string>
             <key>CFBundleTypeRole</key><string>Viewer</string>
             <key>LSHandlerRank</key><string>Alternate</string>
-            <key>LSItemContentTypes</key><array><string>com.ifence.lumia.camera-raw</string></array>
+            <key>LSItemContentTypes</key><array><string>com.aspirin.lumia.camera-raw</string></array>
         </dict>
     </array>
     <key>UTExportedTypeDeclarations</key>
     <array>
         <dict>
-            <key>UTTypeIdentifier</key><string>com.ifence.lumia.dds</string>
+            <key>UTTypeIdentifier</key><string>com.aspirin.lumia.dds</string>
             <key>UTTypeConformsTo</key><array><string>public.image</string></array>
             <key>UTTypeTagSpecification</key>
             <dict><key>public.filename-extension</key><array><string>dds</string></array></dict>
         </dict>
         <dict>
-            <key>UTTypeIdentifier</key><string>com.ifence.lumia.exr</string>
+            <key>UTTypeIdentifier</key><string>com.aspirin.lumia.exr</string>
             <key>UTTypeConformsTo</key><array><string>public.image</string></array>
             <key>UTTypeTagSpecification</key>
             <dict><key>public.filename-extension</key><array><string>exr</string></array></dict>
         </dict>
         <dict>
-            <key>UTTypeIdentifier</key><string>com.ifence.lumia.farbfeld</string>
+            <key>UTTypeIdentifier</key><string>com.aspirin.lumia.farbfeld</string>
             <key>UTTypeConformsTo</key><array><string>public.image</string></array>
             <key>UTTypeTagSpecification</key>
             <dict><key>public.filename-extension</key><array><string>ff</string><string>farbfeld</string></array></dict>
         </dict>
         <dict>
-            <key>UTTypeIdentifier</key><string>com.ifence.lumia.hdr</string>
+            <key>UTTypeIdentifier</key><string>com.aspirin.lumia.hdr</string>
             <key>UTTypeConformsTo</key><array><string>public.image</string></array>
             <key>UTTypeTagSpecification</key>
             <dict><key>public.filename-extension</key><array><string>hdr</string></array></dict>
         </dict>
         <dict>
-            <key>UTTypeIdentifier</key><string>com.ifence.lumia.netpbm</string>
+            <key>UTTypeIdentifier</key><string>com.aspirin.lumia.netpbm</string>
             <key>UTTypeConformsTo</key><array><string>public.image</string></array>
             <key>UTTypeTagSpecification</key>
             <dict><key>public.filename-extension</key><array><string>pbm</string><string>pam</string><string>ppm</string><string>pgm</string></array></dict>
         </dict>
         <dict>
-            <key>UTTypeIdentifier</key><string>com.ifence.lumia.qoi</string>
+            <key>UTTypeIdentifier</key><string>com.aspirin.lumia.qoi</string>
             <key>UTTypeConformsTo</key><array><string>public.image</string></array>
             <key>UTTypeTagSpecification</key>
             <dict><key>public.filename-extension</key><array><string>qoi</string></array></dict>
         </dict>
         <dict>
-            <key>UTTypeIdentifier</key><string>com.ifence.lumia.photoshop-large-document</string>
+            <key>UTTypeIdentifier</key><string>com.aspirin.lumia.photoshop-large-document</string>
             <key>UTTypeConformsTo</key><array><string>public.image</string></array>
             <key>UTTypeTagSpecification</key>
             <dict>
@@ -226,7 +226,7 @@
             </dict>
         </dict>
         <dict>
-            <key>UTTypeIdentifier</key><string>com.ifence.lumia.camera-raw</string>
+            <key>UTTypeIdentifier</key><string>com.aspirin.lumia.camera-raw</string>
             <key>UTTypeConformsTo</key><array><string>public.image</string></array>
             <key>UTTypeTagSpecification</key>
             <dict>

@@ -4,7 +4,7 @@
         Id="*"
         Name="Lumia"
         UpgradeCode="07618386-59AC-4B5C-B4E1-EBE4F8AA182E"
-        Manufacturer="iFence"
+        Manufacturer="aspirin"
         Language="$(var.ProductLanguage)"
         Codepage="$(var.ProductCodepage)"
         Version="$(var.Version)">
@@ -12,7 +12,7 @@
         <Package
             Id="*"
             Keywords="Installer"
-            Manufacturer="iFence"
+            Manufacturer="aspirin"
             InstallerVersion="450"
             Languages="$(var.ProductLanguage)"
             Compressed="yes"
