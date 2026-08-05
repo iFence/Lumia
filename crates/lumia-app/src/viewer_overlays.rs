@@ -250,7 +250,7 @@ impl LumiaApp {
                     "show-exif-menu-item",
                     tr(language, TextKey::ShowExifInfo),
                     has_image,
-                    None,
+                    Keystroke::parse(&self.get_shortcut_binding(ShortcutId::ToggleImageInfo)).ok(),
                     palette,
                     cx,
                     |this, _, _, cx| {

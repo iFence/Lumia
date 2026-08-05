@@ -54,6 +54,14 @@ Download the recommended Setup program (`Lumia-Setup-*-x64.exe`) or portable arc
 
 Download the `.dmg` from the [Releases](https://github.com/iFence/Lumia/releases) page. Open the disk image and drag **Lumia.app** into your `Applications` folder. Once installed, right-click any image in Finder and choose **Open With -> Lumia**, or use **Settings -> File Associations** in Lumia to choose the default formats.
 
+If macOS reports that **Lumia.app is damaged and can't be opened**, open Terminal and run the following command, then launch Lumia again:
+
+```bash
+sudo xattr -dr com.apple.quarantine /Applications/Lumia.app
+```
+
+Only run this command for Lumia downloaded from the official [Releases](https://github.com/iFence/Lumia/releases) page.
+
 If you prefer the portable binary, run `lumia-app --register-context-menu` to create a wrapper app bundle under `~/Applications/` so Lumia appears in Finder's "Open With" menu.
 
 ### Linux

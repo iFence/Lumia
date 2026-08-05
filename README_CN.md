@@ -54,6 +54,14 @@ Lumia 围绕四个能力层级组织：
 
 从 [Releases](https://github.com/iFence/Lumia/releases) 页面下载 `.dmg` 文件。打开磁盘映像并将 **Lumia.app** 拖入 `Applications` 文件夹。安装后，在 Finder 中右键单击任意图片并选择 **打开方式 -> Lumia**，或在 Lumia 中使用 **设置 -> 文件关联** 选择默认格式。
 
+如果 macOS 提示 **“Lumia.app 已损坏，无法打开”**，请打开“终端”并执行以下命令，然后重新启动 Lumia：
+
+```bash
+sudo xattr -dr com.apple.quarantine /Applications/Lumia.app
+```
+
+请仅对从官方 [Releases](https://github.com/iFence/Lumia/releases) 页面下载的 Lumia 执行此命令。
+
 如果你更喜欢便携版二进制文件，运行 `lumia-app --register-context-menu` 在 `~/Applications/` 下创建一个包装应用包，以便 Lumia 出现在 Finder 的"打开方式"菜单中。
 
 ### Linux
