@@ -1,6 +1,6 @@
 use gpui::{
-    AnyElement, InteractiveElement, IntoElement, ObjectFit, ParentElement, Styled, StyledImage,
-    Window, div, img, px,
+    div, img, px, AnyElement, InteractiveElement, IntoElement, ObjectFit, ParentElement, Styled,
+    StyledImage, Window,
 };
 use lumia_core::{ImagePixelRect, TileCoordinate, TileLevel};
 
@@ -231,11 +231,9 @@ mod tests {
             geometry.visible_source,
             ImagePixelRect::new(0, 0, 10_000, 5_000)
         );
-        assert!(
-            geometry
-                .visible_tiles
-                .contains(&TileCoordinate::new(3, 0, 0))
-        );
+        assert!(geometry
+            .visible_tiles
+            .contains(&TileCoordinate::new(3, 0, 0)));
     }
 
     #[test]

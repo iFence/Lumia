@@ -136,9 +136,8 @@ impl LumiaApp {
         // Pick the sibling to show before removing the deleted file.
         let next = self.navigation.step_path(&path, 1).map(Path::to_path_buf);
         if let Err(_error) = crate::shell::delete_file_to_trash(&path) {
-            self.ui.error_message = Some(
-                tr(self.settings.language, TextKey::DeleteFailed).to_string(),
-            );
+            self.ui.error_message =
+                Some(tr(self.settings.language, TextKey::DeleteFailed).to_string());
             self.ui.context_menu_position = None;
             cx.notify();
             return;

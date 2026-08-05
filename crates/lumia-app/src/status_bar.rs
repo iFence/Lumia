@@ -400,7 +400,6 @@ impl LumiaApp {
             .px_2()
             .flex()
             .items_center()
-            .gap_1()
             .rounded_sm()
             .text_sm()
             .text_color(rgb(palette.muted_text))
@@ -416,15 +415,6 @@ impl LumiaApp {
                 }),
             )
             .child(dimensions)
-            .child(
-                Icon::new(if self.editing.show_menu {
-                    IconName::ChevronDown
-                } else {
-                    IconName::ChevronUp
-                })
-                .size(px(12.0))
-                .text_color(rgb(palette.muted_text)),
-            )
             .children(self.editing.show_menu.then(|| {
                 div()
                     .id("status-dimensions-menu")

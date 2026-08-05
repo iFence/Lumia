@@ -58,7 +58,7 @@ mod widgets;
 mod window_actions;
 
 use gpui::{actions, Action};
-use lumia_core::{Language, ThemeAccent, ThemeMode};
+use lumia_core::{Language, ThemeAccent};
 use serde::Deserialize;
 
 pub(crate) const STATUS_BAR_HEIGHT: f32 = 36.0;
@@ -90,10 +90,6 @@ pub(crate) const APP_TITLE: &str = "Lumia";
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
 #[action(namespace = lumia, no_json)]
 pub(crate) struct SelectLanguage(pub(crate) Language);
-
-#[derive(Action, Clone, PartialEq, Eq, Deserialize)]
-#[action(namespace = lumia, no_json)]
-pub(crate) struct SelectThemeMode(pub(crate) ThemeMode);
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
 #[action(namespace = lumia, no_json)]

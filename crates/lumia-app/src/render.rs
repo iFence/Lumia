@@ -7,19 +7,14 @@ use gpui_component::{Root, Theme, ThemeMode as ComponentThemeMode};
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
-use crate::palette::{theme_resolves_to_dark, Palette};
+use crate::palette::Palette;
 use crate::util::status_message;
 use crate::Quit;
 
 impl Render for LumiaApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.sync_window_title(window);
-        let component_theme_mode =
-            if theme_resolves_to_dark(self.settings.theme, window.appearance()) {
-                ComponentThemeMode::Dark
-            } else {
-                ComponentThemeMode::Light
-            };
+        let component_theme_mode = ComponentThemeMode::Dark;
         if Theme::global(cx).mode != component_theme_mode {
             Theme::change(component_theme_mode, None, cx);
         }
@@ -63,9 +58,10 @@ impl Render for LumiaApp {
                     .children(self.render_edit_panel(palette, cx))
                     .children(self.render_plugin_panel(palette, cx)),
             )
-            .children(self.status_bar_visible().then(|| {
-                self.render_status_bar(window, palette, cx)
-            }))
+            .children(
+                self.status_bar_visible()
+                    .then(|| self.render_status_bar(window, palette, cx)),
+            )
             .children(self.render_settings_panel(window, palette, cx))
             .children(dialog_layer)
     }

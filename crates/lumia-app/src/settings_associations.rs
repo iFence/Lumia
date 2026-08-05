@@ -37,29 +37,24 @@ impl LumiaApp {
             .justify_between()
             .gap_4()
             .child(
-                div()
-                    .flex_1()
-                    .flex()
-                    .flex_col()
-                    .gap_1()
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .font_weight(FontWeight::MEDIUM)
-                                    .child(tr(language, TextKey::FileAssociations)),
-                            )
-                            .child(
-                                div()
-                                    .text_xs()
-                                    .text_color(rgb(palette.muted_text))
-                                    .child(selected_summary),
-                            ),
-                    )
+                div().flex_1().flex().flex_col().gap_1().child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap_2()
+                        .child(
+                            div()
+                                .text_sm()
+                                .font_weight(FontWeight::MEDIUM)
+                                .child(tr(language, TextKey::FileAssociations)),
+                        )
+                        .child(
+                            div()
+                                .text_xs()
+                                .text_color(rgb(palette.muted_text))
+                                .child(selected_summary),
+                        ),
+                ),
             )
             .child(
                 div()
@@ -172,11 +167,7 @@ impl LumiaApp {
                                                 )
                                         })),
                                 )
-                                .child(
-                                    div()
-                                        .text_sm()
-                                        .child(extension.to_ascii_uppercase()),
-                                )
+                                .child(div().text_sm().child(extension.to_ascii_uppercase()))
                         }),
                 );
             }

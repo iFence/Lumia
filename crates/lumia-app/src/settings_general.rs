@@ -3,13 +3,13 @@ use gpui::{
     Styled, Window,
 };
 use gpui_component::switch::Switch;
-use lumia_core::{Language, ThemeAccent, ThemeMode};
+use lumia_core::{Language, ThemeAccent};
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
-use crate::settings_ui::{language_text_key, theme_accent_text_key, theme_mode_text_key};
+use crate::settings_ui::{language_text_key, theme_accent_text_key};
 use crate::widgets::{settings_dropdown_button, settings_label};
-use crate::{SelectLanguage, SelectThemeAccent, SelectThemeMode};
+use crate::{SelectLanguage, SelectThemeAccent};
 
 impl LumiaApp {
     pub(crate) fn render_general_settings(
@@ -19,7 +19,6 @@ impl LumiaApp {
     ) -> impl IntoElement {
         let language = self.settings.language;
         let selected_language = self.settings.language;
-        let selected_theme = self.settings.theme;
         let selected_accent = self.settings.theme_accent;
         let check_updates_on_startup = self.settings.check_updates_on_startup;
         let self_handle = self.self_handle.clone();
@@ -53,35 +52,6 @@ impl LumiaApp {
                                 tr(language, TextKey::Chinese),
                                 selected_language == Language::Chinese,
                                 Box::new(SelectLanguage(Language::Chinese)),
-                            )
-                        },
-                    )),
-            )
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .gap_4()
-                    .child(settings_label(tr(language, TextKey::Theme)))
-                    .child(settings_dropdown_button(
-                        "settings-theme-select",
-                        tr(language, theme_mode_text_key(selected_theme)),
-                        move |menu, _, _| {
-                            menu.menu_with_check(
-                                tr(language, TextKey::Light),
-                                selected_theme == ThemeMode::Light,
-                                Box::new(SelectThemeMode(ThemeMode::Light)),
-                            )
-                            .menu_with_check(
-                                tr(language, TextKey::Dark),
-                                selected_theme == ThemeMode::Dark,
-                                Box::new(SelectThemeMode(ThemeMode::Dark)),
-                            )
-                            .menu_with_check(
-                                tr(language, TextKey::FollowSystem),
-                                selected_theme == ThemeMode::FollowSystem,
-                                Box::new(SelectThemeMode(ThemeMode::FollowSystem)),
                             )
                         },
                     )),

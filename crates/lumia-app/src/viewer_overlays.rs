@@ -226,8 +226,7 @@ impl LumiaApp {
                 .child(context_menu_item(
                     "fullscreen-menu-item",
                     tr(language, fullscreen_label),
-                    Keystroke::parse(&self.get_shortcut_binding(ShortcutId::ToggleFullscreen))
-                        .ok(),
+                    Keystroke::parse(&self.get_shortcut_binding(ShortcutId::ToggleFullscreen)).ok(),
                     palette,
                     cx,
                     |this, _, window, cx| {

@@ -32,7 +32,6 @@ pub(crate) struct LumiaApp {
     pub(crate) annotations: AnnotationDocument,
     pub(crate) ui: UiState,
     pub(crate) settings: AppSettings,
-    pub(crate) appearance_subscription: Option<Subscription>,
     pub(crate) activation_subscription: Option<Subscription>,
     pub(crate) window_active: bool,
     pub(crate) window_title: String,
@@ -48,7 +47,7 @@ impl LumiaApp {
         window.focus(&focus_handle, cx);
 
         let settings = load_settings();
-        crate::shell::apply_native_theme(settings.theme);
+        crate::shell::apply_native_dark_theme();
         let plugins = PluginUiState::new();
         let plugin_management = PluginManagementState::from_registry(&plugins.registry);
         let mut app = Self {
@@ -68,14 +67,10 @@ impl LumiaApp {
             annotations: AnnotationDocument::default(),
             ui: UiState::default(),
             settings,
-            appearance_subscription: None,
             activation_subscription: None,
             window_active: window.is_window_active(),
             window_title: APP_TITLE.to_string(),
         };
-        app.appearance_subscription = Some(cx.observe_window_appearance(window, |_, _, cx| {
-            cx.notify();
-        }));
         app.activation_subscription =
             Some(cx.observe_window_activation(window, |app, window, cx| {
                 let was_active = app.window_active;

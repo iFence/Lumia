@@ -2,7 +2,7 @@ use gpui::{
     div, px, rgb, Context, InteractiveElement, IntoElement, ParentElement,
     StatefulInteractiveElement, Styled, Window,
 };
-use lumia_core::{Language, SettingsGroup, ShortcutId, ThemeAccent, ThemeMode};
+use lumia_core::{Language, SettingsGroup, ShortcutId, ThemeAccent};
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
@@ -13,14 +13,6 @@ pub(crate) fn language_text_key(language: Language) -> TextKey {
     match language {
         Language::English => TextKey::English,
         Language::Chinese => TextKey::Chinese,
-    }
-}
-
-pub(crate) fn theme_mode_text_key(theme: ThemeMode) -> TextKey {
-    match theme {
-        ThemeMode::Light => TextKey::Light,
-        ThemeMode::Dark => TextKey::Dark,
-        ThemeMode::FollowSystem => TextKey::FollowSystem,
     }
 }
 
@@ -119,7 +111,6 @@ impl LumiaApp {
                     .flex()
                     .flex_col()
                     .on_action(cx.listener(Self::apply_selected_language))
-                    .on_action(cx.listener(Self::apply_selected_theme_mode))
                     .on_action(cx.listener(Self::apply_selected_theme_accent))
                     .on_action(cx.listener(Self::handle_check_for_updates))
                     .child(

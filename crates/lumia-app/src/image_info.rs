@@ -52,9 +52,7 @@ impl LumiaApp {
                                     .justify_center()
                                     .rounded_sm()
                                     .cursor_pointer()
-                                    .hover(move |style| {
-                                        style.bg(gpui::white().opacity(0.12))
-                                    })
+                                    .hover(move |style| style.bg(gpui::white().opacity(0.12)))
                                     .tooltip(move |window, cx| {
                                         Tooltip::new(tooltip).build(window, cx)
                                     })
@@ -84,9 +82,7 @@ impl LumiaApp {
                                     .justify_center()
                                     .rounded_sm()
                                     .cursor_pointer()
-                                    .hover(move |style| {
-                                        style.bg(gpui::white().opacity(0.12))
-                                    })
+                                    .hover(move |style| style.bg(gpui::white().opacity(0.12)))
                                     .tooltip(move |window, cx| {
                                         Tooltip::new(close_tooltip).build(window, cx)
                                     })

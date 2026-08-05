@@ -21,7 +21,6 @@ pub enum ShortcutId {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppSettings {
     pub language: Language,
-    pub theme: ThemeMode,
     #[serde(default)]
     pub theme_accent: ThemeAccent,
     #[serde(
@@ -53,7 +52,6 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             language: Language::English,
-            theme: ThemeMode::FollowSystem,
             theme_accent: ThemeAccent::default(),
             shortcuts: default_shortcuts(),
             check_updates_on_startup: true,
@@ -107,13 +105,6 @@ pub enum Language {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ThemeMode {
-    Light,
-    Dark,
-    FollowSystem,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ThemeAccent {
     Blue,
     Green,
@@ -141,11 +132,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn app_settings_default_to_english_follow_system_and_blue_accent() {
+    fn app_settings_default_to_english_and_blue_accent() {
         let settings = AppSettings::default();
 
         assert_eq!(settings.language, Language::English);
-        assert_eq!(settings.theme, ThemeMode::FollowSystem);
         assert_eq!(settings.theme_accent, ThemeAccent::Blue);
         assert!(!settings.shortcuts.is_empty());
         assert!(settings.check_updates_on_startup);
@@ -155,7 +145,6 @@ mod tests {
     fn app_settings_round_trip_through_json() {
         let settings = AppSettings {
             language: Language::Chinese,
-            theme: ThemeMode::Dark,
             theme_accent: ThemeAccent::Rose,
             shortcuts: default_shortcuts(),
             check_updates_on_startup: false,

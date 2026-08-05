@@ -1,4 +1,3 @@
-use lumia_core::ThemeMode;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -27,12 +26,9 @@ pub(crate) fn unregister_context_menu() -> anyhow::Result<()> {
     platform::unregister()
 }
 
-pub(crate) fn apply_native_theme(theme: ThemeMode) {
+pub(crate) fn apply_native_dark_theme() {
     #[cfg(target_os = "macos")]
-    macos::apply_native_theme(theme);
-
-    #[cfg(not(target_os = "macos"))]
-    let _ = theme;
+    macos::apply_native_dark_theme();
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,5 +1,5 @@
-use gpui::{Window, WindowAppearance};
-use lumia_core::{ThemeAccent, ThemeMode};
+use gpui::Window;
+use lumia_core::ThemeAccent;
 
 use crate::app::LumiaApp;
 
@@ -25,14 +25,6 @@ pub(crate) struct Palette {
 }
 
 impl Palette {
-    fn for_theme(theme: ThemeMode, accent: ThemeAccent, appearance: WindowAppearance) -> Self {
-        if theme_resolves_to_dark(theme, appearance) {
-            Self::dark(accent)
-        } else {
-            Self::light(accent)
-        }
-    }
-
     fn dark(accent: ThemeAccent) -> Self {
         let accent = accent_color(accent);
 
@@ -54,30 +46,6 @@ impl Palette {
             accent_active: mix(accent, 0x000000, 0.16),
             accent_text: 0x101010,
             accent_soft: mix(0x252525, accent, 0.30),
-        }
-    }
-
-    fn light(accent: ThemeAccent) -> Self {
-        let accent = accent_color(accent);
-
-        Self {
-            viewer_bg: 0xf4f4f4,
-            toolbar_bg: 0xffffff,
-            toolbar_bg_alpha: 0.72,
-            panel_bg: 0xffffff,
-            sidebar_bg: 0xf2f2f2,
-            subtle_bg: 0xf5f5f5,
-            button_hover: mix(0xe2e2e2, accent, 0.16),
-            status_hover: 0xe8e8e8,
-            border: 0xd0d0d0,
-            text: 0x202020,
-            muted_text: 0x5f6368,
-            error_text: 0x9b1c1c,
-            accent,
-            accent_hover: mix(accent, 0x000000, 0.08),
-            accent_active: mix(accent, 0x000000, 0.16),
-            accent_text: 0x101010,
-            accent_soft: mix(0xf5f5f5, accent, 0.18),
         }
     }
 }
@@ -107,24 +75,9 @@ fn mix(base: u32, overlay: u32, amount: f32) -> u32 {
     (r << 16) | (g << 8) | b
 }
 
-pub(crate) fn theme_resolves_to_dark(theme: ThemeMode, appearance: WindowAppearance) -> bool {
-    match theme {
-        ThemeMode::Light => false,
-        ThemeMode::Dark => true,
-        ThemeMode::FollowSystem => matches!(
-            appearance,
-            WindowAppearance::Dark | WindowAppearance::VibrantDark
-        ),
-    }
-}
-
 impl LumiaApp {
-    pub(crate) fn palette(&self, window: &Window) -> Palette {
-        Palette::for_theme(
-            self.settings.theme,
-            self.settings.theme_accent,
-            window.appearance(),
-        )
+    pub(crate) fn palette(&self, _window: &Window) -> Palette {
+        Palette::dark(self.settings.theme_accent)
     }
 }
 

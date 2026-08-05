@@ -4,7 +4,6 @@ use std::process::Command;
 use std::ptr::NonNull;
 
 use anyhow::{bail, Context as _};
-use lumia_core::ThemeMode;
 use objc2_core_foundation::{CFRetained, CFString};
 
 use super::association_formats::{extensions_for_macos_content_type, ASSOCIATION_FORMATS};
@@ -28,21 +27,15 @@ extern "C" {
     ) -> i32;
 }
 
-pub(super) fn apply_native_theme(theme: ThemeMode) {
+pub(super) fn apply_native_dark_theme() {
     use objc2::MainThreadMarker;
-    use objc2_app_kit::{
-        NSAppearance, NSAppearanceNameAqua, NSAppearanceNameDarkAqua, NSApplication,
-    };
+    use objc2_app_kit::{NSAppearance, NSAppearanceNameDarkAqua, NSApplication};
 
     let Some(mtm) = MainThreadMarker::new() else {
         return;
     };
-    let (light_name, dark_name) = unsafe { (NSAppearanceNameAqua, NSAppearanceNameDarkAqua) };
-    let appearance = match theme {
-        ThemeMode::Light => NSAppearance::appearanceNamed(light_name),
-        ThemeMode::Dark => NSAppearance::appearanceNamed(dark_name),
-        ThemeMode::FollowSystem => None,
-    };
+    let dark_name = unsafe { NSAppearanceNameDarkAqua };
+    let appearance = NSAppearance::appearanceNamed(dark_name);
     NSApplication::sharedApplication(mtm).setAppearance(appearance.as_deref());
 }
 

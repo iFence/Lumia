@@ -40,10 +40,7 @@ impl LumiaApp {
                 ShortcutId::PreviousImage,
                 TextKey::ShortcutPreviousImageLabel,
             ),
-            (
-                ShortcutId::OpenSettings,
-                TextKey::ShortcutOpenSettingsLabel,
-            ),
+            (ShortcutId::OpenSettings, TextKey::ShortcutOpenSettingsLabel),
             (ShortcutId::About, TextKey::ShortcutAboutLabel),
             (ShortcutId::Quit, TextKey::ShortcutQuitLabel),
         ];

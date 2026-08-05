@@ -1,24 +1,16 @@
 use gpui::{Action, Context, KeyBinding, Window};
-use lumia_core::{default_shortcuts, Language, ShortcutId, ThemeAccent, ThemeMode};
+use lumia_core::{default_shortcuts, Language, ShortcutId, ThemeAccent};
 
 use crate::app::LumiaApp;
 use crate::persistence::save_settings;
 use crate::{
     About, ExitFullscreen, NextImage, OpenFile, OpenSettings, PreviousImage, Quit, SelectLanguage,
-    SelectThemeAccent, SelectThemeMode, ToggleFullscreen, ToggleImageInfo, ZoomFit, ZoomIn,
-    ZoomOut,
+    SelectThemeAccent, ToggleFullscreen, ToggleImageInfo, ZoomFit, ZoomIn, ZoomOut,
 };
 
 impl LumiaApp {
     pub(crate) fn set_language(&mut self, language: Language, cx: &mut Context<Self>) {
         self.settings.language = language;
-        let _ = save_settings(&self.settings);
-        cx.notify();
-    }
-
-    pub(crate) fn set_theme(&mut self, theme: ThemeMode, cx: &mut Context<Self>) {
-        self.settings.theme = theme;
-        crate::shell::apply_native_theme(theme);
         let _ = save_settings(&self.settings);
         cx.notify();
     }
@@ -42,15 +34,6 @@ impl LumiaApp {
         cx: &mut Context<Self>,
     ) {
         self.set_language(action.0, cx);
-    }
-
-    pub(crate) fn apply_selected_theme_mode(
-        &mut self,
-        action: &SelectThemeMode,
-        _: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.set_theme(action.0, cx);
     }
 
     pub(crate) fn apply_selected_theme_accent(

@@ -3,8 +3,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use lumia_core::{large_image_worker_count, PixelBudget};
 use lumia_core::{DecodeCancellation, LargeImagePolicy, LargeImageRaster, TileCoordinate};
-use lumia_core::{PixelBudget, large_image_worker_count};
 
 use gpui::{Context, Window};
 

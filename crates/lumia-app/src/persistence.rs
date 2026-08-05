@@ -122,7 +122,6 @@ mod tests {
     fn installed_defaults_change_only_language() {
         let defaults = installed_default_settings();
         let baseline = AppSettings::default();
-        assert_eq!(defaults.theme, baseline.theme);
         assert_eq!(defaults.theme_accent, baseline.theme_accent);
         assert_eq!(defaults.shortcuts, baseline.shortcuts);
     }

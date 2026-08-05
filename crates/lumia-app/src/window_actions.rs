@@ -4,9 +4,8 @@ use lumia_core::SettingsGroup;
 use crate::app::LumiaApp;
 use crate::{
     About, ExitFullscreen, OpenSettings, ToggleFullscreen, ToggleImageInfo, EDIT_MENU_HEIGHT,
-    EDIT_MENU_WIDTH,
-    STATUS_BAR_HEIGHT, STATUS_MENU_BOTTOM, STATUS_MENU_CONTROL_OFFSET, ZOOM_MENU_HEIGHT,
-    ZOOM_MENU_HOVER_MARGIN, ZOOM_MENU_RIGHT, ZOOM_MENU_WIDTH,
+    EDIT_MENU_WIDTH, STATUS_BAR_HEIGHT, STATUS_MENU_BOTTOM, STATUS_MENU_CONTROL_OFFSET,
+    ZOOM_MENU_HEIGHT, ZOOM_MENU_HOVER_MARGIN, ZOOM_MENU_RIGHT, ZOOM_MENU_WIDTH,
 };
 
 impl LumiaApp {
@@ -70,22 +69,13 @@ impl LumiaApp {
         }
     }
 
-    pub(crate) fn open_about(
-        &mut self,
-        _: &About,
-        _: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub(crate) fn open_about(&mut self, _: &About, _: &mut Window, cx: &mut Context<Self>) {
         if !self.is_viewer_blocked() {
             self.open_settings_panel_to(SettingsGroup::About, cx);
         }
     }
 
-    pub(crate) fn open_settings_panel_to(
-        &mut self,
-        group: SettingsGroup,
-        cx: &mut Context<Self>,
-    ) {
+    pub(crate) fn open_settings_panel_to(&mut self, group: SettingsGroup, cx: &mut Context<Self>) {
         self.stop_slideshow(cx);
         self.close_plugin_session(cx);
         self.ui.show_settings_panel = true;
@@ -146,9 +136,7 @@ impl LumiaApp {
             match self.editing.menu_anchor {
                 // Not measured yet, right after opening — keep it open.
                 None => true,
-                Some(anchor) => {
-                    edit_menu_zone_contains(anchor, x, y, viewport_height)
-                }
+                Some(anchor) => edit_menu_zone_contains(anchor, x, y, viewport_height),
             }
         };
         let show_status_bar = should_show_status_bar(
@@ -176,14 +164,10 @@ impl LumiaApp {
     }
 }
 
-fn zoom_menu_zone_contains(
-    anchor: Bounds<Pixels>,
-    x: f32,
-    y: f32,
-    viewport_height: f32,
-) -> bool {
+fn zoom_menu_zone_contains(anchor: Bounds<Pixels>, x: f32, y: f32, viewport_height: f32) -> bool {
     // Mirror the menu's centering under the zoom button in status_bar.rs.
-    let menu_left = f32::from(anchor.left()) + (f32::from(anchor.size.width) - ZOOM_MENU_WIDTH) / 2.0;
+    let menu_left =
+        f32::from(anchor.left()) + (f32::from(anchor.size.width) - ZOOM_MENU_WIDTH) / 2.0;
     let menu_right = menu_left + ZOOM_MENU_WIDTH;
     let menu_top = viewport_height - STATUS_MENU_BOTTOM - ZOOM_MENU_HEIGHT;
     x >= menu_left - ZOOM_MENU_HOVER_MARGIN
@@ -192,17 +176,14 @@ fn zoom_menu_zone_contains(
         && y <= viewport_height
 }
 
-fn edit_menu_zone_contains(
-    anchor: Bounds<Pixels>,
-    x: f32,
-    y: f32,
-    viewport_height: f32,
-) -> bool {
+fn edit_menu_zone_contains(anchor: Bounds<Pixels>, x: f32, y: f32, viewport_height: f32) -> bool {
     // Mirror the popup's centering under the dimensions button in status_bar.rs.
-    let menu_left = f32::from(anchor.left())
-        + (f32::from(anchor.size.width) - EDIT_MENU_WIDTH) / 2.0;
+    let menu_left =
+        f32::from(anchor.left()) + (f32::from(anchor.size.width) - EDIT_MENU_WIDTH) / 2.0;
     let menu_right = menu_left + EDIT_MENU_WIDTH;
-    let menu_top = f32::from(anchor.bottom()) - STATUS_MENU_CONTROL_OFFSET - EDIT_MENU_HEIGHT
+    let menu_top = f32::from(anchor.bottom())
+        - STATUS_MENU_CONTROL_OFFSET
+        - EDIT_MENU_HEIGHT
         - ZOOM_MENU_HOVER_MARGIN;
     x >= menu_left - ZOOM_MENU_HOVER_MARGIN
         && x <= menu_right + ZOOM_MENU_HOVER_MARGIN
