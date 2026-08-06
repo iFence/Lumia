@@ -88,7 +88,10 @@ impl LumiaApp {
                 .flex()
                 .items_center()
                 .justify_center()
-                .bg(gpui::black().opacity(0.48));
+                .bg(gpui::black().opacity(0.48))
+                .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                    cx.stop_propagation();
+                });
 
             let overlay = if is_recording {
                 overlay.capture_key_down(cx.listener(Self::handle_shortcut_recording))
