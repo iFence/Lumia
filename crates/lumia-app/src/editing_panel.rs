@@ -30,9 +30,9 @@ impl LumiaApp {
             .ghost()
             .icon(IconName::Close)
             .disabled(self.editing.exporting)
-            .on_click(move |_, _, cx| {
+            .on_click(move |_, window, cx| {
                 let _ = self_handle.update(cx, |this, cx| {
-                    this.close_edit_session(true, cx);
+                    this.request_close_edit_session(window, cx);
                 });
             });
 
@@ -342,9 +342,9 @@ impl LumiaApp {
                         tr(language, TextKey::Cancel),
                         false,
                         self.editing.exporting,
-                        move |_, _, cx| {
+                        move |_, window, cx| {
                             let _ = cancel_handle.update(cx, |this, cx| {
-                                this.close_edit_session(true, cx);
+                                this.request_close_edit_session(window, cx);
                             });
                         },
                     ))

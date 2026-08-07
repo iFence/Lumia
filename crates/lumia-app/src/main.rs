@@ -8,6 +8,7 @@ mod cli;
 mod common_decode;
 mod crop_overlay;
 mod custom_icons;
+mod edit_discard;
 mod editing;
 mod editing_export;
 mod editing_panel;

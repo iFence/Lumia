@@ -148,6 +148,18 @@ impl LumiaApp {
         if !self.can_edit_current_image() {
             return;
         }
+        // Switching modes resets the crop selection and size inputs, so the
+        // actual switch lives in `edit_discard` which confirms first when the
+        // current edits have not been applied.
+        self.request_edit_mode_switch(mode, window, cx);
+    }
+
+    pub(crate) fn enter_edit_mode(
+        &mut self,
+        mode: EditMode,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         self.close_plugin_session(cx);
         let Some((width, height)) = self.viewer.display_dimensions() else {
             return;
