@@ -102,27 +102,94 @@ fn panel_rejects_unknown_assets_and_non_finite_sliders() {
 #[test]
 fn canvas_state_must_reference_a_declared_typed_tool() {
     let mut manifest = manifest();
-    manifest
-        .contributions
-        .canvas_tools
-        .push(lumia_plugin_api::CanvasToolContribution {
-            id: "annotation.icon_stamp".into(),
-            label: text("Icon stamp"),
-            icon: PluginIcon::Annotation,
-            kind: CanvasToolKind::IconStamp,
-        });
-    let valid = CanvasToolState {
-        tool_id: "annotation.icon_stamp".into(),
-        settings: CanvasToolSettings::IconStamp {
-            asset_id: "pin".into(),
-            size: 48.0,
+    manifest.contributions.canvas_tools = vec![
+        lumia_plugin_api::CanvasToolContribution {
+            id: "annotation.text".into(),
+            label: text("Text"),
+            icon: PluginIcon::Text,
+            kind: CanvasToolKind::Text,
+        },
+        lumia_plugin_api::CanvasToolContribution {
+            id: "annotation.rectangle".into(),
+            label: text("Rectangle"),
+            icon: PluginIcon::Rectangle,
+            kind: CanvasToolKind::Rectangle,
+        },
+        lumia_plugin_api::CanvasToolContribution {
+            id: "annotation.numbered_step".into(),
+            label: text("Numbered step"),
+            icon: PluginIcon::NumberedStep,
+            kind: CanvasToolKind::NumberedStep,
+        },
+    ];
+    let text_tool = CanvasToolState {
+        tool_id: "annotation.text".into(),
+        settings: CanvasToolSettings::Text {
+            font_size: 24.0,
             color: "#ff0000".into(),
             opacity: 1.0,
         },
     };
-    validate_canvas_state(&manifest, Some(&valid)).unwrap();
+    let rectangle_tool = CanvasToolState {
+        tool_id: "annotation.rectangle".into(),
+        settings: CanvasToolSettings::Rectangle {
+            stroke_width: 4.0,
+            color: "#ff0000".into(),
+            opacity: 1.0,
+        },
+    };
+    let step_tool = CanvasToolState {
+        tool_id: "annotation.numbered_step".into(),
+        settings: CanvasToolSettings::NumberedStep {
+            size: 24.0,
+            color: "#ff0000".into(),
+            opacity: 1.0,
+        },
+    };
+    validate_canvas_state(&manifest, Some(&text_tool)).unwrap();
+    validate_canvas_state(&manifest, Some(&rectangle_tool)).unwrap();
+    validate_canvas_state(&manifest, Some(&step_tool)).unwrap();
 
-    let mut invalid = valid;
-    invalid.tool_id = "missing".into();
-    assert!(validate_canvas_state(&manifest, Some(&invalid)).is_err());
+    let mut unknown = text_tool;
+    unknown.tool_id = "missing".into();
+    assert!(validate_canvas_state(&manifest, Some(&unknown)).is_err());
+
+    let out_of_range = CanvasToolState {
+        tool_id: "annotation.text".into(),
+        settings: CanvasToolSettings::Text {
+            font_size: 9999.0,
+            color: "#ff0000".into(),
+            opacity: 1.0,
+        },
+    };
+    assert!(validate_canvas_state(&manifest, Some(&out_of_range)).is_err());
+
+    let mismatched = CanvasToolState {
+        tool_id: "annotation.text".into(),
+        settings: CanvasToolSettings::NumberedStep {
+            size: 24.0,
+            color: "#ff0000".into(),
+            opacity: 1.0,
+        },
+    };
+    assert!(validate_canvas_state(&manifest, Some(&mismatched)).is_err());
+}
+
+#[test]
+fn text_input_control_rejects_oversized_values() {
+    let manifest = manifest();
+    let panel = PanelModel {
+        title: text("Panel"),
+        sections: vec![lumia_plugin_api::PanelSection {
+            id: "settings".into(),
+            title: None,
+            controls: vec![PanelControl::TextInput {
+                id: "text".into(),
+                label: text("Text"),
+                value: "x".repeat(4097),
+                enabled: true,
+            }],
+        }],
+    };
+    assert!(validate_panel_model(&manifest, &panel).is_err());
 }

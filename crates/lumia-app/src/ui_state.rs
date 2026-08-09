@@ -6,6 +6,16 @@ use lumia_core::{SettingsGroup, ShortcutId};
 use crate::file_association_state::FileAssociationUiState;
 use crate::update_check::UpdateCheckUiState;
 
+/// An in-progress rectangle drag, in image-local display coordinates (offset
+/// from the image's top-left corner, not yet mapped back to source pixels).
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct AnnotationDrag {
+    pub(crate) start_x: f32,
+    pub(crate) start_y: f32,
+    pub(crate) current_x: f32,
+    pub(crate) current_y: f32,
+}
+
 pub(crate) struct UiState {
     pub(crate) error_message: Option<String>,
     pub(crate) pending_drop_paths: Vec<PathBuf>,
@@ -26,6 +36,11 @@ pub(crate) struct UiState {
     pub(crate) zoom_menu_anchor: Option<Bounds<Pixels>>,
     pub(crate) show_status_bar: bool,
     pub(crate) status_bar_locked: bool,
+    /// Active rectangle drag on the annotation overlay.
+    pub(crate) annotation_drag: Option<AnnotationDrag>,
+    /// Pending text-annotation placement point in source-image coordinates,
+    /// set by a click and consumed on Enter in the panel text input.
+    pub(crate) pending_text_point: Option<(f32, f32)>,
 }
 
 impl Default for UiState {
@@ -48,6 +63,8 @@ impl Default for UiState {
             zoom_menu_anchor: None,
             show_status_bar: false,
             status_bar_locked: false,
+            annotation_drag: None,
+            pending_text_point: None,
         }
     }
 }

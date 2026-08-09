@@ -16,6 +16,7 @@ memmap2.workspace = true
 png.workspace = true
 serde.workspace = true
 thiserror.workspace = true
+ttf-parser.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]

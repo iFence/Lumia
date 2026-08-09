@@ -28,13 +28,11 @@ try {
     Copy-Item target/release/lumia-plugin-annotation.exe $plugin/
     Copy-Item plugins/lumia-plugin-annotation/lumia.plugin.json $plugin/
     Copy-Item plugins/lumia-plugin-annotation/lumia.plugin.sig $plugin/
-    Copy-Item plugins/lumia-plugin-annotation/assets $plugin/ -Recurse
 
     foreach ($required in @(
         "lumia-plugin-annotation.exe",
         "lumia.plugin.json",
-        "lumia.plugin.sig",
-        "assets/pin.svg"
+        "lumia.plugin.sig"
     )) {
         if (-not (Test-Path (Join-Path $plugin $required))) {
             throw "Annotation plugin package is missing $required"

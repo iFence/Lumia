@@ -3,6 +3,7 @@ use gpui::{
     div, px, rgb, svg, AnyElement, Context, InteractiveElement, IntoElement, MouseButton,
     ParentElement, Styled,
 };
+use gpui_component::input::Input;
 use gpui_component::{Icon, IconName};
 use lumia_plugin_api::{PanelControl, PluginIcon, UiValue};
 
@@ -259,6 +260,32 @@ impl LumiaApp {
                 )
                 .child(div().text_sm().child(value))
                 .into_any_element(),
+            PanelControl::TextInput {
+                label,
+                value,
+                enabled,
+                ..
+            } => {
+                let active = enabled && !panel_busy;
+                let input = self.annotation_text_input.clone();
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_1()
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(rgb(palette.muted_text))
+                            .child(label.resolve(language).to_string()),
+                    )
+                    .child(match input {
+                        Some(input) => Input::new(&input)
+                            .disabled(!active)
+                            .into_any_element(),
+                        None => div().text_sm().child(value).into_any_element(),
+                    })
+                    .into_any_element()
+            }
         }
     }
 
@@ -364,6 +391,7 @@ pub(crate) fn plugin_icon(
         PluginIcon::Rectangle => IconName::Frame,
         PluginIcon::Ellipse => IconName::Asterisk,
         PluginIcon::Arrow => IconName::ArrowRight,
+        PluginIcon::NumberedStep => IconName::Frame,
         PluginIcon::Undo => IconName::Undo2,
         PluginIcon::Redo => IconName::Redo2,
         PluginIcon::Export => IconName::ExternalLink,

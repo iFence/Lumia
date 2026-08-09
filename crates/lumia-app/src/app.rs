@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-use gpui::{App, Context, FocusHandle, Focusable, Subscription, WeakEntity, Window};
+use gpui::{App, Context, Entity, FocusHandle, Focusable, Subscription, WeakEntity, Window};
+use gpui_component::input::InputState;
 use lumia_core::{AnnotationDocument, AppSettings, FolderNavigation, SettingsGroup, ViewerSession};
 
 use crate::editing::EditState;
@@ -30,6 +31,10 @@ pub(crate) struct LumiaApp {
     pub(crate) plugins: PluginUiState,
     pub(crate) plugin_management: PluginManagementState,
     pub(crate) annotations: AnnotationDocument,
+    /// Editable text field for the annotation plugin's text tool, owned by the
+    /// host so typing survives re-renders of the declarative panel model.
+    pub(crate) annotation_text_input: Option<Entity<InputState>>,
+    pub(crate) annotation_text_input_subscription: Option<Subscription>,
     pub(crate) ui: UiState,
     pub(crate) settings: AppSettings,
     pub(crate) activation_subscription: Option<Subscription>,
@@ -65,6 +70,8 @@ impl LumiaApp {
             plugins,
             plugin_management,
             annotations: AnnotationDocument::default(),
+            annotation_text_input: None,
+            annotation_text_input_subscription: None,
             ui: UiState::default(),
             settings,
             activation_subscription: None,

@@ -20,6 +20,7 @@ impl Render for LumiaApp {
         }
 
         let palette = self.palette(window);
+        self.sync_annotation_text_input(window, cx);
         let dialog_layer = Root::render_dialog_layer(window, cx);
 
         div()
@@ -163,7 +164,7 @@ impl LumiaApp {
                     }
                     if this.plugins.active.is_some()
                         && !event.modifiers.shift
-                        && this.place_annotation_at(event.position, window, cx)
+                        && this.handle_annotation_mouse_down(event.position, window, cx)
                     {
                         return;
                     }
@@ -176,8 +177,12 @@ impl LumiaApp {
             )
             .on_mouse_up(
                 MouseButton::Left,
-                cx.listener(|this, _, _, cx| {
+                cx.listener(|this, _, window, cx| {
                     if this.is_viewer_blocked() {
+                        return;
+                    }
+                    if this.ui.annotation_drag.is_some() {
+                        this.commit_annotation_rect(window, cx);
                         return;
                     }
                     this.ui.is_panning = false;
@@ -200,8 +205,12 @@ impl LumiaApp {
             )
             .on_mouse_up_out(
                 MouseButton::Left,
-                cx.listener(|this, _, _, cx| {
+                cx.listener(|this, _, window, cx| {
                     if this.is_viewer_blocked() {
+                        return;
+                    }
+                    if this.ui.annotation_drag.is_some() {
+                        this.commit_annotation_rect(window, cx);
                         return;
                     }
                     this.ui.is_panning = false;
@@ -211,6 +220,11 @@ impl LumiaApp {
             )
             .on_mouse_move(cx.listener(|this, event: &MouseMoveEvent, window, cx| {
                 if this.is_viewer_blocked() {
+                    return;
+                }
+                if this.ui.annotation_drag.is_some() && event.dragging() {
+                    this.update_annotation_drag(event.position, window);
+                    cx.notify();
                     return;
                 }
                 if this.ui.is_panning && event.dragging() {

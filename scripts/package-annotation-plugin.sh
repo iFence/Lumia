@@ -19,13 +19,11 @@ mkdir -p "$PLUGIN_DIR"
 cp target/release/lumia-plugin-annotation "$PLUGIN_DIR/"
 cp plugins/lumia-plugin-annotation/lumia.plugin.json "$PLUGIN_DIR/"
 cp plugins/lumia-plugin-annotation/lumia.plugin.sig "$PLUGIN_DIR/"
-cp -R plugins/lumia-plugin-annotation/assets "$PLUGIN_DIR/"
 chmod +x "$PLUGIN_DIR/lumia-plugin-annotation"
 
 test -x "$PLUGIN_DIR/lumia-plugin-annotation"
 test -f "$PLUGIN_DIR/lumia.plugin.json"
 test -f "$PLUGIN_DIR/lumia.plugin.sig"
-test -f "$PLUGIN_DIR/assets/pin.svg"
 
 APP_VERSION="$(awk -F'"' '/^version = / { print $2; exit }' crates/lumia-app/Cargo.toml)"
 PLUGIN_API_VERSION="$(awk '/PROTOCOL_VERSION: u32 = / { gsub(";", "", $6); print $6; exit }' crates/lumia-plugin-api/src/rpc.rs)"

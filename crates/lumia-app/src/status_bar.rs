@@ -19,8 +19,13 @@ use crate::{
 
 impl LumiaApp {
     /// The status bar stays rendered while the zoom or edit menu is open, so
-    /// moving the pointer toward those menus does not hide it.
+    /// moving the pointer toward those menus does not hide it. It is hidden
+    /// while an edit session (crop/resize) is active and only returns once
+    /// the session is closed.
     pub(crate) fn status_bar_visible(&self) -> bool {
+        if self.editing.mode.is_some() {
+            return false;
+        }
         self.ui.status_bar_locked
             || self.ui.show_status_bar
             || self.ui.show_zoom_menu

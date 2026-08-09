@@ -125,7 +125,6 @@ fn annotation_plugin_is_packaged_separately_with_integrity_metadata() {
         "lumia.plugin.sig",
         "lumia.package.json",
         "lumia.package.sig",
-        "assets",
     ] {
         assert!(
             unix_packager.contains(required),

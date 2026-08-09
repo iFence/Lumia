@@ -2,6 +2,7 @@
 
 mod annotation_export;
 mod annotation_overlay;
+mod annotation_text_input;
 mod app;
 mod bootstrap;
 mod cli;

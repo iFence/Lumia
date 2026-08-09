@@ -42,12 +42,25 @@ pub(crate) struct PluginMenuItem {
     pub(crate) enabled: bool,
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct MarkerSettings {
-    pub(crate) asset_id: String,
-    pub(crate) size: f32,
-    pub(crate) color: u32,
-    pub(crate) opacity: f32,
+/// Structured view of the active canvas tool's settings, parsed out of the
+/// plugin's `CanvasToolState` and ready for host-side placement.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum ActiveToolSettings {
+    Text {
+        font_size: f32,
+        color: u32,
+        opacity: f32,
+    },
+    Rectangle {
+        stroke_width: f32,
+        color: u32,
+        opacity: f32,
+    },
+    NumberedStep {
+        size: f32,
+        color: u32,
+        opacity: f32,
+    },
 }
 
 impl PluginUiState {
@@ -104,20 +117,49 @@ impl PluginUiState {
         items.into_iter().map(|(_, _, item)| item).collect()
     }
 
-    pub(crate) fn marker_settings(&self) -> Option<MarkerSettings> {
+    pub(crate) fn active_tool_settings(&self) -> Option<ActiveToolSettings> {
         let canvas = self.active.as_ref()?.canvas.as_ref()?;
-        let CanvasToolSettings::IconStamp {
-            asset_id,
-            size,
-            color,
-            opacity,
-        } = &canvas.settings;
-        Some(MarkerSettings {
-            asset_id: asset_id.clone(),
-            size: *size,
-            color: parse_hex_color(color)?,
-            opacity: *opacity,
-        })
+        match &canvas.settings {
+            CanvasToolSettings::Text {
+                font_size,
+                color,
+                opacity,
+            } => Some(ActiveToolSettings::Text {
+                font_size: *font_size,
+                color: parse_hex_color(color)?,
+                opacity: *opacity,
+            }),
+            CanvasToolSettings::Rectangle {
+                stroke_width,
+                color,
+                opacity,
+            } => Some(ActiveToolSettings::Rectangle {
+                stroke_width: *stroke_width,
+                color: parse_hex_color(color)?,
+                opacity: *opacity,
+            }),
+            CanvasToolSettings::NumberedStep {
+                size,
+                color,
+                opacity,
+            } => Some(ActiveToolSettings::NumberedStep {
+                size: *size,
+                color: parse_hex_color(color)?,
+                opacity: *opacity,
+            }),
+        }
+    }
+
+    pub(crate) fn is_text_tool_active(&self) -> bool {
+        self.active
+            .as_ref()
+            .and_then(|session| session.canvas.as_ref())
+            .is_some_and(|canvas| {
+                matches!(
+                    canvas.settings,
+                    CanvasToolSettings::Text { .. }
+                )
+            })
     }
 
     pub(crate) fn active_asset_path(&self, asset_id: &str) -> Option<std::path::PathBuf> {
@@ -192,6 +234,7 @@ impl LumiaApp {
                     Ok(active) => {
                         this.plugins.active = Some(active);
                         this.annotations.reset();
+                        this.clear_transient_annotation_ui(cx);
                     }
                     Err(error) => {
                         this.plugins.feedback = Some(format!("{error:#}"));
@@ -262,8 +305,17 @@ impl LumiaApp {
                 active.busy = false;
                 match result {
                     Ok(update) => {
+                        let tool_changed = match (&active.canvas, &update.canvas) {
+                            (Some(old), Some(new)) => std::mem::discriminant(&old.settings)
+                                != std::mem::discriminant(&new.settings),
+                            (None, Some(_)) | (Some(_), None) => true,
+                            (None, None) => false,
+                        };
                         active.panel = update.panel;
                         active.canvas = update.canvas;
+                        if tool_changed {
+                            this.clear_transient_annotation_ui(cx);
+                        }
                     }
                     Err(error) => {
                         active.busy = true;
@@ -282,6 +334,7 @@ impl LumiaApp {
             return;
         };
         self.annotations.reset();
+        self.clear_transient_annotation_ui(cx);
         let process = active.process;
         let session_id = active.session_id;
         cx.background_executor()

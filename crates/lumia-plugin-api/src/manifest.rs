@@ -102,11 +102,11 @@ pub struct CanvasToolContribution {
 #[serde(rename_all = "snake_case")]
 pub enum CanvasToolKind {
     Select,
-    IconStamp,
     Text,
     Rectangle,
     Ellipse,
     Arrow,
+    NumberedStep,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -118,6 +118,7 @@ pub enum PluginIcon {
     Rectangle,
     Ellipse,
     Arrow,
+    NumberedStep,
     Undo,
     Redo,
     Export,

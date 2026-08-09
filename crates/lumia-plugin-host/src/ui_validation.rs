@@ -156,25 +156,59 @@ pub fn validate_canvas_state(
     };
     match (&tool.kind, &state.settings) {
         (
-            CanvasToolKind::IconStamp,
-            CanvasToolSettings::IconStamp {
-                asset_id,
+            CanvasToolKind::Text,
+            CanvasToolSettings::Text {
+                font_size,
+                color,
+                opacity,
+            },
+        ) => {
+            if !font_size.is_finite() || !(8.0..=256.0).contains(font_size) {
+                return invalid_ui("invalid text font size");
+            }
+            if !opacity.is_finite() || !(0.0..=1.0).contains(opacity) {
+                return invalid_ui("invalid text opacity");
+            }
+            if !valid_color(color) {
+                return invalid_ui("invalid text color");
+            }
+            Ok(())
+        }
+        (
+            CanvasToolKind::Rectangle,
+            CanvasToolSettings::Rectangle {
+                stroke_width,
+                color,
+                opacity,
+            },
+        ) => {
+            if !stroke_width.is_finite() || !(1.0..=64.0).contains(stroke_width) {
+                return invalid_ui("invalid rectangle stroke width");
+            }
+            if !opacity.is_finite() || !(0.0..=1.0).contains(opacity) {
+                return invalid_ui("invalid rectangle opacity");
+            }
+            if !valid_color(color) {
+                return invalid_ui("invalid rectangle color");
+            }
+            Ok(())
+        }
+        (
+            CanvasToolKind::NumberedStep,
+            CanvasToolSettings::NumberedStep {
                 size,
                 color,
                 opacity,
             },
         ) => {
-            if !manifest.assets.iter().any(|asset| asset.id == *asset_id) {
-                return invalid_ui(format!("unknown icon asset {asset_id}"));
-            }
-            if !size.is_finite() || !(1.0..=4096.0).contains(size) {
-                return invalid_ui("invalid icon stamp size");
+            if !size.is_finite() || !(12.0..=96.0).contains(size) {
+                return invalid_ui("invalid numbered step size");
             }
             if !opacity.is_finite() || !(0.0..=1.0).contains(opacity) {
-                return invalid_ui("invalid icon stamp opacity");
+                return invalid_ui("invalid numbered step opacity");
             }
             if !valid_color(color) {
-                return invalid_ui("invalid icon stamp color");
+                return invalid_ui("invalid numbered step color");
             }
             Ok(())
         }
@@ -259,6 +293,13 @@ fn validate_control<'a>(
             validate_localized_text(label).map_err(as_ui_model)?;
             if value.len() > MAX_TEXT_BYTES {
                 return invalid_ui(format!("text value for {} is too long", control.id()));
+            }
+            Ok(())
+        }
+        PanelControl::TextInput { label, value, .. } => {
+            validate_localized_text(label).map_err(as_ui_model)?;
+            if value.len() > MAX_TEXT_BYTES {
+                return invalid_ui(format!("text input value for {} is too long", control.id()));
             }
             Ok(())
         }

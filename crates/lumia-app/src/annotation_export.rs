@@ -1,7 +1,10 @@
 use std::path::{Path, PathBuf};
 
 use gpui::{Context, Window};
-use lumia_core::{export_decoded_image, DecodedImage, IconAnnotation, ImageExportFormat};
+use lumia_core::{
+    blend_text_raster, export_decoded_image, rasterize_text_line, Annotation, DecodedImage,
+    ImageExportFormat,
+};
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
@@ -115,12 +118,12 @@ impl LumiaApp {
 
 fn export_annotations(
     mut image: DecodedImage,
-    annotations: &[IconAnnotation],
+    annotations: &[Annotation],
     output_path: PathBuf,
     invalid_format_error: &str,
 ) -> Result<Option<PathBuf>, String> {
     for annotation in annotations {
-        draw_marker(&mut image, annotation);
+        draw_annotation(&mut image, annotation);
     }
     let format = output_path
         .extension()
@@ -131,58 +134,127 @@ fn export_annotations(
     Ok(Some(output_path))
 }
 
-fn draw_marker(image: &mut DecodedImage, annotation: &IconAnnotation) {
-    let radius = (annotation.size / 2.0).max(2.0);
-    let min_x = (annotation.x - radius).floor().max(0.0) as u32;
-    let max_x = (annotation.x + radius)
-        .ceil()
-        .min(image.width.saturating_sub(1) as f32) as u32;
-    let min_y = (annotation.y - radius).floor().max(0.0) as u32;
-    let max_y = (annotation.y + radius)
-        .ceil()
-        .min(image.height.saturating_sub(1) as f32) as u32;
-    for y in min_y..=max_y {
-        for x in min_x..=max_x {
-            let local_x = (x as f32 - annotation.x) / radius;
-            let local_y = (y as f32 - annotation.y) / radius;
-            if marker_contains(&annotation.asset_id, local_x, local_y) {
+fn draw_annotation(image: &mut DecodedImage, annotation: &Annotation) {
+    match annotation {
+        Annotation::Text {
+            text,
+            x,
+            y,
+            font_size,
+            color,
+            opacity,
+        } => {
+            let raster = rasterize_text_line(text, *font_size);
+            blend_text_raster(
+                &raster,
+                &mut image.pixels_bgra8,
+                image.width,
+                image.height,
+                *x,
+                *y,
+                *color,
+                *opacity,
+            );
+        }
+        Annotation::Rectangle {
+            x,
+            y,
+            width,
+            height,
+            stroke_width,
+            color,
+            opacity,
+        } => draw_rectangle(
+            image,
+            *x,
+            *y,
+            *width,
+            *height,
+            *stroke_width,
+            *color,
+            *opacity,
+        ),
+        Annotation::Step {
+            number,
+            x,
+            y,
+            size,
+            color,
+            opacity,
+        } => draw_step(image, *number, *x, *y, *size, *color, *opacity),
+    }
+}
+
+fn draw_rectangle(
+    image: &mut DecodedImage,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    stroke_width: f32,
+    color: u32,
+    opacity: f32,
+) {
+    let stroke = stroke_width.max(1.0);
+    let min_x = x.floor().max(0.0) as u32;
+    let max_x = (x + width).ceil().min(image.width as f32) as u32;
+    let min_y = y.floor().max(0.0) as u32;
+    let max_y = (y + height).ceil().min(image.height as f32) as u32;
+    for py in min_y..max_y {
+        for px in min_x..max_x {
+            let near_left = (px as f32 - x).abs() <= stroke;
+            let near_right = ((x + width) - px as f32).abs() <= stroke;
+            let near_top = (py as f32 - y).abs() <= stroke;
+            let near_bottom = ((y + height) - py as f32).abs() <= stroke;
+            if near_left || near_right || near_top || near_bottom {
                 blend_bgra(
                     &mut image.pixels_bgra8,
                     image.width,
-                    x,
-                    y,
-                    annotation.color,
-                    annotation.opacity,
+                    px,
+                    py,
+                    color,
+                    opacity,
                 );
             }
         }
     }
 }
 
-fn marker_contains(asset_id: &str, x: f32, y: f32) -> bool {
-    match asset_id {
-        "star" => {
-            let angle = y.atan2(x);
-            let distance = (x * x + y * y).sqrt();
-            let boundary = if (angle * 5.0).cos() >= 0.0 {
-                1.0
-            } else {
-                0.45
-            };
-            distance <= boundary
-        }
-        "check" => {
-            let circle = x * x + y * y <= 1.0;
-            let first = (y - (x + 0.2)).abs() < 0.14 && x < 0.0;
-            let second = (y + 0.55 * x - 0.15).abs() < 0.14 && x >= -0.2;
-            circle && !(first || second)
-        }
-        _ => {
-            let head = x * x + (y + 0.2) * (y + 0.2) <= 0.65;
-            let tail = y >= 0.1 && y <= 1.0 && x.abs() <= (1.0 - y) * 0.55;
-            head || tail
+fn draw_step(
+    image: &mut DecodedImage,
+    number: u32,
+    x: f32,
+    y: f32,
+    size: f32,
+    color: u32,
+    opacity: f32,
+) {
+    let radius = (size / 2.0).max(2.0);
+    let min_x = (x - radius).floor().max(0.0) as u32;
+    let max_x = (x + radius).ceil().min(image.width as f32) as u32;
+    let min_y = (y - radius).floor().max(0.0) as u32;
+    let max_y = (y + radius).ceil().min(image.height as f32) as u32;
+    for py in min_y..=max_y {
+        for px in min_x..=max_x {
+            let dx = px as f32 - x;
+            let dy = py as f32 - y;
+            if dx * dx + dy * dy <= radius * radius {
+                blend_bgra(&mut image.pixels_bgra8, image.width, px, py, color, opacity);
+            }
         }
     }
+
+    let raster = rasterize_text_line(&number.to_string(), size * 0.6);
+    blend_text_raster(
+        &raster,
+        &mut image.pixels_bgra8,
+        image.width,
+        image.height,
+        x - raster.width as f32 / 2.0,
+        y - raster.height as f32 / 2.0,
+        0xffffff,
+        opacity,
+    );
 }
 
 fn blend_bgra(pixels: &mut [u8], width: u32, x: u32, y: u32, color: u32, opacity: f32) {
@@ -221,6 +293,14 @@ fn annotation_export_name(path: &Path) -> String {
 mod tests {
     use super::*;
 
+    fn transparent_image(width: u32, height: u32) -> DecodedImage {
+        DecodedImage {
+            pixels_bgra8: vec![0u8; (width * height * 4) as usize],
+            width,
+            height,
+        }
+    }
+
     #[test]
     fn marker_export_names_are_non_destructive() {
         assert_eq!(
@@ -230,10 +310,27 @@ mod tests {
     }
 
     #[test]
-    fn marker_shapes_include_their_center() {
-        assert!(marker_contains("pin", 0.0, 0.0));
-        assert!(marker_contains("star", 0.0, 0.0));
-        assert!(marker_contains("check", 0.0, 0.0));
+    fn rectangle_export_draws_only_the_outline() {
+        let mut image = transparent_image(100, 100);
+        draw_rectangle(&mut image, 20.0, 20.0, 60.0, 60.0, 4.0, 0xff0000, 1.0);
+        let red_at = |x: u32, y: u32| image.pixels_bgra8[(y * 100 + x) as usize * 4 + 2];
+        assert!(red_at(22, 22) > 0, "top edge should be drawn");
+        assert!(red_at(50, 22) > 0, "top edge should be drawn");
+        assert!(red_at(78, 50) > 0, "right edge should be drawn");
+        assert_eq!(red_at(50, 50), 0, "interior should be empty");
+    }
+
+    #[test]
+    fn step_badge_includes_its_center_and_number() {
+        let mut image = transparent_image(100, 100);
+        draw_step(&mut image, 3, 50.0, 50.0, 24.0, 0xff0000, 1.0);
+        let red_at = |x: u32, y: u32| image.pixels_bgra8[(y * 100 + x) as usize * 4 + 2];
+        assert!(red_at(50, 50) > 0, "badge center should be filled");
+        let white_blue_at = |x: u32, y: u32| image.pixels_bgra8[(y * 100 + x) as usize * 4];
+        assert!(
+            (0..100).any(|y| (0..100).any(|x| white_blue_at(x, y) > 0)),
+            "the white number glyphs should add ink"
+        );
     }
 
     #[test]

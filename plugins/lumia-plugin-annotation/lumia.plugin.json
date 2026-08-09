@@ -1,7 +1,7 @@
 {
   "id": "lumia.annotation",
   "name": "Lumia Annotation",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "entry": "lumia-plugin-annotation",
   "capabilities": ["ui_contributions", "canvas_overlay"],
   "permissions": [],
@@ -39,34 +39,33 @@
     ],
     "canvas_tools": [
       {
-        "id": "annotation.icon_stamp",
+        "id": "annotation.text",
         "label": {
-          "fallback": "Icon marker",
-          "translations": { "zh-CN": "图标标记" }
+          "fallback": "Text",
+          "translations": { "zh-CN": "文字" }
         },
-        "icon": { "type": "annotation" },
-        "kind": "icon_stamp"
+        "icon": { "type": "text" },
+        "kind": "text"
+      },
+      {
+        "id": "annotation.rectangle",
+        "label": {
+          "fallback": "Rectangle",
+          "translations": { "zh-CN": "矩形框" }
+        },
+        "icon": { "type": "rectangle" },
+        "kind": "rectangle"
+      },
+      {
+        "id": "annotation.numbered_step",
+        "label": {
+          "fallback": "Numbered step",
+          "translations": { "zh-CN": "数字步骤" }
+        },
+        "icon": { "type": "numbered_step" },
+        "kind": "numbered_step"
       }
     ]
   },
-  "assets": [
-    {
-      "id": "pin",
-      "path": "assets/pin.svg",
-      "media_type": "image/svg+xml",
-      "sha256": "345b2cfa374dad30c7f61487d198bb20f9da4defa4ab0144657b9dddd3c01b62"
-    },
-    {
-      "id": "star",
-      "path": "assets/star.svg",
-      "media_type": "image/svg+xml",
-      "sha256": "9cc7c304e9ee302f7b0f21347b8ac1e4941a56457a2fc2ccf74772b6a9ce47f0"
-    },
-    {
-      "id": "check",
-      "path": "assets/check.svg",
-      "media_type": "image/svg+xml",
-      "sha256": "b6055ccaf4ec4a3712a643578eb915921ca8c2d233fc734240905c99c131774b"
-    }
-  ]
+  "assets": []
 }

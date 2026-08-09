@@ -226,6 +226,12 @@ pub enum PanelControl {
         value: String,
         enabled: bool,
     },
+    TextInput {
+        id: String,
+        label: LocalizedText,
+        value: String,
+        enabled: bool,
+    },
 }
 
 impl PanelControl {
@@ -236,7 +242,8 @@ impl PanelControl {
             | Self::Select { id, .. }
             | Self::Slider { id, .. }
             | Self::Color { id, .. }
-            | Self::Text { id, .. } => id,
+            | Self::Text { id, .. }
+            | Self::TextInput { id, .. } => id,
         }
     }
 }
@@ -281,8 +288,17 @@ pub struct CanvasToolState {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum CanvasToolSettings {
-    IconStamp {
-        asset_id: String,
+    Text {
+        font_size: f32,
+        color: String,
+        opacity: f32,
+    },
+    Rectangle {
+        stroke_width: f32,
+        color: String,
+        opacity: f32,
+    },
+    NumberedStep {
         size: f32,
         color: String,
         opacity: f32,
@@ -298,8 +314,25 @@ pub struct CanvasOperationCommittedParams {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum CanvasOperation {
-    IconPlaced {
-        asset_id: String,
+    TextPlaced {
+        text: String,
+        x: f32,
+        y: f32,
+        font_size: f32,
+        color: String,
+        opacity: f32,
+    },
+    RectanglePlaced {
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        stroke_width: f32,
+        color: String,
+        opacity: f32,
+    },
+    StepPlaced {
+        number: u32,
         x: f32,
         y: f32,
         size: f32,
@@ -384,18 +417,17 @@ mod tests {
     #[test]
     fn canvas_tool_state_uses_a_typed_settings_shape() {
         let state = CanvasToolState {
-            tool_id: "annotation.icon_stamp".to_string(),
-            settings: CanvasToolSettings::IconStamp {
-                asset_id: "pin".to_string(),
-                size: 48.0,
+            tool_id: "annotation.text".to_string(),
+            settings: CanvasToolSettings::Text {
+                font_size: 24.0,
                 color: "#ff3b30".to_string(),
                 opacity: 1.0,
             },
         };
         let value = serde_json::to_value(state).unwrap();
-        assert_eq!(value["tool_id"], "annotation.icon_stamp");
-        assert_eq!(value["settings"]["type"], "icon_stamp");
-        assert_eq!(value["settings"]["asset_id"], "pin");
+        assert_eq!(value["tool_id"], "annotation.text");
+        assert_eq!(value["settings"]["type"], "text");
+        assert_eq!(value["settings"]["font_size"], 24.0);
     }
 
     #[test]

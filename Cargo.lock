@@ -3821,12 +3821,13 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+ "ttf-parser",
  "uuid",
 ]
 
 [[package]]
 name = "lumia-plugin-annotation"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "lumia-plugin-api",
  "serde_json",
