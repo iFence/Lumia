@@ -1,17 +1,18 @@
-use std::collections::BTreeMap;
 use std::io::{self, BufRead, Write};
 
 use lumia_plugin_api::{
     CanvasOperationCommittedParams, CanvasToolContribution, CanvasToolKind, CanvasToolSettings,
     CanvasToolState, CapabilitiesResult, CommandContribution, EmptyResult, InitializeResult,
-    JsonRpcRequest, JsonRpcResponse, LocalizedText, MenuContribution, PanelContribution,
-    PanelControl, PanelModel, PanelOption, PanelSection, PluginCapability, PluginContributions,
-    PluginIcon, PluginManifest, UiActivateParams, UiEventParams, UiSessionResult, UiUpdateResult,
-    UiValue, PROTOCOL_VERSION,
+    JsonRpcRequest, JsonRpcResponse, MenuContribution, PanelContribution, PluginCapability,
+    PluginContributions, PluginIcon, PluginManifest, UiActivateParams, UiEventParams,
+    UiSessionResult, UiUpdateResult, UiValue, PROTOCOL_VERSION,
 };
 use serde_json::json;
 
 const SESSION_ID: &str = "annotation-session";
+
+mod panel;
+mod sizing;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Tool {
@@ -103,14 +104,21 @@ fn handle_line(line: &str, state: &mut AnnotationState) -> (JsonRpcResponse, boo
             }),
         ),
         "ui.activate" => match serde_json::from_value::<UiActivateParams>(request.params) {
-            Ok(params) if params.contribution_id == "annotation.panel" => JsonRpcResponse::result(
-                request.id,
-                json!(UiSessionResult {
-                    session_id: SESSION_ID.to_string(),
-                    panel: panel_model(state),
-                    canvas: Some(canvas_state(state)),
-                }),
-            ),
+            Ok(params) if params.contribution_id == "annotation.panel" => {
+                apply_image_dimension_defaults(
+                    state,
+                    params.document.width,
+                    params.document.height,
+                );
+                JsonRpcResponse::result(
+                    request.id,
+                    json!(UiSessionResult {
+                        session_id: SESSION_ID.to_string(),
+                        panel: panel::panel_model(state),
+                        canvas: Some(canvas_state(state)),
+                    }),
+                )
+            }
             _ => JsonRpcResponse::error(request.id, -32602, "invalid activation parameters"),
         },
         "ui.event" => match serde_json::from_value::<UiEventParams>(request.params) {
@@ -119,7 +127,7 @@ fn handle_line(line: &str, state: &mut AnnotationState) -> (JsonRpcResponse, boo
                 JsonRpcResponse::result(
                     request.id,
                     json!(UiUpdateResult {
-                        panel: panel_model(state),
+                        panel: panel::panel_model(state),
                         canvas: Some(canvas_state(state)),
                     }),
                 )
@@ -146,6 +154,13 @@ fn handle_line(line: &str, state: &mut AnnotationState) -> (JsonRpcResponse, boo
     (response, false)
 }
 
+fn apply_image_dimension_defaults(state: &mut AnnotationState, width: u32, height: u32) {
+    let defaults = sizing::defaults_for_image(width, height);
+    state.font_size = defaults.font_size;
+    state.stroke_width = defaults.stroke_width;
+    state.badge_size = defaults.badge_size;
+}
+
 fn apply_event(state: &mut AnnotationState, event: &UiEventParams) {
     match (event.control_id.as_str(), &event.value) {
         ("tool", UiValue::String(value)) => {
@@ -161,145 +176,6 @@ fn apply_event(state: &mut AnnotationState, event: &UiEventParams) {
         ("color", UiValue::String(value)) if valid_color(value) => state.color.clone_from(value),
         ("opacity", UiValue::Number(value)) => state.opacity = value.clamp(0.1, 1.0),
         _ => {}
-    }
-}
-
-fn color_control(state: &AnnotationState) -> PanelControl {
-    PanelControl::Color {
-        id: "color".to_string(),
-        label: text("Color", "颜色"),
-        value: state.color.clone(),
-        enabled: true,
-    }
-}
-fn opacity_control(state: &AnnotationState) -> PanelControl {
-    PanelControl::Slider {
-        id: "opacity".to_string(),
-        label: text("Opacity", "透明度"),
-        value: state.opacity,
-        min: 0.1,
-        max: 1.0,
-        step: 0.1,
-        enabled: true,
-    }
-}
-fn settings_controls(state: &AnnotationState) -> Vec<PanelControl> {
-    match state.tool {
-        Tool::Text => vec![
-            PanelControl::TextInput {
-                id: "text".to_string(),
-                label: text("Annotation text", "标注文字"),
-                value: String::new(),
-                enabled: true,
-            },
-            PanelControl::Slider {
-                id: "font_size".to_string(),
-                label: text("Font size", "字号"),
-                value: state.font_size,
-                min: 8.0,
-                max: 256.0,
-                step: 2.0,
-                enabled: true,
-            },
-            color_control(state),
-            opacity_control(state),
-        ],
-        Tool::Rectangle => vec![
-            PanelControl::Slider {
-                id: "stroke_width".to_string(),
-                label: text("Stroke width", "线宽"),
-                value: state.stroke_width,
-                min: 1.0,
-                max: 64.0,
-                step: 1.0,
-                enabled: true,
-            },
-            color_control(state),
-            opacity_control(state),
-        ],
-        Tool::NumberedStep => vec![
-            PanelControl::Slider {
-                id: "badge_size".to_string(),
-                label: text("Badge size", "徽标大小"),
-                value: state.badge_size,
-                min: 12.0,
-                max: 96.0,
-                step: 2.0,
-                enabled: true,
-            },
-            color_control(state),
-            opacity_control(state),
-        ],
-    }
-}
-
-fn panel_model(state: &AnnotationState) -> PanelModel {
-    PanelModel {
-        title: text("Annotation", "标注"),
-        sections: vec![
-            PanelSection {
-                id: "tools".to_string(),
-                title: Some(text("Tools", "工具")),
-                controls: vec![PanelControl::Select {
-                    id: "tool".to_string(),
-                    label: text("Tool", "工具"),
-                    options: vec![
-                        PanelOption {
-                            value: "text".to_string(),
-                            label: text("Text", "文字"),
-                            icon: Some(PluginIcon::Text),
-                        },
-                        PanelOption {
-                            value: "rectangle".to_string(),
-                            label: text("Rectangle", "矩形框"),
-                            icon: Some(PluginIcon::Rectangle),
-                        },
-                        PanelOption {
-                            value: "numbered_step".to_string(),
-                            label: text("Numbered step", "数字步骤"),
-                            icon: Some(PluginIcon::NumberedStep),
-                        },
-                    ],
-                    selected: tool_name(state.tool).to_string(),
-                    enabled: true,
-                }],
-            },
-            PanelSection {
-                id: "tool_settings".to_string(),
-                title: Some(text("Settings", "设置")),
-                controls: settings_controls(state),
-            },
-            PanelSection {
-                id: "history".to_string(),
-                title: None,
-                controls: vec![
-                    PanelControl::Button {
-                        id: "undo".to_string(),
-                        label: text("Undo", "撤销"),
-                        icon: PluginIcon::Undo,
-                        enabled: true,
-                    },
-                    PanelControl::Button {
-                        id: "redo".to_string(),
-                        label: text("Redo", "重做"),
-                        icon: PluginIcon::Redo,
-                        enabled: true,
-                    },
-                    PanelControl::Button {
-                        id: "clear".to_string(),
-                        label: text("Clear", "清空"),
-                        icon: PluginIcon::Annotation,
-                        enabled: true,
-                    },
-                    PanelControl::Button {
-                        id: "export".to_string(),
-                        label: text("Export copy", "导出副本"),
-                        icon: PluginIcon::Export,
-                        enabled: true,
-                    },
-                ],
-            },
-        ],
     }
 }
 
@@ -357,7 +233,7 @@ fn manifest() -> PluginManifest {
         contributions: PluginContributions {
             commands: vec![CommandContribution {
                 id: "annotation.open".to_string(),
-                label: text("Annotate", "标注"),
+                label: panel::text("Annotate", "标注"),
                 icon: PluginIcon::Annotation,
                 requires_document: true,
             }],
@@ -370,37 +246,30 @@ fn manifest() -> PluginManifest {
             right_panels: vec![PanelContribution {
                 id: "annotation.panel".to_string(),
                 command_id: "annotation.open".to_string(),
-                title: text("Annotation", "标注"),
+                title: panel::text("Annotation", "标注"),
             }],
             canvas_tools: vec![
                 CanvasToolContribution {
                     id: "annotation.text".to_string(),
-                    label: text("Text", "文字"),
+                    label: panel::text("Text", "文字"),
                     icon: PluginIcon::Text,
                     kind: CanvasToolKind::Text,
                 },
                 CanvasToolContribution {
                     id: "annotation.rectangle".to_string(),
-                    label: text("Rectangle", "矩形框"),
+                    label: panel::text("Rectangle", "矩形框"),
                     icon: PluginIcon::Rectangle,
                     kind: CanvasToolKind::Rectangle,
                 },
                 CanvasToolContribution {
                     id: "annotation.numbered_step".to_string(),
-                    label: text("Numbered step", "数字步骤"),
+                    label: panel::text("Numbered step", "数字步骤"),
                     icon: PluginIcon::NumberedStep,
                     kind: CanvasToolKind::NumberedStep,
                 },
             ],
         },
         assets: Vec::new(),
-    }
-}
-
-fn text(english: &str, chinese: &str) -> LocalizedText {
-    LocalizedText {
-        fallback: english.to_string(),
-        translations: BTreeMap::from([("zh-CN".to_string(), chinese.to_string())]),
     }
 }
 
@@ -421,6 +290,7 @@ fn executable_name() -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lumia_plugin_api::{PanelControl, PanelModel, RpcId};
 
     fn event(control_id: &str, value: UiValue) -> UiEventParams {
         UiEventParams {
@@ -437,7 +307,6 @@ mod tests {
             .flat_map(|section| section.controls.iter())
             .find(|control| control.id() == id)
     }
-
     #[test]
     fn panel_events_update_bounded_marker_state() {
         let mut state = AnnotationState::default();
@@ -448,7 +317,7 @@ mod tests {
         apply_event(&mut state, &event("opacity", UiValue::Number(2.0)));
         assert_eq!(state.opacity, 1.0);
 
-        let panel = panel_model(&state);
+        let panel = panel::panel_model(&state);
         assert!(matches!(
             find_slider(&panel, "font_size"),
             Some(PanelControl::Slider { value: 12.0, .. })
@@ -457,14 +326,20 @@ mod tests {
     #[test]
     fn tool_select_switches_canvas_settings_variant() {
         let mut state = AnnotationState::default();
-        apply_event(&mut state, &event("tool", UiValue::String("rectangle".to_string())));
+        apply_event(
+            &mut state,
+            &event("tool", UiValue::String("rectangle".to_string())),
+        );
         assert!(matches!(
             canvas_state(&state).settings,
             CanvasToolSettings::Rectangle { .. }
         ));
         assert_eq!(canvas_state(&state).tool_id, "annotation.rectangle");
 
-        apply_event(&mut state, &event("tool", UiValue::String("numbered_step".to_string())));
+        apply_event(
+            &mut state,
+            &event("tool", UiValue::String("numbered_step".to_string())),
+        );
         assert!(matches!(
             canvas_state(&state).settings,
             CanvasToolSettings::NumberedStep { size: 24.0, .. }
@@ -474,14 +349,20 @@ mod tests {
     #[test]
     fn panel_controls_adapt_to_the_selected_tool() {
         let mut state = AnnotationState::default();
-        apply_event(&mut state, &event("tool", UiValue::String("rectangle".to_string())));
-        let panel = panel_model(&state);
+        apply_event(
+            &mut state,
+            &event("tool", UiValue::String("rectangle".to_string())),
+        );
+        let panel = panel::panel_model(&state);
         assert!(find_slider(&panel, "stroke_width").is_some());
         assert!(find_slider(&panel, "font_size").is_none());
         assert!(find_slider(&panel, "badge_size").is_none());
 
-        apply_event(&mut state, &event("tool", UiValue::String("numbered_step".to_string())));
-        let panel = panel_model(&state);
+        apply_event(
+            &mut state,
+            &event("tool", UiValue::String("numbered_step".to_string())),
+        );
+        let panel = panel::panel_model(&state);
         assert!(find_slider(&panel, "badge_size").is_some());
         assert!(find_slider(&panel, "stroke_width").is_none());
     }
@@ -496,5 +377,87 @@ mod tests {
             .contains(&PluginCapability::CanvasOverlay));
         assert_eq!(manifest.contributions.canvas_tools.len(), 3);
         assert!(manifest.assets.is_empty());
+    }
+
+    fn activate_line(width: u32, height: u32) -> String {
+        serde_json::to_string(&JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            id: RpcId::Number(1),
+            method: "ui.activate".to_string(),
+            params: json!({
+                "contribution_id": "annotation.panel",
+                "document": {
+                    "document_id": "doc",
+                    "width": width,
+                    "height": height,
+                    "rotation_quarter_turns": 0,
+                },
+            }),
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn ui_activate_applies_image_sized_defaults() {
+        let mut state = AnnotationState::default();
+        let (response, _) = handle_line(&activate_line(8000, 6000), &mut state);
+
+        let session: UiSessionResult =
+            serde_json::from_value(response.result.expect("activation should succeed")).unwrap();
+        assert!(matches!(
+            session.canvas.expect("canvas should be present").settings,
+            CanvasToolSettings::Text {
+                font_size: 96.0,
+                ..
+            }
+        ));
+        assert_eq!(state.stroke_width, 16.0);
+        assert_eq!(state.badge_size, 80.0);
+
+        let panel = panel::panel_model(&state);
+        assert!(matches!(
+            find_slider(&panel, "font_size"),
+            Some(PanelControl::Slider { value: 96.0, .. })
+        ));
+    }
+
+    #[test]
+    fn ui_activate_rejects_unknown_contribution() {
+        let mut state = AnnotationState::default();
+        let line = serde_json::to_string(&JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            id: RpcId::Number(1),
+            method: "ui.activate".to_string(),
+            params: json!({
+                "contribution_id": "other.panel",
+                "document": {
+                    "document_id": "doc",
+                    "width": 8000,
+                    "height": 6000,
+                    "rotation_quarter_turns": 0,
+                },
+            }),
+        })
+        .unwrap();
+        let (response, _) = handle_line(&line, &mut state);
+
+        assert_eq!(
+            response.error.map(|error| error.code),
+            Some(-32602),
+            "unknown panel should be rejected"
+        );
+        assert_eq!(state.font_size, 24.0);
+        assert_eq!(state.stroke_width, 4.0);
+        assert_eq!(state.badge_size, 24.0);
+    }
+
+    #[test]
+    fn user_slider_adjustment_overrides_adaptive_defaults() {
+        let mut state = AnnotationState::default();
+        handle_line(&activate_line(8000, 6000), &mut state);
+        assert_eq!(state.font_size, 96.0);
+
+        apply_event(&mut state, &event("font_size", UiValue::Number(40.0)));
+        assert_eq!(state.font_size, 40.0);
     }
 }
