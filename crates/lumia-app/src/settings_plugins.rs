@@ -3,14 +3,16 @@ use gpui::{
     div, px, rgb, AnyElement, Context, FontWeight, InteractiveElement, IntoElement, ParentElement,
     StatefulInteractiveElement, Styled,
 };
-use lumia_core::Language;
-use lumia_plugin_api::PluginPermission;
+use gpui_component::input::Input;
 
 use crate::app::LumiaApp;
+use crate::community_index::CommunityPlugin;
+use crate::community_plugins::{CommunityAction, CommunityStatus, CommunityTab};
+use crate::community_text::{tr_community, CommunityTextKey};
 use crate::i18n::{tr, TextKey};
 use crate::palette::Palette;
-use crate::plugin_management::{PluginManagementErrorKind, PluginManagementStatus};
-use crate::widgets::settings_action_button;
+use crate::settings_installed_plugins::permission_summary;
+use crate::widgets::{edit_option_button, settings_action_button};
 
 impl LumiaApp {
     pub(crate) fn render_plugin_settings(
@@ -19,19 +21,14 @@ impl LumiaApp {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let language = self.settings.language;
-        let busy = matches!(
-            self.plugin_management.status,
-            PluginManagementStatus::Inspecting
-                | PluginManagementStatus::Installing
-                | PluginManagementStatus::Removing { .. }
-        );
-        let choose_handle = self.self_handle.clone();
-        let mut content = div()
+        div()
             .id("settings-plugins")
             .flex_1()
+            .min_w_0()
             .min_h_0()
             .h_full()
             .overflow_y_scroll()
+            .overflow_x_hidden()
             .flex()
             .flex_col()
             .gap_4()
@@ -51,31 +48,89 @@ impl LumiaApp {
                         div()
                             .text_xs()
                             .text_color(rgb(palette.muted_text))
-                            .child(tr(language, TextKey::OfficialPluginsOnly)),
+                            .child(tr_community(language, CommunityTextKey::CommunityPluginsDescription)),
                     ),
             )
-            .child(settings_action_button(
-                "install-plugin-package",
-                tr(language, TextKey::InstallPlugin),
-                true,
-                busy,
-                move |_, _, cx| {
-                    let _ = choose_handle.update(cx, |this, cx| {
-                        this.choose_plugin_package(cx);
-                    });
+            .child(self.render_plugin_sub_tabs(palette, cx))
+            .children(match self.community_plugins.active_tab {
+                CommunityTab::Community => self
+                    .render_community_browser(palette, cx)
+                    .map(|element| vec![element])
+                    .unwrap_or_default(),
+                CommunityTab::Installed => self
+                    .render_installed_plugins(palette, cx)
+                    .map(|element| vec![element])
+                    .unwrap_or_default(),
+            })
+    }
+
+    fn render_plugin_sub_tabs(&self, palette: Palette, cx: &mut Context<Self>) -> impl IntoElement {
+        let language = self.settings.language;
+        div()
+            .id("settings-plugin-tabs")
+            .flex()
+            .items_center()
+            .gap_2()
+            .child(edit_option_button(
+                "plugin-tab-community",
+                tr_community(language, CommunityTextKey::Community),
+                self.community_plugins.active_tab == CommunityTab::Community,
+                palette,
+                cx,
+                move |this, _, _, cx| {
+                    this.set_community_tab(CommunityTab::Community, cx);
                 },
             ))
-            .children(self.render_plugin_operation_status(palette))
-            .children(self.render_pending_plugin_confirmation(palette, cx))
-            .child(
-                div()
-                    .pt_2()
-                    .text_sm()
-                    .font_weight(FontWeight::BOLD)
-                    .child(tr(language, TextKey::InstalledPlugins)),
-            );
+            .child(edit_option_button(
+                "plugin-tab-installed",
+                tr_community(language, CommunityTextKey::Installed),
+                self.community_plugins.active_tab == CommunityTab::Installed,
+                palette,
+                cx,
+                move |this, _, _, cx| {
+                    this.set_community_tab(CommunityTab::Installed, cx);
+                },
+            ))
+    }
 
-        if self.plugin_management.installed.is_empty() {
+    // ---------------------------------------------------------------------
+    // Community browser
+    // ---------------------------------------------------------------------
+
+    fn render_community_browser(
+        &self,
+        palette: Palette,
+        _cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
+        let language = self.settings.language;
+        let mut content = div().flex().flex_col().gap_3();
+
+        // Search box + refresh row.
+        let refresh_handle = self.self_handle.clone();
+        let search_input = self.community_plugins.search_input.as_ref();
+        let search_row = div().flex().items_center().gap_2();
+        let search_row = match search_input {
+            Some(input) => search_row.child(div().flex_1().child(Input::new(input))),
+            None => search_row.child(div().flex_1()),
+        };
+        content = content.child(search_row.child(settings_action_button(
+            "refresh-community-index",
+            tr_community(language, CommunityTextKey::RefreshPlugins),
+            false,
+            self.community_plugins.status.is_busy(),
+            move |_, _, cx| {
+                let _ = refresh_handle.update(cx, |this, cx| {
+                    this.refresh_community_index(cx);
+                });
+            },
+        )));
+
+        // Status banner.
+        content = content.children(self.render_community_status(palette));
+
+        // Result list.
+        let results = self.community_search_results();
+        if results.is_empty() {
             content = content.child(
                 div()
                     .p_4()
@@ -84,209 +139,46 @@ impl LumiaApp {
                     .border_color(rgb(palette.border))
                     .text_sm()
                     .text_color(rgb(palette.muted_text))
-                    .child(tr(language, TextKey::NoInstalledPlugins)),
+                    .child(tr_community(language, CommunityTextKey::NoCommunityResults)),
             );
         } else {
-            for (index, plugin) in self.plugin_management.installed.iter().enumerate() {
-                let plugin_id = plugin.id.clone();
-                let remove_handle = self.self_handle.clone();
-                let removing_this = matches!(
-                    &self.plugin_management.status,
-                    PluginManagementStatus::Removing { plugin_id: removing } if removing == &plugin.id
-                );
-                let permission_summary =
-                    permission_summary(language, &plugin.permissions, TextKey::NoPermissions);
-                let remove_button = div()
-                    .id(format!("remove-plugin-{index}"))
-                    .h(px(30.0))
-                    .px_3()
-                    .flex()
-                    .items_center()
-                    .rounded_sm()
-                    .border_1()
-                    .border_color(rgb(palette.border))
-                    .text_sm()
-                    .text_color(rgb(if busy {
-                        palette.muted_text
-                    } else {
-                        palette.error_text
-                    }))
-                    .when(!busy, |button| {
-                        button
-                            .cursor_pointer()
-                            .hover(move |style| style.bg(rgb(palette.button_hover)))
-                            .on_click(move |_, _, cx| {
-                                let plugin_id = plugin_id.clone();
-                                let _ = remove_handle.update(cx, |this, cx| {
-                                    this.remove_managed_plugin(plugin_id, cx);
-                                });
-                            })
-                    })
-                    .child(if removing_this {
-                        "..."
-                    } else {
-                        tr(language, TextKey::Remove)
-                    });
-                content = content.child(
-                    div()
-                        .p_4()
-                        .rounded_md()
-                        .border_1()
-                        .border_color(rgb(palette.border))
-                        .flex()
-                        .items_center()
-                        .gap_3()
-                        .child(
-                            div()
-                                .flex_1()
-                                .min_w_0()
-                                .flex()
-                                .flex_col()
-                                .gap_1()
-                                .child(
-                                    div()
-                                        .text_sm()
-                                        .font_weight(FontWeight::BOLD)
-                                        .child(format!("{}  {}", plugin.name, plugin.version)),
-                                )
-                                .child(
-                                    div()
-                                        .text_xs()
-                                        .text_color(rgb(palette.muted_text))
-                                        .child(plugin.id.clone()),
-                                )
-                                .child(
-                                    div()
-                                        .text_xs()
-                                        .text_color(rgb(palette.muted_text))
-                                        .child(permission_summary),
-                                ),
-                        )
-                        .child(remove_button),
-                );
+            for (plugin, action) in results {
+                content = content.child(self.render_community_plugin_card(plugin, action, palette));
             }
         }
-        content
+
+        Some(content.into_any_element())
     }
 
-    fn render_pending_plugin_confirmation(
-        &self,
-        palette: Palette,
-        _cx: &mut Context<Self>,
-    ) -> Option<AnyElement> {
-        let pending = self.plugin_management.pending.as_ref()?;
+    fn render_community_status(&self, palette: Palette) -> Option<AnyElement> {
         let language = self.settings.language;
-        let install_handle = self.self_handle.clone();
-        let cancel_handle = self.self_handle.clone();
-        let version_context = pending
-            .installed_version
-            .as_ref()
-            .map(|installed| format!("{installed} → {}", pending.package.manifest.version))
-            .unwrap_or_else(|| pending.package.manifest.version.clone());
-        let permissions =
-            permission_summary(language, &pending.permissions, TextKey::NoPermissions);
-
-        Some(
-            div()
-                .id("plugin-install-confirmation")
-                .p_4()
-                .rounded_md()
-                .border_1()
-                .border_color(rgb(palette.accent))
-                .bg(rgb(palette.sidebar_bg))
-                .flex()
-                .flex_col()
-                .gap_3()
-                .child(
-                    div()
-                        .text_sm()
-                        .font_weight(FontWeight::BOLD)
-                        .child(format!("{}  {version_context}", pending.name)),
-                )
-                .child(
-                    div()
-                        .text_xs()
-                        .text_color(rgb(palette.muted_text))
-                        .child(format!(
-                            "{}: {permissions}",
-                            tr(language, TextKey::Permissions)
-                        )),
-                )
-                .child(
-                    div()
-                        .flex()
-                        .gap_2()
-                        .child(settings_action_button(
-                            "confirm-plugin-install",
-                            tr(language, TextKey::Install),
-                            true,
-                            false,
-                            move |_, _, cx| {
-                                let _ = install_handle.update(cx, |this, cx| {
-                                    this.confirm_plugin_install(cx);
-                                });
-                            },
-                        ))
-                        .child(settings_action_button(
-                            "cancel-plugin-install",
-                            tr(language, TextKey::Cancel),
-                            false,
-                            false,
-                            move |_, _, cx| {
-                                let _ = cancel_handle.update(cx, |this, cx| {
-                                    this.cancel_plugin_install(cx);
-                                });
-                            },
-                        )),
-                )
-                .into_any_element(),
-        )
-    }
-
-    fn render_plugin_operation_status(&self, palette: Palette) -> Option<AnyElement> {
-        let language = self.settings.language;
-        let (message, is_error) = match &self.plugin_management.status {
-            PluginManagementStatus::Idle | PluginManagementStatus::AwaitingConfirmation => {
-                return None;
+        let (message, is_error) = match &self.community_plugins.status {
+            CommunityStatus::Idle | CommunityStatus::Loaded => return None,
+            CommunityStatus::Loading => {
+                (tr_community(language, CommunityTextKey::CommunityLoading).to_string(), false)
             }
-            PluginManagementStatus::Inspecting => {
-                (tr(language, TextKey::InspectingPlugin).to_string(), false)
+            CommunityStatus::Downloading {
+                plugin_id,
+                downloaded_bytes,
+                total_bytes,
+            } => {
+                let progress = match total_bytes {
+                    Some(total) if *total > 0 => format!(
+                        " {} / {}",
+                        crate::util::format_file_size(*downloaded_bytes),
+                        crate::util::format_file_size(*total)
+                    ),
+                    _ => format!(" {}", crate::util::format_file_size(*downloaded_bytes)),
+                };
+                (
+                    format!(
+                        "{}: {plugin_id}{progress}",
+                        tr_community(language, CommunityTextKey::CommunityDownloading)
+                    ),
+                    false,
+                )
             }
-            PluginManagementStatus::Installing => {
-                (tr(language, TextKey::InstallingPlugin).to_string(), false)
-            }
-            PluginManagementStatus::Installed {
-                name,
-                version,
-                restart_required,
-            } => (
-                format!(
-                    "{}: {name} {version}{}",
-                    tr(language, TextKey::PluginInstalled),
-                    restart_suffix(language, *restart_required)
-                ),
-                false,
-            ),
-            PluginManagementStatus::Removing { .. } => ("...".into(), false),
-            PluginManagementStatus::Removed {
-                name,
-                restart_required,
-            } => (
-                format!(
-                    "{}: {name}{}",
-                    tr(language, TextKey::PluginRemoved),
-                    restart_suffix(language, *restart_required)
-                ),
-                false,
-            ),
-            PluginManagementStatus::Error { kind, message } => (
-                format!(
-                    "{} [{}]: {message}",
-                    tr(language, TextKey::PluginOperationFailed),
-                    error_kind_label(*kind)
-                ),
-                true,
-            ),
+            CommunityStatus::Error(message) => (message.clone(), true),
         };
         Some(
             div()
@@ -303,40 +195,177 @@ impl LumiaApp {
                 .into_any_element(),
         )
     }
-}
 
-fn restart_suffix(language: Language, required: bool) -> String {
-    required
-        .then(|| format!(" — {}", tr(language, TextKey::RestartRequired)))
-        .unwrap_or_default()
-}
+    fn render_community_plugin_card(
+        &self,
+        plugin: &CommunityPlugin,
+        action: CommunityAction,
+        palette: Palette,
+    ) -> AnyElement {
+        let language = self.settings.language;
+        let plugin_id = plugin.id.clone();
+        let install_handle = self.self_handle.clone();
+        let busy = self.community_plugins.status.is_busy();
+        let version_text = plugin
+            .versions
+            .iter()
+            .max_by(|left, right| {
+                semver::Version::parse(&left.version)
+                    .unwrap_or_else(|_| semver::Version::new(0, 0, 0))
+                    .cmp(
+                        &semver::Version::parse(&right.version)
+                            .unwrap_or_else(|_| semver::Version::new(0, 0, 0)),
+                    )
+            })
+            .map(|version| version.version.clone())
+            .unwrap_or_default();
 
-fn permission_summary(
-    language: Language,
-    permissions: &[PluginPermission],
-    empty_key: TextKey,
-) -> String {
-    if permissions.is_empty() {
-        return tr(language, empty_key).into();
-    }
-    permissions
-        .iter()
-        .map(|permission| match permission {
-            PluginPermission::ReadInputPath => "read_input_path".into(),
-            PluginPermission::WriteTemporaryOutput => "write_temporary_output".into(),
-            PluginPermission::Network => "network".into(),
-            PluginPermission::ReadConfigSecret(name) => format!("read_config_secret:{name}"),
-        })
-        .collect::<Vec<String>>()
-        .join(", ")
-}
+        let permission_summary =
+            permission_summary(language, &plugin.permissions, TextKey::NoPermissions);
+        let author_text = plugin
+            .author
+            .as_ref()
+            .map(|author| author.name.clone())
+            .map(|name| format!("  {}  {name}", tr_community(language, CommunityTextKey::CommunityAuthor)))
+            .unwrap_or_default();
 
-fn error_kind_label(kind: PluginManagementErrorKind) -> &'static str {
-    match kind {
-        PluginManagementErrorKind::InvalidPackage => "invalid_package",
-        PluginManagementErrorKind::Incompatible => "incompatible",
-        PluginManagementErrorKind::Installation => "installation",
-        PluginManagementErrorKind::Removal => "removal",
-        PluginManagementErrorKind::Storage => "storage",
+        // Action button. Self-drawn div (matching the installed-plugin Remove
+        // button) instead of gpui-component Button: the component's base is
+        // `flex_shrink_0`, so a long label like the "incompatible" hint would
+        // push the card wider than its container.
+        let (button_label, button_primary, button_disabled) = match action {
+            CommunityAction::Incompatible => {
+                (tr_community(language, CommunityTextKey::CommunityIncompatible), false, true)
+            }
+            CommunityAction::Install => {
+                (tr_community(language, CommunityTextKey::CommunityInstall), true, busy)
+            }
+            CommunityAction::Update => {
+                (tr_community(language, CommunityTextKey::CommunityUpdate), true, busy)
+            }
+            CommunityAction::Installed => {
+                (tr_community(language, CommunityTextKey::CommunityInstalled), false, true)
+            }
+        };
+        let install_handle = install_handle.clone();
+        let install_id = plugin_id.clone();
+        let action_button = div()
+            .id(format!("install-community-plugin-{plugin_id}"))
+            .flex_none()
+            .min_w(px(64.0))
+            .h(px(32.0))
+            .px_3()
+            .flex()
+            .items_center()
+            .justify_center()
+            .rounded_sm()
+            .border_1()
+            .border_color(rgb(if button_primary {
+                palette.accent
+            } else {
+                palette.border
+            }))
+            .bg(rgb(if button_primary {
+                palette.accent_soft
+            } else {
+                palette.sidebar_bg
+            }))
+            .text_xs()
+            .text_color(rgb(if button_disabled {
+                palette.muted_text
+            } else if button_primary {
+                palette.text
+            } else {
+                palette.text
+            }))
+            .when(!button_disabled, |button| {
+                button
+                    .cursor_pointer()
+                    .hover(move |style| style.bg(rgb(palette.button_hover)))
+            })
+            .on_click(move |_, _, cx| {
+                let install_id = install_id.clone();
+                let _ = install_handle.update(cx, |this, cx| {
+                    this.install_community_plugin(install_id, cx);
+                });
+            })
+            .child(div().truncate().child(button_label));
+
+        div()
+            .id(format!("community-plugin-{plugin_id}"))
+            .w_full()
+            .p_4()
+            .rounded_md()
+            .border_1()
+            .border_color(rgb(palette.border))
+            .flex()
+            .items_start()
+            .gap_3()
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .flex()
+                    .flex_col()
+                    .gap_1()
+                    .child(
+                        div()
+                            .truncate()
+                            .text_sm()
+                            .font_weight(FontWeight::BOLD)
+                            .child(format!("{}  {version_text}", plugin.name)),
+                    )
+                    .when(!plugin.description.is_empty(), |card| {
+                        card.child(
+                            div()
+                                .truncate()
+                                .text_xs()
+                                .text_color(rgb(palette.muted_text))
+                                .child(plugin.description.clone()),
+                        )
+                    })
+                    .when(!author_text.is_empty(), |card| {
+                        card.child(
+                            div()
+                                .truncate()
+                                .text_xs()
+                                .text_color(rgb(palette.muted_text))
+                                .child(author_text),
+                        )
+                    })
+                    .when(!plugin.tags.is_empty(), |card| {
+                        card.child(
+                            div()
+                                .flex()
+                                .flex_wrap()
+                                .gap_1()
+                                .children(plugin.tags.iter().map(|tag| {
+                                    div()
+                                        .px_2()
+                                        .py_1()
+                                        .rounded_full()
+                                        .border_1()
+                                        .border_color(rgb(palette.border))
+                                        .text_xs()
+                                        .text_color(rgb(palette.muted_text))
+                                        .child(tag.clone())
+                                })),
+                        )
+                    })
+                    .when(!plugin.permissions.is_empty(), |card| {
+                        card.child(
+                            div()
+                                .truncate()
+                                .text_xs()
+                                .text_color(rgb(palette.muted_text))
+                                .child(format!(
+                                    "{}: {permission_summary}",
+                                    tr(language, TextKey::Permissions)
+                                )),
+                        )
+                    }),
+            )
+            .child(action_button)
+            .into_any_element()
     }
 }

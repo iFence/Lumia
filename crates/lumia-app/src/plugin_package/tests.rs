@@ -23,6 +23,19 @@ fn package_manifest_round_trips_schema_and_compatibility() {
     validate_compatibility(&manifest, None).unwrap();
 }
 
+/// Regression test for the allowlist relaxation: any plugin id passes
+/// compatibility now, as long as the package signature and structural checks
+/// verify (signature verification is the trust gate, not an id allowlist).
+#[test]
+fn third_party_plugin_id_passes_compatibility() {
+    let manifest = compatible_manifest(Vec::new());
+    assert_eq!(manifest.plugin_id, "lumia.annotation"); // fixture sanity
+    let mut third_party = manifest;
+    third_party.plugin_id = "com.example.foo".into();
+    third_party.install_directory = "foo".into();
+    validate_compatibility(&third_party, None).unwrap();
+}
+
 #[test]
 fn compatibility_rejects_wrong_schema_platform_api_and_downgrade() {
     let mut manifest = compatible_manifest(Vec::new());

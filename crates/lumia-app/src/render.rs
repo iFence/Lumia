@@ -21,6 +21,7 @@ impl Render for LumiaApp {
 
         let palette = self.palette(window);
         self.sync_annotation_text_input(window, cx);
+        self.sync_community_search_input(window, cx);
         let dialog_layer = Root::render_dialog_layer(window, cx);
 
         div()

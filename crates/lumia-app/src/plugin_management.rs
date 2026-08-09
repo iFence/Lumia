@@ -147,7 +147,11 @@ impl LumiaApp {
         .detach();
     }
 
-    fn inspect_plugin_package(&mut self, path: std::path::PathBuf, cx: &mut Context<Self>) {
+    pub(crate) fn inspect_plugin_package(
+        &mut self,
+        path: std::path::PathBuf,
+        cx: &mut Context<Self>,
+    ) {
         let generation = self.plugin_management.begin_inspection();
         let installed_versions = self
             .plugins

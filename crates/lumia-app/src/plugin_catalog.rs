@@ -6,9 +6,7 @@ use lumia_plugin_api::PluginManifest;
 use lumia_plugin_host::{validate_decode_preview_manifest, validate_ui_manifest};
 use sha2::{Digest, Sha256};
 
-use crate::plugin_package::{
-    is_official_plugin_id, verify_ed25519_signature, OFFICIAL_PLUGIN_PUBLIC_KEY,
-};
+use crate::plugin_package::{verify_ed25519_signature, OFFICIAL_PLUGIN_PUBLIC_KEY};
 
 const PHOTOSHOP_MANIFEST: &str =
     include_str!("../../../plugins/lumia-plugin-photoshop/lumia.plugin.json");
@@ -16,6 +14,13 @@ const JPEG_XL_MANIFEST: &str =
     include_str!("../../../plugins/lumia-plugin-jpeg-xl/lumia.plugin.json");
 const JPEG2000_MANIFEST: &str =
     include_str!("../../../plugins/lumia-plugin-jpeg2000/lumia.plugin.json");
+
+/// Decoder plugins shipped inside the Lumia install directory whose manifests
+/// are compiled into the binary (`include_str!` above). They have no
+/// `lumia.plugin.sig` on disk, so they are trusted because their manifest is
+/// part of the signed application itself. Every other plugin must carry a
+/// valid Ed25519 signature.
+const BUNDLED_PLUGIN_IDS: &[&str] = &["lumia.photoshop", "lumia.jpeg-xl", "lumia.jpeg2000"];
 
 #[derive(Debug, Clone)]
 pub(crate) struct InstalledPlugin {
@@ -247,11 +252,17 @@ pub(crate) fn load_official_ui_plugin(root: &Path) -> Result<InstalledPlugin> {
     let manifest_path = root.join("lumia.plugin.json");
     let manifest_bytes =
         fs::read(&manifest_path).with_context(|| format!("read {}", manifest_path.display()))?;
-    verify_manifest_signature(root, &manifest_bytes)?;
     let manifest: PluginManifest =
         serde_json::from_slice(&manifest_bytes).context("parse plugin manifest")?;
-    if !is_official_plugin_id(&manifest.id) {
-        anyhow::bail!("plugin {} is not in the official allowlist", manifest.id);
+    match verify_manifest_signature(root, &manifest_bytes) {
+        Ok(()) => {}
+        Err(signature_error) if !is_trusted_bundled(root, &manifest) => {
+            return Err(signature_error.context(format!(
+                "plugin {} is not signed by the official Lumia key",
+                manifest.id
+            )));
+        }
+        Err(_) => {}
     }
     validate_official_plugin_manifest(&manifest)?;
     let entry = resolved_entry_path(root, &manifest.entry);
@@ -270,6 +281,26 @@ pub(crate) fn load_official_ui_plugin(root: &Path) -> Result<InstalledPlugin> {
         manifest,
         root: root.to_path_buf(),
     })
+}
+
+/// `true` for the decoder plugins shipped inside the Lumia install directory
+/// (`<exe>/plugins/<name>/`) whose manifests are compiled into the binary via
+/// `include_str!`. Those carry no `lumia.plugin.sig` on disk, so their trust
+/// anchor is the application binary itself. The location guard restricts the
+/// bypass to the bundled install location: a directory a user could write to
+/// (for example a package installed under the per-user plugins root) can never
+/// skip signature verification, even if it claims a bundled plugin id.
+fn is_trusted_bundled(root: &Path, manifest: &PluginManifest) -> bool {
+    if !BUNDLED_PLUGIN_IDS.contains(&manifest.id.as_str()) {
+        return false;
+    }
+    let Some(exe_dir) = std::env::current_exe()
+        .ok()
+        .and_then(|current| current.parent().map(Path::to_path_buf))
+    else {
+        return false;
+    };
+    root.starts_with(&exe_dir.join("plugins"))
 }
 
 fn verify_manifest_signature(root: &Path, manifest_bytes: &[u8]) -> Result<()> {
@@ -376,6 +407,50 @@ mod tests {
             );
         } else {
             assert!(path.extension().is_none());
+        }
+    }
+
+    #[test]
+    fn unsigned_third_party_plugin_is_rejected() {
+        let directory = tempfile::tempdir().unwrap();
+        let manifest = serde_json::to_vec(&unsigned_manifest("com.example.foo")).unwrap();
+        fs::write(directory.path().join("lumia.plugin.json"), manifest).unwrap();
+        assert!(
+            load_official_ui_plugin(directory.path()).is_err(),
+            "unsigned third-party plugin must be rejected"
+        );
+    }
+
+    #[test]
+    fn bundled_decoder_id_outside_install_dir_is_rejected_without_signature() {
+        let directory = tempfile::tempdir().unwrap();
+        let manifest = serde_json::to_vec(&unsigned_manifest("lumia.photoshop")).unwrap();
+        fs::write(directory.path().join("lumia.plugin.json"), manifest).unwrap();
+        assert!(
+            load_official_ui_plugin(directory.path()).is_err(),
+            "bundled id outside the bundled install directory must not bypass signature verification"
+        );
+    }
+
+    fn unsigned_manifest(id: &str) -> PluginManifest {
+        PluginManifest {
+            id: id.into(),
+            name: id.into(),
+            version: "0.1.0".into(),
+            entry: PathBuf::from("plugin"),
+            capabilities: vec![
+                lumia_plugin_api::PluginCapability::Probe,
+                lumia_plugin_api::PluginCapability::DecodePreview,
+            ],
+            permissions: vec![
+                lumia_plugin_api::PluginPermission::ReadInputPath,
+                lumia_plugin_api::PluginPermission::WriteTemporaryOutput,
+            ],
+            supported_inputs: vec!["image/x-test".into()],
+            supported_extensions: vec!["tst".into()],
+            supported_outputs: vec!["image/png".into()],
+            contributions: Default::default(),
+            assets: Vec::new(),
         }
     }
 }

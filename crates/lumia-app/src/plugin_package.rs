@@ -14,7 +14,6 @@ mod runtime;
 pub(crate) use runtime::inspect_packaged_plugin_manifest;
 
 const PACKAGE_SCHEMA_VERSION: u32 = 1;
-const OFFICIAL_PLUGIN_IDS: &[&str] = &["lumia.annotation", "lumia.raw"];
 const PACKAGE_MANIFEST_NAME: &str = "lumia.package.json";
 const PACKAGE_SIGNATURE_NAME: &str = "lumia.package.sig";
 const MAX_COMPRESSED_PACKAGE_BYTES: u64 = 128 * 1024 * 1024;
@@ -61,8 +60,6 @@ pub(crate) struct VerifiedPluginPackage {
 pub(crate) enum PluginPackageError {
     #[error("unsupported plugin package schema {0}")]
     UnsupportedSchema(u32),
-    #[error("plugin {0} is not an allowlisted official plugin")]
-    UnofficialPlugin(String),
     #[error("invalid semantic version in {field}: {value}")]
     InvalidVersion { field: &'static str, value: String },
     #[error("package targets {actual}, but this Lumia build targets {expected}")]
@@ -193,11 +190,6 @@ pub(crate) fn validate_compatibility(
             manifest.schema_version,
         ));
     }
-    if !is_official_plugin_id(&manifest.plugin_id) {
-        return Err(PluginPackageError::UnofficialPlugin(
-            manifest.plugin_id.clone(),
-        ));
-    }
     validate_install_directory(&manifest.install_directory)?;
 
     let package_version = parse_version("version", &manifest.version)?;
@@ -238,10 +230,6 @@ pub(crate) fn validate_compatibility(
         }
     }
     Ok(())
-}
-
-pub(crate) fn is_official_plugin_id(id: &str) -> bool {
-    OFFICIAL_PLUGIN_IDS.contains(&id)
 }
 
 pub(crate) const fn current_target_os() -> &'static str {

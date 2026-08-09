@@ -7,6 +7,9 @@ mod app;
 mod bootstrap;
 mod cli;
 mod common_decode;
+mod community_index;
+mod community_plugins;
+mod community_text;
 mod crop_overlay;
 mod custom_icons;
 mod edit_discard;
@@ -42,6 +45,7 @@ mod settings_about;
 mod settings_association_formats;
 mod settings_associations;
 mod settings_general;
+mod settings_installed_plugins;
 mod settings_plugins;
 mod settings_shortcuts;
 mod settings_ui;
@@ -135,7 +139,7 @@ fn main() -> anyhow::Result<()> {
         cli::CliCommand::VerifyPluginPackage(path) => {
             let package = plugin_package::verify_official_package_file(&path)?;
             println!(
-                "Verified official plugin package {} {} for {}/{}.",
+                "Verified signed plugin package {} {} for {}/{}.",
                 package.manifest.plugin_id,
                 package.manifest.version,
                 package.manifest.target_os,

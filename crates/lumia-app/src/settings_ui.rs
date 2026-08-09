@@ -176,6 +176,7 @@ impl LumiaApp {
         let sidebar = div()
             .id("settings-sidebar")
             .w(px(188.0))
+            .flex_none()
             .h_full()
             .flex()
             .flex_col()

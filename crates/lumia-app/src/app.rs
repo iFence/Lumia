@@ -4,6 +4,7 @@ use gpui::{App, Context, Entity, FocusHandle, Focusable, Subscription, WeakEntit
 use gpui_component::input::InputState;
 use lumia_core::{AnnotationDocument, AppSettings, FolderNavigation, SettingsGroup, ViewerSession};
 
+use crate::community_plugins::CommunityPluginsState;
 use crate::editing::EditState;
 use crate::large_image::LargeImageSession;
 use crate::load_state::ImageLoadState;
@@ -30,6 +31,7 @@ pub(crate) struct LumiaApp {
     pub(crate) slideshow: SlideshowState,
     pub(crate) plugins: PluginUiState,
     pub(crate) plugin_management: PluginManagementState,
+    pub(crate) community_plugins: CommunityPluginsState,
     pub(crate) annotations: AnnotationDocument,
     /// Editable text field for the annotation plugin's text tool, owned by the
     /// host so typing survives re-renders of the declarative panel model.
@@ -69,6 +71,7 @@ impl LumiaApp {
             slideshow: SlideshowState::default(),
             plugins,
             plugin_management,
+            community_plugins: CommunityPluginsState::default(),
             annotations: AnnotationDocument::default(),
             annotation_text_input: None,
             annotation_text_input_subscription: None,
