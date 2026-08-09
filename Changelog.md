@@ -7,6 +7,19 @@ Conventions:
 - The content below the heading is what appears in the in-app update dialog
 - End each version section with `---` or by starting the next version heading
 
+## v0.2.2
+
+### ✨ New Features
+- **Community plugin browser**: discover and install plugins from Settings > Plugins without downloading packages manually. The official RAW and Annotation plugins now appear in the browser and can be installed by search.
+- **New annotation tools**: the Annotation plugin now offers text, rectangle, and numbered-step tools in place of the previous icon stamps, so you can mark up images the way you need.
+- **Scale-aware annotation defaults**: annotation tool sizes automatically adapt to the image, so markers stay proportioned no matter the resolution.
+
+### 🚀 Improvements
+- **Safer edit workflow**: Lumia now asks for confirmation before discarding unapplied edits, so accidental switching won't lose your work.
+- **More reliable settings overlay**: clicking inside the settings overlay no longer accidentally dismisses it.
+
+---
+
 ## v0.2.1
 
 ### ✨ New Features

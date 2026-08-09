@@ -305,8 +305,8 @@ Validate the ICO structure and generated packages with:
 Push a `v*` tag to trigger the CI release workflow:
 
 ```bash
-git tag v0.2.1
-git push origin v0.2.1
+git tag v0.2.2
+git push origin v0.2.2
 ```
 
 GitHub Actions will build the Setup EXE, both localized MSI packages, portable zip, platform binaries, and separate signed Annotation and RAW plugin archives, then verify and attach them to a new [Release](https://github.com/iFence/Lumia/releases).
