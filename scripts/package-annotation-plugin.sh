@@ -12,6 +12,16 @@ STAGING_DIR="target/$PACKAGE_NAME"
 PLUGIN_DIR="$STAGING_DIR/lumia-plugin-annotation"
 ARCHIVE="target/$PACKAGE_NAME.lumiaplugin"
 
+# Index architecture: maps x64/amd64 -> x86_64, arm64 -> aarch64 so the
+# versioned artifact name matches the community index's target_arch values.
+index_arch() {
+  case "$1" in
+    x64|amd64|x86_64) echo "x86_64" ;;
+    arm64|aarch64) echo "aarch64" ;;
+    *) echo "unsupported target architecture $1" >&2; exit 1 ;;
+  esac
+}
+
 cargo build --release -p lumia-plugin-annotation
 
 rm -rf "$STAGING_DIR"
@@ -44,3 +54,8 @@ rm -f "$ARCHIVE"
   zip -qr "$ROOT_DIR/$ARCHIVE" .
 )
 echo "Created $ARCHIVE"
+
+PLUGIN_VERSION="$(node -e 'const m = require("./plugins/lumia-plugin-annotation/lumia.plugin.json"); process.stdout.write(m.version)')"
+VERSIONED_ARCHIVE="target/Lumia-Annotation-$PLUGIN_VERSION-$PLATFORM-$(index_arch "$ARCH").lumiaplugin"
+cp "$ARCHIVE" "$VERSIONED_ARCHIVE"
+echo "Created $VERSIONED_ARCHIVE"

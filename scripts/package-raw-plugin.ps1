@@ -10,6 +10,18 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $originalRustFlags = $env:RUSTFLAGS
+
+# Version embedded in the archive filename. Defaults to the plugin's own
+# manifest version so the community index can reference a fixed URL per
+# version; may be overridden for local testing.
+function Get-IndexArchitecture([string]$arch) {
+    switch ($arch.ToLowerInvariant()) {
+        { $_ -in @("x64", "amd64", "x86_64") } { return "x86_64" }
+        { $_ -in @("arm64", "aarch64") } { return "aarch64" }
+        default { throw "Unsupported target architecture $arch" }
+    }
+}
+
 Push-Location $root
 try {
     $staticCrtFlag = "-C target-feature=+crt-static"
@@ -112,6 +124,12 @@ try {
     Compress-Archive -Path "$staging/*" -DestinationPath $zipArchive
     Move-Item -LiteralPath $zipArchive -Destination $archive
     Write-Host "Created $archive"
+
+    $pluginVersion = (Get-Content plugins/lumia-plugin-raw/lumia.plugin.json -Raw | ConvertFrom-Json).version
+    $indexArch = Get-IndexArchitecture $Architecture
+    $versioned = Join-Path $OutputDirectory "Lumia-RAW-$pluginVersion-windows-$indexArch.lumiaplugin"
+    Copy-Item -LiteralPath $archive -Destination $versioned
+    Write-Host "Created $versioned"
 } finally {
     $env:RUSTFLAGS = $originalRustFlags
     Pop-Location

@@ -20,6 +20,16 @@ STAGING_DIR="target/$PACKAGE_NAME"
 PLUGIN_DIR="$STAGING_DIR/lumia-plugin-raw"
 ARCHIVE="target/$PACKAGE_NAME.lumiaplugin"
 
+# Index architecture: maps x64/amd64 -> x86_64, arm64 -> aarch64 so the
+# versioned artifact name matches the community index's target_arch values.
+index_arch() {
+  case "$1" in
+    x64|amd64|x86_64) echo "x86_64" ;;
+    arm64|aarch64) echo "aarch64" ;;
+    *) echo "unsupported target architecture $1" >&2; exit 1 ;;
+  esac
+}
+
 for file in "$BRIDGE_LIBRARY" "$LIBRAW_LIBRARY" \
   "$LIBRAW_LICENSE_DIRECTORY/LICENSE.LGPL" "$LIBRAW_LICENSE_DIRECTORY/LICENSE.CDDL"; do
   test -f "$file" || { echo "missing RAW runtime input: $file" >&2; exit 1; }
@@ -60,3 +70,10 @@ rm -f "$ARCHIVE"
   zip -qr "$ROOT_DIR/$ARCHIVE" .
 )
 echo "Created $ARCHIVE"
+
+# Versioned copy whose name carries the normalized index arch, so the
+# community index can point at a fixed per-version release URL.
+PLUGIN_VERSION="$(node -e 'const m = require("./plugins/lumia-plugin-raw/lumia.plugin.json"); process.stdout.write(m.version)')"
+VERSIONED_ARCHIVE="target/Lumia-RAW-$PLUGIN_VERSION-$PLATFORM-$(index_arch "$ARCH").lumiaplugin"
+cp "$ARCHIVE" "$VERSIONED_ARCHIVE"
+echo "Created $VERSIONED_ARCHIVE"

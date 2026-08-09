@@ -9,10 +9,35 @@ import {
 } from "node:crypto";
 import { lstat, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
-const OFFICIAL_PUBLIC_KEY_HEX =
+export const OFFICIAL_PUBLIC_KEY_HEX =
   "6b88de1c86a73ae666d4a44b54e3046900ff24a085a2515ada36d2b15cc55417";
 const OFFICIAL_PLUGIN_IDS = new Set(["lumia.annotation", "lumia.raw"]);
+
+/// Community-index metadata for the official plugins. `lumia.plugin.json`
+/// carries id/name/version/permissions only, so the fields a search needs
+/// (description, tags, author, repository, website) live here, keyed by id.
+export const KNOWN_OFFICIAL_PLUGINS = {
+  "lumia.annotation": {
+    name: "Lumia Annotation",
+    description:
+      "Official annotation plugin: place text, rectangle, and numbered-step markers on an image and export a PNG, JPEG, or WebP copy.",
+    tags: ["annotation", "markup", "official"],
+    author: { name: "Lumia", url: "https://github.com/iFence" },
+    repository: "https://github.com/iFence/lumia",
+    website: "https://github.com/iFence/lumia",
+  },
+  "lumia.raw": {
+    name: "Lumia RAW Preview",
+    description:
+      "Official camera RAW preview powered by LibRaw. Decodes DNG, CR2/CR3, NEF, ARW, RAF, ORF, RW2, and more to an orientation-corrected PNG preview.",
+    tags: ["raw", "camera", "libraw", "official", "decoder"],
+    author: { name: "Lumia", url: "https://github.com/iFence" },
+    repository: "https://github.com/iFence/lumia",
+    website: "https://github.com/iFence/lumia",
+  },
+};
 
 function parseArguments(argv) {
   const values = new Map();
@@ -43,7 +68,7 @@ function normalizeOs(value) {
   throw new Error(`unsupported target OS ${value}`);
 }
 
-function normalizeArch(value) {
+export function normalizeArch(value) {
   const normalized = value.toLowerCase();
   if (["x64", "amd64", "x86_64"].includes(normalized)) return "x86_64";
   if (["arm64", "aarch64"].includes(normalized)) return "aarch64";
@@ -179,7 +204,11 @@ async function main() {
   );
 }
 
-main().catch((error) => {
-  process.stderr.write(`${error.message}\n`);
-  process.exitCode = 1;
-});
+// Run only when executed directly so `update-community-index.mjs` can import
+// `normalizeArch` and `KNOWN_OFFICIAL_PLUGINS` without triggering a sign.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    process.stderr.write(`${error.message}\n`);
+    process.exitCode = 1;
+  });
+}

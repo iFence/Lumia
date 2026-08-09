@@ -38,6 +38,9 @@ jobs:
       - name: Verify plugin package signer fixture
         if: runner.os == 'Linux'
         run: node scripts/test-sign-plugin-package.mjs
+      - name: Verify community index fixture
+        if: runner.os == 'Linux'
+        run: node scripts/test-update-community-index.mjs
       - run: cargo check --workspace --all-targets
       - run: cargo test --workspace
       - name: Build application and plugins

@@ -58,6 +58,11 @@ pub(crate) fn run_gui(initial_path: Option<PathBuf>) -> anyhow::Result<()> {
                     app.listen_for_instance_requests(primary_instance, window, cx);
                     app.listen_for_platform_open_requests(platform_open_receiver, window, cx);
                     app.maybe_check_for_updates_on_startup(cx);
+                    // Seed the community plugin index lazily so the official
+                    // RAW/Annotation plugins show up in the browser without a
+                    // manual Refresh. Silent on failure; renders the cached
+                    // copy when offline.
+                    app.load_community_index(false, cx);
                 });
                 cx.new(|cx| gpui_component::Root::new(view, window, cx).bordered(false))
             },

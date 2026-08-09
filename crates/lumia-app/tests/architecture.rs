@@ -102,10 +102,11 @@ fn annotation_plugin_is_packaged_separately_with_integrity_metadata() {
         .expect("lumia-app must be under workspace/crates");
     let release = std::fs::read_to_string(workspace.join(".github/workflows/release.yml"))
         .expect("release workflow");
+    // Both the legacy and versioned Annotation packages are uploaded per
+    // platform job through a glob that covers each.
     for artifact in [
+        "Lumia-Annotation-*.lumiaplugin",
         "Lumia-Annotation-windows-x64.lumiaplugin",
-        "Lumia-Annotation-macos-${{ matrix.arch }}.lumiaplugin",
-        "Lumia-Annotation-linux-x64.lumiaplugin",
     ] {
         assert!(release.contains(artifact), "missing {artifact}");
     }
@@ -159,10 +160,11 @@ fn raw_plugin_is_pinned_packaged_separately_and_signed() {
         .expect("lumia-app must be under workspace/crates");
     let release = std::fs::read_to_string(workspace.join(".github/workflows/release.yml"))
         .expect("release workflow");
+    // Both the legacy and versioned RAW packages are uploaded per platform job
+    // through a glob that covers each.
     for artifact in [
+        "Lumia-RAW-*.lumiaplugin",
         "Lumia-RAW-windows-x64.lumiaplugin",
-        "Lumia-RAW-macos-${{ matrix.arch }}.lumiaplugin",
-        "Lumia-RAW-linux-x64.lumiaplugin",
     ] {
         assert!(release.contains(artifact), "missing {artifact}");
     }
@@ -233,7 +235,7 @@ fn macos_release_builds_native_arm64_and_x64_packages() {
         "arch: arm64",
         "arch: x64",
         "Lumia-macos-${{ matrix.arch }}.dmg",
-        "Lumia-Annotation-macos-${{ matrix.arch }}.lumiaplugin",
+        "Lumia-Annotation-*.lumiaplugin",
     ] {
         assert!(release.contains(required), "missing {required}");
     }

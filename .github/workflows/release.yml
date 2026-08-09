@@ -123,8 +123,8 @@ jobs:
             target/wix/Lumia-*-x64-en-US.msi
             target/wix/Lumia-*-x64-zh-CN.msi
             target/lumia-portable-windows-x64.zip
-            target/Lumia-Annotation-windows-x64.lumiaplugin
-            target/Lumia-RAW-windows-x64.lumiaplugin
+            target/Lumia-Annotation-*.lumiaplugin
+            target/Lumia-RAW-*.lumiaplugin
           fail_on_unmatched_files: true
 
   macos-release:
@@ -184,8 +184,8 @@ jobs:
         with:
           files: |
             target/Lumia-macos-${{ matrix.arch }}.dmg
-            target/Lumia-Annotation-macos-${{ matrix.arch }}.lumiaplugin
-            target/Lumia-RAW-macos-${{ matrix.arch }}.lumiaplugin
+            target/Lumia-Annotation-*.lumiaplugin
+            target/Lumia-RAW-*.lumiaplugin
           fail_on_unmatched_files: true
 
   linux-release:
@@ -285,6 +285,29 @@ jobs:
         with:
           files: |
             target/lumia-linux-x64.tar.gz
-            target/Lumia-Annotation-linux-x64.lumiaplugin
-            target/Lumia-RAW-linux-x64.lumiaplugin
+            target/Lumia-Annotation-*.lumiaplugin
+            target/Lumia-RAW-*.lumiaplugin
           fail_on_unmatched_files: true
+
+  update-community-index:
+    name: Update community plugin index
+    # Recomputes plugins.json from the uploaded release assets, so it must run
+    # after every platform job has published its signed packages. Best-effort:
+    # a missing/invalid LUMA_INDEX_ACCESS_TOKEN warns without failing the
+    # release (assets are still on the Release); backfill is a rerun of this job.
+    needs: [windows-release, macos-release, linux-release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Update community plugin index
+        env:
+          GH_TOKEN: ${{ secrets.LUMA_INDEX_ACCESS_TOKEN }}
+          LUMA_PLUGIN_TAG: "${{ github.ref_name }}"
+        run: |
+          node scripts/update-community-index.mjs \
+            || { echo "::warning::community index sync skipped; release assets remain on the release"; }

@@ -126,7 +126,7 @@ Lumia/
       lumia.plugin.json
 ```
 
-The MSI, Windows portable ZIP, macOS app bundle, and Linux archive all contain this layout. The official RAW and Annotation plugins are published separately as signed `.lumiaplugin` packages.
+The MSI, Windows portable ZIP, macOS app bundle, and Linux archive all contain this layout. The official RAW and Annotation plugins are published separately as signed `.lumiaplugin` packages and can be installed from the community plugin browser, exactly like third-party plugins.
 
 JPEG XL support currently covers SDR still images; HDR JPEG XL is rejected until Lumia gains an HDR-capable display pipeline. JPEG 2000 support covers JP2 and Part 1 still-image codestreams (`.jp2`, `.j2k`, `.j2c`, and `.jpc`), not JPX, JPM, or Motion JPEG 2000.
 
@@ -146,10 +146,12 @@ RAW support is read-only in this first release. Browsing, zoom, pan, display rot
 
 To install the RAW plugin:
 
-1. Download the `Lumia-RAW-<platform>-<architecture>.lumiaplugin` asset matching your system from the GitHub Release.
-2. Open **Settings -> Plugins** and choose **Install from file**.
-3. Select the package, review its identity and permissions, then choose **Install**.
+1. Open **Settings -> Plugins** and switch to the **Community** tab.
+2. Search for **RAW**, review the plugin card, and choose **Install**.
+3. Review the plugin's identity and permissions in the confirmation dialog, then choose **Install**.
 4. Restart Lumia and open a supported RAW file.
+
+If you are offline, you can still install the same signed package from the GitHub Release: download the `Lumia-RAW-<version>-<platform>-<architecture>.lumiaplugin` asset matching your system, then use **Install from file** in **Settings -> Plugins**.
 
 Remove or upgrade the plugin from the same **Settings -> Plugins** page. Package and payload signatures, target platform, plugin API compatibility, paths, sizes, and SHA-256 digests are verified before installation.
 
@@ -157,22 +159,21 @@ Remove or upgrade the plugin from the same **Settings -> Plugins** page. Package
 
 The official Annotation plugin is released as a separate package. Without it, Lumia contributes no annotation row to the image context menu and creates no annotation panel. Once installed and Lumia is restarted, right-click an image and choose **Annotate / 标注** to open the host-rendered panel, place icon markers, undo or redo changes, and export a PNG, JPEG, or WebP copy without changing the source image.
 
-1. Download the `.lumiaplugin` asset matching your operating system and CPU
-   architecture from the GitHub Release.
-2. Open **Settings -> Plugins** and choose **Install from file**.
-3. Select the downloaded package, review its identity, version, and requested
-   permissions, then choose **Install**.
+1. Open **Settings -> Plugins** and switch to the **Community** tab.
+2. Search for **Annotation**, review the plugin card, and choose **Install**.
+3. Review the plugin's identity, version, and requested permissions in the confirmation dialog, then choose **Install**.
 4. Restart Lumia. Right-click an image and choose **Annotate / 标注**.
+
+If you are offline, you can still install the same signed package from the GitHub Release: download the `Lumia-Annotation-<version>-<platform>-<architecture>.lumiaplugin` asset matching your system, then use **Install from file** in **Settings -> Plugins**.
 
 Remove the plugin from the same **Settings -> Plugins** page. Removal hides its
 contributed commands immediately; restart Lumia if the page asks you to finish
 applying the change.
 
-Lumia verifies the package signature, official plugin ID, target OS and
-architecture, Lumia/plugin API compatibility, every payload path, file size,
-and SHA-256 digest before installation. The first version accepts only
-allowlisted plugins signed by Lumia; third-party packages and packages for a
-different platform are rejected without being installed.
+Lumia verifies the package signature, target OS and architecture, Lumia/plugin
+API compatibility, every payload path, file size, and SHA-256 digest before
+installation. Only packages signed by Lumia's official key are installed;
+packages for a different platform are rejected without being installed.
 
 Manual copying is no longer required. For troubleshooting, user-installed
 plugins are stored below these fixed directories:
@@ -195,6 +196,16 @@ or its base64-encoded DER form and must match the public key embedded in Lumia.
 The signing script never prints the secret. A missing or mismatched key fails
 packaging, and Lumia's production verifier checks the final `.lumiaplugin`
 archive again before GitHub Release upload.
+
+After the release assets are uploaded, the `update-community-index` job
+regenerates the community `plugins.json` index from those assets and pushes it
+to the `awesome-lumia-plugin` repository, so the RAW and Annotation plugins
+appear in the community browser. This step uses the separate
+`LUMA_INDEX_ACCESS_TOKEN` secret (a fine-grained PAT with Contents read/write on
+`iFence/awesome-lumia-plugin`). It is best-effort: a missing or invalid token
+warns in the job log but does not fail the release — the signed packages are
+already on the Release, and the index can be refreshed later by re-running the
+job.
 
 The `--register-context-menu` command is designed for portable / development use. It never requires administrator privileges:
 
