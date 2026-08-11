@@ -245,6 +245,29 @@ mod tests {
     }
 
     #[test]
+    fn clearing_display_images_after_a_new_load_retires_previous_raster() {
+        // Mirrors loading an SVG after a raster image: SVG is rendered from its
+        // path, so the previous decoded image must be retired and display state
+        // cleared, allowing the renderer to fall through to the SVG path.
+        let mut state = ImageLoadState::default();
+        let raster_generation = state.begin_current_load();
+        assert!(state.set_current_image(raster_generation, prepared(1)));
+        assert!(state.set_source_dimensions(raster_generation, Some((1, 1))));
+        state.finish_decode(raster_generation);
+
+        let svg_generation = state.begin_current_load();
+        assert!(state.is_transitioning());
+        state.clear_display_images();
+        state.finish_decode(svg_generation);
+
+        assert!(!state.is_transitioning());
+        assert!(state.current_image().is_none());
+        assert!(state.display_image(0).is_none());
+        assert_eq!(state.display_source_dimensions(0), None);
+        assert_eq!(state.drain_retired_images().count(), 1);
+    }
+
+    #[test]
     fn browsing_many_images_does_not_retain_retired_pixel_buffers() {
         const OBSERVED_LARGE_ALLOCATIONS: usize = 1_192;
 

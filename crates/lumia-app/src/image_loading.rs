@@ -168,6 +168,10 @@ impl LumiaApp {
                         );
                     } else if is_svg(&path) {
                         this.loads.finish_decode(generation);
+                        // SVG is rendered directly from its path, so retire any
+                        // raster image left over from the previous document.
+                        this.loads.clear_display_images();
+                        this.release_retired_images(None, cx);
                         this.ui.error_message = None;
                     } else {
                         this.start_current_static_decode(
