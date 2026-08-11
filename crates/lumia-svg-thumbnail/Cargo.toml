@@ -1,6 +1,6 @@
 [package]
 name = "lumia-svg-thumbnail"
-version = "0.2.2"
+version = "0.2.3"
 description = "Windows Shell thumbnail provider that renders SVG thumbnails for Explorer"
 edition.workspace = true
 license.workspace = true

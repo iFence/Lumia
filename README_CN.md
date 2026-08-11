@@ -273,8 +273,8 @@ $env:WIX = "$env:LOCALAPPDATA\wixtoolset"
 推送 `v*` 标签以触发 CI 发布工作流：
 
 ```bash
-git tag v0.2.2
-git push origin v0.2.2
+git tag v0.2.3
+git push origin v0.2.3
 ```
 
 GitHub Actions 将构建 Setup EXE、两个本地化的 MSI 包、便携版 zip、平台二进制文件，以及单独签名的标注和 RAW 插件归档，然后验证并附加到新的 [Release](https://github.com/iFence/Lumia/releases)。
