@@ -5,6 +5,7 @@ members = [
     "crates/lumia-plugin-api",
     "crates/lumia-plugin-host",
     "crates/lumia-setup",
+    "crates/lumia-svg-thumbnail",
     "plugins/lumia-plugin-raw",
     "plugins/lumia-plugin-photoshop",
     "plugins/lumia-plugin-jpeg-xl",

@@ -1,4 +1,5 @@
 mod registration;
+mod thumbnail;
 
 use std::collections::BTreeSet;
 use std::io::ErrorKind;
@@ -40,7 +41,8 @@ pub(super) fn register(exe_path: &Path) -> anyhow::Result<()> {
         .iter()
         .map(|extension| (*extension).to_string())
         .collect::<BTreeSet<_>>();
-    apply(exe_path, &selected).map(|_| ())
+    apply(exe_path, &selected)?;
+    register_thumbnail_handler(exe_path)
 }
 
 pub(super) fn query(exe_path: &Path) -> anyhow::Result<FileAssociationSnapshot> {
@@ -110,7 +112,27 @@ pub(super) fn apply(
 pub(super) fn unregister() -> anyhow::Result<()> {
     let result = apply_registry_plan(&build_unregister_plan());
     notify_associations_changed();
-    result
+    result?;
+    unregister_thumbnail_handler()
+}
+
+/// Point Explorer's SVG thumbnail handler at Lumia's provider DLL.
+pub(super) fn register_thumbnail_handler(exe_path: &Path) -> anyhow::Result<()> {
+    thumbnail::register_thumbnail_handler(exe_directory(exe_path))
+}
+
+/// Remove Explorer's SVG thumbnail handler.
+pub(super) fn unregister_thumbnail_handler() -> anyhow::Result<()> {
+    thumbnail::unregister_thumbnail_handler()
+}
+
+/// Whether Explorer's SVG thumbnail handler currently targets our DLL.
+pub(super) fn thumbnail_handler_configured(exe_path: &Path) -> bool {
+    thumbnail::thumbnail_handler_configured(exe_directory(exe_path))
+}
+
+fn exe_directory(exe_path: &Path) -> &Path {
+    exe_path.parent().unwrap_or(exe_path)
 }
 
 pub(super) fn repair_legacy_associations(exe_path: &Path) -> anyhow::Result<()> {

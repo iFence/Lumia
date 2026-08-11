@@ -3917,6 +3917,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumia-svg-thumbnail"
+version = "0.2.2"
+dependencies = [
+ "flate2",
+ "resvg 0.46.0",
+ "usvg 0.46.0",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "lyon"
 version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"

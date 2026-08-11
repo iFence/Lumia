@@ -59,12 +59,16 @@ jobs:
           $jpeg2000Plugin = "$root/plugins/lumia-plugin-jpeg2000"
           New-Item -ItemType Directory -Force -Path $plugin, $jxlPlugin, $jpeg2000Plugin | Out-Null
           Copy-Item target/release/lumia-app.exe $root/
+          Copy-Item target/release/lumia_svg_thumbnail.dll $root/
           Copy-Item target/release/lumia-plugin-photoshop.exe $plugin/
           Copy-Item plugins/lumia-plugin-photoshop/lumia.plugin.json $plugin/
           Copy-Item target/release/lumia-plugin-jpeg-xl.exe $jxlPlugin/
           Copy-Item plugins/lumia-plugin-jpeg-xl/lumia.plugin.json $jxlPlugin/
           Copy-Item target/release/lumia-plugin-jpeg2000.exe $jpeg2000Plugin/
           Copy-Item plugins/lumia-plugin-jpeg2000/lumia.plugin.json $jpeg2000Plugin/
+          if (-not (Test-Path "$root/lumia_svg_thumbnail.dll")) {
+            throw "SVG thumbnail provider DLL is missing from portable bundle"
+          }
           if (-not (Test-Path "$plugin/lumia-plugin-photoshop.exe")) {
             throw "Photoshop plugin executable is missing from portable bundle"
           }

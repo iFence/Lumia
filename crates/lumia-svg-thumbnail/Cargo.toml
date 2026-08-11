@@ -1,0 +1,30 @@
+[package]
+name = "lumia-svg-thumbnail"
+version = "0.2.2"
+description = "Windows Shell thumbnail provider that renders SVG thumbnails for Explorer"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "lumia_svg_thumbnail"
+crate-type = ["cdylib"]
+
+[dependencies]
+# Pin to the same 0.46 line already pulled in by the gpui git dependency, so no
+# new resvg/usvg copy enters the lockfile. Default features cover text
+# rendering (system-fonts), embedded raster images, and gzip'd SVG parsing.
+resvg = "0.46"
+usvg = "0.46"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_UI_Shell",
+] }
+
+[dev-dependencies]
+# Only used by a test to gzip an SVG and confirm `.svgz` support.
+flate2 = "1.1"

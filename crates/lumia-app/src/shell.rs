@@ -26,6 +26,43 @@ pub(crate) fn unregister_context_menu() -> anyhow::Result<()> {
     platform::unregister()
 }
 
+/// Register Lumia's SVG thumbnail provider with Explorer, so `.svg`/`.svgz`
+/// files get thumbnails in large-icon views.
+#[cfg(target_os = "windows")]
+pub(crate) fn register_svg_thumbnail_handler() -> anyhow::Result<()> {
+    platform::register_thumbnail_handler(&std::env::current_exe()?)
+}
+
+/// Remove Lumia's SVG thumbnail provider from Explorer.
+#[cfg(target_os = "windows")]
+pub(crate) fn unregister_svg_thumbnail_handler() -> anyhow::Result<()> {
+    platform::unregister_thumbnail_handler()
+}
+
+/// Whether Explorer's SVG thumbnail handler currently targets Lumia's DLL.
+#[cfg(target_os = "windows")]
+pub(crate) fn svg_thumbnail_handler_configured() -> bool {
+    std::env::current_exe()
+        .ok()
+        .map(|exe| platform::thumbnail_handler_configured(&exe))
+        .unwrap_or(false)
+}
+
+#[cfg(not(target_os = "windows"))]
+pub(crate) fn register_svg_thumbnail_handler() -> anyhow::Result<()> {
+    Ok(())
+}
+
+#[cfg(not(target_os = "windows"))]
+pub(crate) fn unregister_svg_thumbnail_handler() -> anyhow::Result<()> {
+    Ok(())
+}
+
+#[cfg(not(target_os = "windows"))]
+pub(crate) fn svg_thumbnail_handler_configured() -> bool {
+    false
+}
+
 pub(crate) fn apply_native_dark_theme() {
     #[cfg(target_os = "macos")]
     macos::apply_native_dark_theme();

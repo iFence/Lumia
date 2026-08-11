@@ -13,6 +13,7 @@ Conventions:
 - **Community plugin browser**: discover and install plugins from Settings > Plugins without downloading packages manually. The official RAW and Annotation plugins now appear in the browser and can be installed by search.
 - **New annotation tools**: the Annotation plugin now offers text, rectangle, and numbered-step tools in place of the previous icon stamps, so you can mark up images the way you need.
 - **Scale-aware annotation defaults**: annotation tool sizes automatically adapt to the image, so markers stay proportioned no matter the resolution.
+- **SVG thumbnails in Explorer (Windows)**: after Lumia has run once, Windows Explorer shows real thumbnails for `.svg` and `.svgz` files in icon views instead of a generic file icon. The built-in thumbnail provider registers automatically on first launch and ships with the installer and portable packages; use `--register-thumbnail-handler` / `--unregister-thumbnail-handler` to manage it manually.
 
 ### 🚀 Improvements
 - **Safer edit workflow**: Lumia now asks for confirmation before discarding unapplied edits, so accidental switching won't lose your work.

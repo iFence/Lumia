@@ -15,6 +15,12 @@ pub(crate) enum CliCommand {
     /// Refresh only legacy Program Files file-association paths after migration.
     #[cfg(target_os = "windows")]
     RepairFileAssociations,
+    /// Register Lumia's SVG thumbnail provider with Explorer.
+    #[cfg(target_os = "windows")]
+    RegisterThumbnailHandler,
+    /// Remove Lumia's SVG thumbnail provider from Explorer.
+    #[cfg(target_os = "windows")]
+    UnregisterThumbnailHandler,
 }
 
 /// Parse command-line arguments into a [`CliCommand`].
@@ -36,6 +42,14 @@ fn parse_args(mut args: impl Iterator<Item = OsString>) -> CliCommand {
         }
         #[cfg(target_os = "windows")]
         Some(arg) if arg == "--repair-file-associations" => CliCommand::RepairFileAssociations,
+        #[cfg(target_os = "windows")]
+        Some(arg) if arg == "--register-thumbnail-handler" => {
+            CliCommand::RegisterThumbnailHandler
+        }
+        #[cfg(target_os = "windows")]
+        Some(arg) if arg == "--unregister-thumbnail-handler" => {
+            CliCommand::UnregisterThumbnailHandler
+        }
         Some(arg) => {
             // Treat the first non-flag argument as a file path to open.
             CliCommand::OpenFile(PathBuf::from(arg))
@@ -74,6 +88,19 @@ mod tests {
         assert_eq!(
             command(&["--repair-file-associations"]),
             CliCommand::RepairFileAssociations
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn parses_svg_thumbnail_handler_commands() {
+        assert_eq!(
+            command(&["--register-thumbnail-handler"]),
+            CliCommand::RegisterThumbnailHandler
+        );
+        assert_eq!(
+            command(&["--unregister-thumbnail-handler"]),
+            CliCommand::UnregisterThumbnailHandler
         );
     }
 }

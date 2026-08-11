@@ -1,0 +1,144 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product Id="{4A6DC23B-1661-4351-8746-8D6DA6408F33}" Codepage="1252" Language="1033" Manufacturer="aspirin" Name="Lumia" UpgradeCode="{07618386-59AC-4B5C-B4E1-EBE4F8AA182E}" Version="0.2.2">
+        <Package Comments="This installer database contains the logic and data required to install Lumia." Compressed="yes" Description="Lumia" InstallPrivileges="limited" InstallerVersion="450" Languages="1033" Manufacturer="aspirin" Platform="x64" />
+        <Condition Message="A newer version of Lumia is already installed.">Installed OR NOT LUMIA_NEWER_VERSION_DETECTED</Condition>
+        <CustomAction Id="SetAPPLICATIONFOLDER" Property="APPLICATIONFOLDER" Value="[LASTINSTALLDIR]" />
+        <CustomAction Id="SetINSTALLDESKTOPSHORTCUT" Property="INSTALLDESKTOPSHORTCUT" Value="1" />
+        <CustomAction Id="SetARPINSTALLLOCATION" Property="ARPINSTALLLOCATION" Value="[APPLICATIONFOLDER]" />
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="DesktopFolder">
+                <Component Id="DesktopShortcut" Guid="{DC332D9C-004C-5699-8847-341F0FC4FF6F}" Win64="yes">
+                    <RegistryValue Id="regFA2B32EC3B9C6D93F0E2B475E84270BC" Root="HKCU" Key="Software\Lumia\Installer" Name="DesktopShortcut" Value="1" Type="integer" KeyPath="yes" />
+                    <Shortcut Id="ApplicationDesktopShortcut" Directory="DesktopFolder" Name="Lumia" Description="Lumia Image Viewer" Icon="ApplicationIcon" IconIndex="0" WorkingDirectory="APPLICATIONFOLDER" Advertise="yes" />
+                </Component>
+            </Directory>
+            <Directory Id="LocalAppDataFolder">
+                <Directory Id="LocalProgramsFolder" Name="Programs">
+                    <Directory Id="APPLICATIONFOLDER" Name="Lumia">
+                        <Component Id="ApplicationExecutable" Guid="{C743E5F8-48D8-4C77-97DF-CFAF13D07E51}" Win64="yes">
+                            <File Id="LumiaExecutable" Name="lumia-app.exe" ShortName="igt0lszz.exe" DiskId="1" Source="C:\Users\yulei\AppData\Local\Temp\msi_x\File\LumiaExecutable" />
+                            <RegistryValue Id="reg23446F314AB7B36F83EA53BDF0E73487" Root="HKCU" Key="Software\Lumia\Installer\Components" Name="ApplicationExecutable" Value="1" Type="integer" KeyPath="yes" />
+                            <RemoveFolder Id="RemoveApplicationFolder" Directory="APPLICATIONFOLDER" On="uninstall" />
+                            <RemoveFolder Id="RemoveLocalProgramsFolder" Directory="LocalProgramsFolder" On="uninstall" />
+                        </Component>
+                        <Component Id="InstallerState" Guid="{8E34B26A-C44C-5D38-AA12-48D25065A9A6}" Win64="yes">
+                            <RegistryValue Id="reg3F08D8EE03DFB5D1AED155FA83E96C21" Root="HKCU" Key="Software\Lumia\Installer" Name="LastInstallDir" Value="[APPLICATIONFOLDER]" Type="string" KeyPath="yes" />
+                            <RegistryValue Id="reg71269B849C91ED525CF3BA4DCAE90484" Root="HKCU" Key="Software\Lumia\Installer" Name="InstallLanguage" Value="en-US" Type="string" />
+                        </Component>
+                        <Component Id="SvgThumbnailDll" Guid="{9D703152-84C7-46CA-9557-99E89C4DF214}" Win64="yes">
+                            <File Id="SvgThumbnailDll" Name="lumia_svg_thumbnail.dll" ShortName="ndrv9qga.dll" DiskId="1" Source="C:\Users\yulei\AppData\Local\Temp\msi_x\File\SvgThumbnailDll" />
+                            <RegistryKey Id="regC67332808509DEFFC135DECFDBA025D5" ForceDeleteOnUninstall="yes" Key="Software\Classes\CLSID\{0F6F22C8-3077-4B32-A61C-7738E61F242B}" Root="HKCU" />
+                            <RegistryKey Id="reg52D232C2CF605839A46C37CF6145A6B7" ForceDeleteOnUninstall="yes" Key="Software\Classes\.svg\shellex\ThumbnailHandler" Root="HKCU" />
+                            <RegistryKey Id="regC8AA751F227DC60A901B98ED5B8DA368" ForceDeleteOnUninstall="yes" Key="Software\Classes\.svgz\shellex\ThumbnailHandler" Root="HKCU" />
+                            <RegistryValue Id="reg0506612D60B1E2C06E72834CE05C7810" Root="HKCU" Key="Software\Lumia\Installer\Components" Name="SvgThumbnailDll" Value="1" Type="integer" KeyPath="yes" />
+                        </Component>
+                        <Directory Id="PluginsFolder" Name="plugins">
+                            <Directory Id="PhotoshopPluginFolder" Name="lumia-plugin-photoshop" ShortName="wp3r-uwa">
+                                <Component Id="PhotoshopPluginExecutable" Guid="{D57E8754-5AC0-4E6C-A845-F43B6C28BF6A}" Win64="yes">
+                                    <File Id="PhotoshopPluginExe" Name="lumia-plugin-photoshop.exe" ShortName="lrvskhod.exe" DiskId="1" Source="C:\Users\yulei\AppData\Local\Temp\msi_x\File\PhotoshopPluginExe" />
+                                    <RegistryValue Id="reg8ED32B9DC9F817547A0B3A35CD602882" Root="HKCU" Key="Software\Lumia\Installer\Components" Name="PhotoshopPluginExecutable" Value="1" Type="integer" KeyPath="yes" />
+                                    <RemoveFolder Id="RemovePhotoshopPluginFolder" Directory="PhotoshopPluginFolder" On="uninstall" />
+                                    <RemoveFolder Id="RemovePluginsFolder" Directory="PluginsFolder" On="uninstall" />
+                                </Component>
+                                <Component Id="PhotoshopPluginManifest" Guid="{7600CE81-AE0C-48D7-9E0A-4FB7B0C83222}" Win64="yes">
+                                    <File Id="PhotoshopManifestFile" Name="lumia.plugin.json" ShortName="iz6byeuh.jso" DiskId="1" Source="C:\Users\yulei\AppData\Local\Temp\msi_x\File\PhotoshopManifestFile" />
+                                    <RegistryValue Id="reg777A6FB8C8BD1BF6B167265BD04B06CA" Root="HKCU" Key="Software\Lumia\Installer\Components" Name="PhotoshopPluginManifest" Value="1" Type="integer" KeyPath="yes" />
+                                </Component>
+                            </Directory>
+                            <Directory Id="JpegXlPluginFolder" Name="lumia-plugin-jpeg-xl" ShortName="8khpzjdz">
+                                <Component Id="JpegXlPluginExecutable" Guid="{DF8F93B6-B909-4FE5-A3AE-CB4E615D76BF}" Win64="yes">
+                                    <File Id="JpegXlPluginExe" Name="lumia-plugin-jpeg-xl.exe" ShortName="96i1ceq_.exe" DiskId="1" Source="C:\Users\yulei\AppData\Local\Temp\msi_x\File\JpegXlPluginExe" />
+                                    <RegistryValue Id="regA40B8F8E73EB9AE5D7962645E05E7BBA" Root="HKCU" Key="Software\Lumia\Installer\Components" Name="JpegXlPluginExecutable" Value="1" Type="integer" KeyPath="yes" />
+                                    <RemoveFolder Id="RemoveJpegXlPluginFolder" Directory="JpegXlPluginFolder" On="uninstall" />
+                                </Component>
+                                <Component Id="JpegXlPluginManifest" Guid="{4F770A7B-C0D3-4DBD-9EB8-769701C56B41}" Win64="yes">
+                                    <File Id="JpegXlManifestFile" Name="lumia.plugin.json" ShortName="jmydrjym.jso" DiskId="1" Source="C:\Users\yulei\AppData\Local\Temp\msi_x\File\JpegXlManifestFile" />
+                                    <RegistryValue Id="reg6DB637FB82F732F2FEED0760F4728194" Root="HKCU" Key="Software\Lumia\Installer\Components" Name="JpegXlPluginManifest" Value="1" Type="integer" KeyPath="yes" />
+                                </Component>
+                            </Directory>
+                            <Directory Id="Jpeg2000PluginFolder" Name="lumia-plugin-jpeg2000" ShortName="pqt_scb9">
+                                <Component Id="Jpeg2000PluginExecutable" Guid="{721EA60E-AE5F-45C5-B84F-D77404113B5E}" Win64="yes">
+                                    <File Id="Jpeg2000PluginExe" Name="lumia-plugin-jpeg2000.exe" ShortName="s8ykthl0.exe" DiskId="1" Source="C:\Users\yulei\AppData\Local\Temp\msi_x\File\Jpeg2000PluginExe" />
+                                    <RegistryValue Id="regAED58CC4DAF392CEF8B4016C9C6004CE" Root="HKCU" Key="Software\Lumia\Installer\Components" Name="Jpeg2000PluginExecutable" Value="1" Type="integer" KeyPath="yes" />
+                                    <RemoveFolder Id="RemoveJpeg2000PluginFolder" Directory="Jpeg2000PluginFolder" On="uninstall" />
+                                </Component>
+                                <Component Id="Jpeg2000PluginManifest" Guid="{A2AC3C06-C17A-4CA3-B5BE-F32FC0B53070}" Win64="yes">
+                                    <File Id="Jpeg2000ManifestFile" Name="lumia.plugin.json" ShortName="vo2fjesn.jso" DiskId="1" Source="C:\Users\yulei\AppData\Local\Temp\msi_x\File\Jpeg2000ManifestFile" />
+                                    <RegistryValue Id="reg5913FB692CB7139921D8C2E60BFDB71E" Root="HKCU" Key="Software\Lumia\Installer\Components" Name="Jpeg2000PluginManifest" Value="1" Type="integer" KeyPath="yes" />
+                                </Component>
+                            </Directory>
+                        </Directory>
+                    </Directory>
+                </Directory>
+            </Directory>
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="ApplicationProgramsFolder" Name="Lumia">
+                    <Component Id="StartMenuShortcut" Guid="{C87C994B-6C7C-5062-AA0C-0C01C46F398E}" Win64="yes">
+                        <RegistryValue Id="reg6DC447524A0577F2833ACEC420E2B99F" Root="HKCU" Key="Software\Lumia\Installer" Name="StartMenuShortcut" Value="1" Type="integer" KeyPath="yes" />
+                        <RemoveFolder Id="RemoveApplicationProgramsFolder" Directory="ApplicationProgramsFolder" On="uninstall" />
+                        <Shortcut Id="ApplicationStartMenuShortcut" Directory="ApplicationProgramsFolder" Name="Lumia" Description="Lumia Image Viewer" Icon="ApplicationIcon" IconIndex="0" WorkingDirectory="APPLICATIONFOLDER" Advertise="yes" />
+                    </Component>
+                </Directory>
+            </Directory>
+        </Directory>
+        <Feature Id="DesktopShortcutFeature" AllowAdvertise="no" Description="Creates a shortcut on the current user's desktop." Display="hidden" Level="2" Title="Desktop shortcut">
+            <ComponentRef Id="DesktopShortcut" />
+        </Feature>
+        <Feature Id="Complete" Absent="disallow" AllowAdvertise="no" ConfigurableDirectory="APPLICATIONFOLDER" Description="Installs Lumia and its official Photoshop preview plugin." Display="expand" Level="1" Title="Lumia">
+            <ComponentRef Id="ApplicationExecutable" />
+            <ComponentRef Id="InstallerState" />
+            <ComponentRef Id="SvgThumbnailDll" />
+            <ComponentRef Id="PhotoshopPluginExecutable" />
+            <ComponentRef Id="PhotoshopPluginManifest" />
+            <ComponentRef Id="JpegXlPluginExecutable" />
+            <ComponentRef Id="JpegXlPluginManifest" />
+            <ComponentRef Id="Jpeg2000PluginExecutable" />
+            <ComponentRef Id="Jpeg2000PluginManifest" />
+            <ComponentRef Id="StartMenuShortcut" />
+        </Feature>
+        <Icon Id="ApplicationIcon" SourceFile="C:\Users\yulei\AppData\Local\Temp\msi_x\Icon\ApplicationIcon" />
+        <Media Id="1" Cabinet="cab1.cab" EmbedCab="yes" />
+        <Property Id="ARPPRODUCTICON" Value="ApplicationIcon" />
+        <Property Id="ARPHELPLINK" Value="https://github.com/iFence/lumia" />
+        <Property Id="LUMIA_NEWER_VERSION_DETECTED" Secure="yes" />
+        <Property Id="LUMIA_UPGRADE_DETECTED" Secure="yes" />
+        <Property Id="LASTINSTALLDIR">
+            <RegistrySearch Id="LastInstallDirSearch" Root="HKCU" Key="Software\Lumia\Installer" Name="LastInstallDir" Type="directory" />
+        </Property>
+        <UI>
+            <Dialog Id="InstallOptionsDlg" X="50" Y="50" Width="370" Height="270" Title="[ProductName] Setup">
+                <Control Id="DesktopShortcutCheckBox" Type="CheckBox" X="35" Y="105" Width="300" Height="18" Property="INSTALLDESKTOPSHORTCUT" Text="Create a desktop shortcut" CheckBoxValue="1" TabSkip="no" />
+                <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back" TabSkip="no">
+                    <Publish Event="NewDialog" Value="InstallDirDlg">1</Publish>
+                </Control>
+                <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Text="&amp;Next" TabSkip="no" Default="yes">
+                    <Publish Event="AddLocal" Value="DesktopShortcutFeature">INSTALLDESKTOPSHORTCUT="1"</Publish>
+                    <Publish Event="Remove" Value="DesktopShortcutFeature">INSTALLDESKTOPSHORTCUT&lt;&gt;"1"</Publish>
+                    <Publish Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+                </Control>
+                <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Text="Cancel" TabSkip="no" Cancel="yes">
+                    <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+                </Control>
+                <Control Id="Description" Type="Text" X="25" Y="55" Width="320" Height="30" Text="Choose the shortcuts you want Setup to create. A Start menu shortcut is always installed." TabSkip="yes" Transparent="yes" NoPrefix="yes" />
+                <Control Id="Title" Type="Text" X="25" Y="25" Width="320" Height="20" Text="Installation options" TabSkip="yes" Transparent="yes" NoPrefix="yes" />
+                <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" TabSkip="yes" Disabled="yes" />
+            </Dialog>
+        </UI>
+        <UIRef Id="WixUI_InstallDir" />
+        <Upgrade Id="{07618386-59AC-4B5C-B4E1-EBE4F8AA182E}">
+            <UpgradeVersion Minimum="0.2.2" Property="LUMIA_NEWER_VERSION_DETECTED" OnlyDetect="yes" />
+            <UpgradeVersion Minimum="0.0.0" Maximum="0.2.2" Property="LUMIA_UPGRADE_DETECTED" MigrateFeatures="yes" IncludeMinimum="yes" IncludeMaximum="yes" />
+        </Upgrade>
+        <InstallExecuteSequence>
+            <Custom Action="SetAPPLICATIONFOLDER" After="AppSearch">LASTINSTALLDIR</Custom>
+            <Custom Action="SetARPINSTALLLOCATION" After="CostFinalize" />
+            <RemoveExistingProducts After="InstallInitialize">LUMIA_UPGRADE_DETECTED</RemoveExistingProducts>
+        </InstallExecuteSequence>
+        <InstallUISequence>
+            <Custom Action="SetAPPLICATIONFOLDER" After="AppSearch">LASTINSTALLDIR</Custom>
+            <Custom Action="SetARPINSTALLLOCATION" After="CostFinalize" />
+            <Custom Action="SetINSTALLDESKTOPSHORTCUT" After="SetARPINSTALLLOCATION">&amp;DesktopShortcutFeature=3</Custom>
+        </InstallUISequence>
+    </Product>
+</Wix>

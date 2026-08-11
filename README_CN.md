@@ -49,6 +49,7 @@ Lumia 围绕四个能力层级组织：
 - **安装程序（推荐）**：选择简体中文或 English，然后按照安装向导操作。Lumia 及其官方 Photoshop、JPEG XL 和 JPEG 2000 预览插件安装在 `%LOCALAPPDATA%\Programs\Lumia` 下，通常不需要管理员权限。始终创建开始菜单快捷方式；可选的桌面快捷方式默认不创建。安装程序在继续之前还会移除检测到的旧版 `Program Files` 安装。
 - **MSI 包**：提供单独的 `en-US` 和 `zh-CN` MSI 文件，用于静默部署和故障排除。它们使用相同的每用户默认设置，但从旧版每机器 MSI 迁移必须使用安装程序或先卸载旧版本。
 - **便携版**：解压完整的 `.zip` 压缩包并运行 `lumia-app.exe`。保持包含的 `plugins` 目录与应用程序放在一起。要添加右键菜单支持，运行一次 `lumia-app --register-context-menu`。
+- **Explorer 中的 SVG 缩略图**：Windows 资源管理器默认无法预览 SVG。首次启动 Lumia 后，内置的缩略图处理器会自动注册，让 `.svg` / `.svgz` 文件在"大图标 / 超大图标"视图下显示真实缩略图。如需手动管理，可运行 `lumia-app --register-thumbnail-handler` 或 `lumia-app --unregister-thumbnail-handler`。若注册后仍显示通用图标，请重建资源管理器缩略图缓存：关闭资源管理器后删除 `%LocalAppData%\Microsoft\Windows\Explorer\thumbcache_*.db`，或直接重启资源管理器。
 
 ### macOS
 

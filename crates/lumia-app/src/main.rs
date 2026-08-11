@@ -149,10 +149,24 @@ fn main() -> anyhow::Result<()> {
         }
         #[cfg(target_os = "windows")]
         cli::CliCommand::RepairFileAssociations => shell::repair_legacy_file_associations(),
+        #[cfg(target_os = "windows")]
+        cli::CliCommand::RegisterThumbnailHandler => {
+            shell::register_svg_thumbnail_handler()?;
+            println!("Lumia registered the SVG thumbnail provider for Explorer.");
+            Ok(())
+        }
+        #[cfg(target_os = "windows")]
+        cli::CliCommand::UnregisterThumbnailHandler => {
+            shell::unregister_svg_thumbnail_handler()?;
+            println!("Lumia removed the SVG thumbnail provider from Explorer.");
+            Ok(())
+        }
         cli::CliCommand::OpenFile(path) => bootstrap::run_gui(Some(path)),
         cli::CliCommand::Normal => {
             #[cfg(target_os = "windows")]
             ensure_file_associations_on_first_launch();
+            #[cfg(target_os = "windows")]
+            ensure_svg_thumbnail_handler();
             bootstrap::run_gui(None)
         }
     }
@@ -171,6 +185,28 @@ fn ensure_file_associations_on_first_launch() {
                 log_windows_error("first_launch_file_associations", &err);
             }
         }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn ensure_svg_thumbnail_handler() {
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
+    let Some(exe_dir) = exe.parent() else {
+        return;
+    };
+    if shell::svg_thumbnail_handler_configured() {
+        return;
+    }
+    // Only register when the provider DLL actually ships next to the app; a
+    // bare executable (or a stripped portable copy) is not the right time to
+    // point Explorer at a missing server.
+    if !exe_dir.join("lumia_svg_thumbnail.dll").is_file() {
+        return;
+    }
+    if let Err(err) = shell::register_svg_thumbnail_handler() {
+        log_windows_error("first_launch_svg_thumbnail_handler", &err);
     }
 }
 

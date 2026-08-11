@@ -75,6 +75,7 @@ foreach ($msi in $msis) {
     Assert-Equal $icon "ApplicationIcon" "MSI icon table is missing Lumia icon"
     $requiredFiles = @{
         LumiaExecutable = "lumia-app.exe"
+        SvgThumbnailDll = "lumia_svg_thumbnail.dll"
         PhotoshopPluginExe = "lumia-plugin-photoshop.exe"
         PhotoshopManifestFile = "lumia.plugin.json"
         JpegXlPluginExe = "lumia-plugin-jpeg-xl.exe"
@@ -131,6 +132,7 @@ if ($InstallTest) {
     Invoke-Msi @("/i", "`"$msi`"", "/qn", "/norestart")
     try {
         if (-not (Test-Path (Join-Path $installDir "lumia-app.exe"))) { throw "Default MSI install is missing lumia-app.exe" }
+        if (-not (Test-Path (Join-Path $installDir "lumia_svg_thumbnail.dll"))) { throw "Default MSI install is missing lumia_svg_thumbnail.dll" }
         Assert-Shortcut $startMenuShortcut
         if (Test-Path $desktopShortcut) { throw "Default MSI install unexpectedly created a desktop shortcut" }
     } finally {
