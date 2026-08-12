@@ -14,6 +14,7 @@
 //! the shell process.
 
 use std::cell::RefCell;
+use std::mem::offset_of;
 use std::ptr;
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -69,6 +70,10 @@ pub extern "system" fn DllGetClassObject(
         if result != S_OK {
             OBJECT_COUNT.fetch_sub(1, Ordering::SeqCst);
             drop(Box::from_raw(factory));
+        } else {
+            // Hand the caller its reference and drop the factory's initial one
+            // so the object dies when the caller releases it.
+            class_factory_release(factory);
         }
         result
     }
@@ -139,17 +144,29 @@ fn read_stream_to_end(stream: *mut core::ffi::c_void, max_bytes: usize) -> Resul
 
 struct ThumbnailProvider {
     // The shell reads the vtable pointer through the raw COM object pointer;
-    // safe Rust never touches this field, so silence the dead-code lint.
+    // safe Rust never touches these fields, so silence the dead-code lint.
+    //
+    // `IInitializeWithStream::Initialize` and `IThumbnailProvider::GetThumbnail`
+    // both sit at vtable slot 3 (each interface starts with IUnknown's slots
+    // 0-2), so a single combined vtable cannot serve both. The object instead
+    // exposes two interface pointers, each with its own vtable:
+    //   * the base pointer (offset 0) is `IInitializeWithStream`;
+    //   * `IThumbnailProvider` is reached through `provider_vtable` at a fixed
+    //     offset, and its IUnknown/`GetThumbnail` methods convert back to the
+    //     base pointer before operating.
     #[allow(dead_code)]
-    vtable: &'static ThumbnailProviderVtbl,
+    init_vtable: &'static IInitializeWithStreamVtbl,
+    #[allow(dead_code)]
+    provider_vtable: &'static ThumbnailProviderVtbl,
     ref_count: AtomicU32,
     svg_bytes: RefCell<Option<Vec<u8>>>,
 }
 
-/// Combined vtable: `IUnknown` (slots 0-2), `IInitializeWithStream::Initialize`
-/// (slot 3), then `IThumbnailProvider::GetThumbnail` (slot 4).
+/// `IInitializeWithStream` vtable: `IUnknown` (slots 0-2), then `Initialize`
+/// (slot 3). The shell's first contact with the provider goes through this
+/// interface pointer (the base object).
 #[repr(C)]
-struct ThumbnailProviderVtbl {
+struct IInitializeWithStreamVtbl {
     query_interface: unsafe extern "system" fn(
         this: *mut ThumbnailProvider,
         riid: *const GUID,
@@ -162,30 +179,63 @@ struct ThumbnailProviderVtbl {
         stream: *mut core::ffi::c_void,
         grf_mode: u32,
     ) -> HRESULT,
+}
+
+/// `IThumbnailProvider` vtable: `IUnknown` (slots 0-2), then `GetThumbnail`
+/// (slot 3). `this` is the interface pointer (the address of the
+/// `provider_vtable` field), not the base object pointer.
+#[repr(C)]
+struct ThumbnailProviderVtbl {
+    query_interface: unsafe extern "system" fn(
+        this: *mut core::ffi::c_void,
+        riid: *const GUID,
+        ppv: *mut *mut core::ffi::c_void,
+    ) -> HRESULT,
+    add_ref: unsafe extern "system" fn(this: *mut core::ffi::c_void) -> u32,
+    release: unsafe extern "system" fn(this: *mut core::ffi::c_void) -> u32,
     get_thumbnail: unsafe extern "system" fn(
-        this: *mut ThumbnailProvider,
+        this: *mut core::ffi::c_void,
         cx: u32,
         phbmp: *mut HBITMAP,
         pdw_alpha: *mut WTS_ALPHATYPE,
     ) -> HRESULT,
 }
 
-static THUMBNAIL_PROVIDER_VTABLE: ThumbnailProviderVtbl = ThumbnailProviderVtbl {
+static IINITIALIZE_WITH_STREAM_VTABLE: IInitializeWithStreamVtbl = IInitializeWithStreamVtbl {
     query_interface: thumbnail_query_interface,
     add_ref: thumbnail_add_ref,
     release: thumbnail_release,
     initialize: thumbnail_initialize,
-    get_thumbnail: thumbnail_get_thumbnail,
+};
+
+static THUMBNAIL_PROVIDER_VTABLE: ThumbnailProviderVtbl = ThumbnailProviderVtbl {
+    query_interface: provider_query_interface,
+    add_ref: provider_add_ref,
+    release: provider_release,
+    get_thumbnail: provider_get_thumbnail,
 };
 
 impl ThumbnailProvider {
     fn new() -> Box<Self> {
         OBJECT_COUNT.fetch_add(1, Ordering::SeqCst);
         Box::new(Self {
-            vtable: &THUMBNAIL_PROVIDER_VTABLE,
+            init_vtable: &IINITIALIZE_WITH_STREAM_VTABLE,
+            provider_vtable: &THUMBNAIL_PROVIDER_VTABLE,
             ref_count: AtomicU32::new(1),
             svg_bytes: RefCell::new(None),
         })
+    }
+}
+
+/// Recover the base `ThumbnailProvider` from an `IThumbnailProvider` interface
+/// pointer, which points at the `provider_vtable` field.
+unsafe fn provider_to_base(provider_ptr: *mut core::ffi::c_void) -> *mut ThumbnailProvider {
+    // SAFETY: `provider_ptr` was produced by `thumbnail_query_interface` as the
+    // address of the `provider_vtable` field, so subtracting its offset lands
+    // on the base object.
+    unsafe {
+        let offset = offset_of!(ThumbnailProvider, provider_vtable) as isize;
+        (provider_ptr as *mut u8).offset(-offset) as *mut ThumbnailProvider
     }
 }
 
@@ -197,12 +247,15 @@ unsafe extern "system" fn thumbnail_query_interface(
     // SAFETY: `this`, `riid`, and `ppv` are valid COM call arguments.
     unsafe {
         let iid = &*riid;
-        if guid_eq(iid, &IID_IUnknown)
-            || guid_eq(iid, &IID_IINITIALIZE_WITH_STREAM)
-            || guid_eq(iid, &IID_ITHUMBNAIL_PROVIDER)
-        {
+        if guid_eq(iid, &IID_IUnknown) || guid_eq(iid, &IID_IINITIALIZE_WITH_STREAM) {
             (*this).ref_count.fetch_add(1, Ordering::SeqCst);
             *ppv = this as *mut core::ffi::c_void;
+            S_OK
+        } else if guid_eq(iid, &IID_ITHUMBNAIL_PROVIDER) {
+            (*this).ref_count.fetch_add(1, Ordering::SeqCst);
+            // The two interfaces disagree on slot 3, so hand back a distinct
+            // pointer into the object carrying `IThumbnailProvider`'s vtable.
+            *ppv = ptr::addr_of_mut!((*this).provider_vtable) as *mut core::ffi::c_void;
             S_OK
         } else {
             *ppv = ptr::null_mut();
@@ -293,6 +346,44 @@ unsafe extern "system" fn thumbnail_get_thumbnail(
         }
     }));
     result.unwrap_or(E_FAIL)
+}
+
+// --- `IThumbnailProvider` interface ----------------------------------------
+
+// These methods receive the `IThumbnailProvider` interface pointer, which is
+// the address of the `provider_vtable` field rather than the base object. They
+// convert back to the base and forward to the shared implementations above.
+
+unsafe extern "system" fn provider_query_interface(
+    provider_ptr: *mut core::ffi::c_void,
+    riid: *const GUID,
+    ppv: *mut *mut core::ffi::c_void,
+) -> HRESULT {
+    // SAFETY: `provider_ptr` is a valid interface pointer handed out by
+    // `thumbnail_query_interface`.
+    unsafe { thumbnail_query_interface(provider_to_base(provider_ptr), riid, ppv) }
+}
+
+unsafe extern "system" fn provider_add_ref(provider_ptr: *mut core::ffi::c_void) -> u32 {
+    // SAFETY: see `provider_query_interface`.
+    unsafe { thumbnail_add_ref(provider_to_base(provider_ptr)) }
+}
+
+unsafe extern "system" fn provider_release(provider_ptr: *mut core::ffi::c_void) -> u32 {
+    // SAFETY: see `provider_query_interface`; the pointer stays valid while the
+    // caller holds a reference.
+    unsafe { thumbnail_release(provider_to_base(provider_ptr)) }
+}
+
+unsafe extern "system" fn provider_get_thumbnail(
+    provider_ptr: *mut core::ffi::c_void,
+    cx: u32,
+    phbmp: *mut HBITMAP,
+    pdw_alpha: *mut WTS_ALPHATYPE,
+) -> HRESULT {
+    // SAFETY: see `provider_query_interface`; `cx`/`phbmp`/`pdw_alpha` mirror
+    // the arguments of `thumbnail_get_thumbnail`.
+    unsafe { thumbnail_get_thumbnail(provider_to_base(provider_ptr), cx, phbmp, pdw_alpha) }
 }
 
 // --- `IClassFactory` object -------------------------------------------------
@@ -460,8 +551,8 @@ mod tests {
         };
         assert_eq!(result, S_OK);
         assert!(!provider.is_null());
-        // SAFETY: `provider` is the caller's reference on the object.
-        unsafe { thumbnail_release(provider as *mut ThumbnailProvider) };
+        // SAFETY: `provider` is the caller's reference on the interface.
+        unsafe { provider_release(provider) };
 
         // Aggregation is not supported.
         let mut rejected = ptr::null_mut();
@@ -498,15 +589,28 @@ mod tests {
         assert_eq!(result, S_OK);
 
         // QueryInterface round-trips to `IThumbnailProvider` on the same object.
+        // `IThumbnailProvider` carries its own vtable, so its interface pointer
+        // differs from the base `IInitializeWithStream` pointer, but IUnknown
+        // identity and refcounting are shared across both.
         let provider_ptr = provider as *mut ThumbnailProvider;
         let mut provider_interface = ptr::null_mut();
         let result = unsafe {
             thumbnail_query_interface(provider_ptr, &IID_ITHUMBNAIL_PROVIDER, &mut provider_interface)
         };
         assert_eq!(result, S_OK);
-        assert_eq!(provider_interface, provider);
+        assert_ne!(provider_interface, provider);
+
+        // IUnknown queried through the `IThumbnailProvider` pointer resolves
+        // back to the same base object.
+        let mut unknown = ptr::null_mut();
+        let result = unsafe {
+            provider_query_interface(provider_interface, &IID_IUnknown, &mut unknown)
+        };
+        assert_eq!(result, S_OK);
+        assert_eq!(unknown, provider);
+
         // SAFETY: both references are released below.
-        unsafe { thumbnail_release(provider_interface as *mut ThumbnailProvider) };
+        unsafe { provider_release(provider_interface) };
         unsafe { thumbnail_release(provider_ptr) };
 
         release_factory(ppv);
