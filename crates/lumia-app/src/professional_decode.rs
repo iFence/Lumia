@@ -55,7 +55,7 @@ impl LumiaApp {
                         if let Some(document) = this.viewer.document_mut() {
                             document.metadata = Some(preview.metadata);
                         }
-                        this.loads.set_current_image(generation, preview.image);
+                        this.install_current_image(generation, preview.image);
                         this.release_retired_images(None, cx);
                         this.ui.error_message = None;
                         if this.viewer.rotation_quarter_turns() != 0 {
@@ -64,7 +64,7 @@ impl LumiaApp {
                     }
                     Err(ProfessionalDecodeError::Cancelled) => {}
                     Err(error) => {
-                        this.loads.clear_display_images();
+                        this.clear_displayed_images();
                         this.release_retired_images(None, cx);
                         this.ui.error_message = Some(professional_error_message(
                             this.settings.language,

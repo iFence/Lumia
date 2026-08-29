@@ -42,7 +42,7 @@ impl LumiaApp {
                 }
                 match decoded {
                     Ok(image) => {
-                        this.loads.set_current_image(generation, image);
+                        this.install_current_image(generation, image);
                         this.ui.error_message = None;
                         if this.viewer.rotation_quarter_turns() != 0 {
                             this.rebuild_rotated_image(None, cx);
@@ -118,7 +118,7 @@ impl LumiaApp {
                         match event {
                             AnimationEvent::Frame(frame) => {
                                 previous_delay = frame.delay;
-                                this.loads.set_current_image(
+                                this.install_current_image(
                                     generation,
                                     PreparedImage::from_decoded(frame.image),
                                 );
