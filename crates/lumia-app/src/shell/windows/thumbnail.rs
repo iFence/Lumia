@@ -100,7 +100,9 @@ pub(super) fn thumbnail_handler_configured(exe_dir: &Path) -> bool {
 
     let expected = normalize_windows_path(&exe_dir.join(THUMBNAIL_DLL).to_string_lossy());
     let inproc = hkcu
-        .open_subkey(format!(r"Software\Classes\CLSID\{THUMBNAIL_CLSID}\InprocServer32"))
+        .open_subkey(format!(
+            r"Software\Classes\CLSID\{THUMBNAIL_CLSID}\InprocServer32"
+        ))
         .ok()
         .and_then(|key| key.get_value::<String, _>("").ok())
         .map(|value| normalize_windows_path(&value));
@@ -117,9 +119,18 @@ mod tests {
 
     #[test]
     fn guid_comparison_is_brace_and_case_insensitive() {
-        assert_eq!(normalize_guid("{0f6f22c8-3077-4B32-a61c-7738e61f242b}"), normalize_guid(THUMBNAIL_CLSID));
-        assert_eq!(normalize_guid("0F6F22C8-3077-4B32-A61C-7738E61F242B"), normalize_guid(THUMBNAIL_CLSID));
-        assert_ne!(normalize_guid("{11111111-2222-3333-4444-555555555555}"), normalize_guid(THUMBNAIL_CLSID));
+        assert_eq!(
+            normalize_guid("{0f6f22c8-3077-4B32-a61c-7738e61f242b}"),
+            normalize_guid(THUMBNAIL_CLSID)
+        );
+        assert_eq!(
+            normalize_guid("0F6F22C8-3077-4B32-A61C-7738E61F242B"),
+            normalize_guid(THUMBNAIL_CLSID)
+        );
+        assert_ne!(
+            normalize_guid("{11111111-2222-3333-4444-555555555555}"),
+            normalize_guid(THUMBNAIL_CLSID)
+        );
     }
 
     #[test]

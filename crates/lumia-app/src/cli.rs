@@ -43,9 +43,7 @@ fn parse_args(mut args: impl Iterator<Item = OsString>) -> CliCommand {
         #[cfg(target_os = "windows")]
         Some(arg) if arg == "--repair-file-associations" => CliCommand::RepairFileAssociations,
         #[cfg(target_os = "windows")]
-        Some(arg) if arg == "--register-thumbnail-handler" => {
-            CliCommand::RegisterThumbnailHandler
-        }
+        Some(arg) if arg == "--register-thumbnail-handler" => CliCommand::RegisterThumbnailHandler,
         #[cfg(target_os = "windows")]
         Some(arg) if arg == "--unregister-thumbnail-handler" => {
             CliCommand::UnregisterThumbnailHandler

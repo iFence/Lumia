@@ -128,10 +128,7 @@ mod tests {
     fn accepts_gzip_compressed_svg() {
         use std::io::Write;
 
-        let mut gzip = flate2::write::GzEncoder::new(
-            Vec::new(),
-            flate2::Compression::default(),
-        );
+        let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
         gzip.write_all(RED_RECT.as_bytes()).unwrap();
         let compressed = gzip.finish().unwrap();
 

@@ -279,9 +279,7 @@ impl LumiaApp {
                             .child(label.resolve(language).to_string()),
                     )
                     .child(match input {
-                        Some(input) => Input::new(&input)
-                            .disabled(!active)
-                            .into_any_element(),
+                        Some(input) => Input::new(&input).disabled(!active).into_any_element(),
                         None => div().text_sm().child(value).into_any_element(),
                     })
                     .into_any_element()

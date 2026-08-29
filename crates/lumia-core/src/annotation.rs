@@ -95,7 +95,11 @@ impl AnnotationDocument {
                         *y = old_x;
                     }
                     Annotation::Rectangle {
-                        x, y, width: w, height: h, ..
+                        x,
+                        y,
+                        width: w,
+                        height: h,
+                        ..
                     } => {
                         let (old_x, old_y, old_w, old_h) = (*x, *y, *w, *h);
                         *x = height - (old_y + old_h);
@@ -156,10 +160,7 @@ mod tests {
         assert!(document.undo());
         assert_eq!(document.items(), [text_marker("one")]);
         assert!(document.redo());
-        assert_eq!(
-            document.items(),
-            [text_marker("one"), text_marker("two")]
-        );
+        assert_eq!(document.items(), [text_marker("one"), text_marker("two")]);
     }
 
     #[test]
@@ -195,7 +196,11 @@ mod tests {
         document.place(rect_marker());
         document.rotate_by(1, 100, 50);
         let Annotation::Rectangle {
-            x, y, width, height, ..
+            x,
+            y,
+            width,
+            height,
+            ..
         } = &document.items()[0]
         else {
             panic!("expected a rectangle annotation");
@@ -204,7 +209,11 @@ mod tests {
 
         document.rotate_by(3, 50, 100);
         let Annotation::Rectangle {
-            x, y, width, height, ..
+            x,
+            y,
+            width,
+            height,
+            ..
         } = &document.items()[0]
         else {
             panic!("expected a rectangle annotation");

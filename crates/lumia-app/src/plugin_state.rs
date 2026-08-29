@@ -154,12 +154,7 @@ impl PluginUiState {
         self.active
             .as_ref()
             .and_then(|session| session.canvas.as_ref())
-            .is_some_and(|canvas| {
-                matches!(
-                    canvas.settings,
-                    CanvasToolSettings::Text { .. }
-                )
-            })
+            .is_some_and(|canvas| matches!(canvas.settings, CanvasToolSettings::Text { .. }))
     }
 
     pub(crate) fn active_asset_path(&self, asset_id: &str) -> Option<std::path::PathBuf> {
@@ -306,8 +301,10 @@ impl LumiaApp {
                 match result {
                     Ok(update) => {
                         let tool_changed = match (&active.canvas, &update.canvas) {
-                            (Some(old), Some(new)) => std::mem::discriminant(&old.settings)
-                                != std::mem::discriminant(&new.settings),
+                            (Some(old), Some(new)) => {
+                                std::mem::discriminant(&old.settings)
+                                    != std::mem::discriminant(&new.settings)
+                            }
                             (None, Some(_)) | (Some(_), None) => true,
                             (None, None) => false,
                         };

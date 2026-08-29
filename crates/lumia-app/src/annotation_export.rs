@@ -207,14 +207,7 @@ fn draw_rectangle(
             let near_top = (py as f32 - y).abs() <= stroke;
             let near_bottom = ((y + height) - py as f32).abs() <= stroke;
             if near_left || near_right || near_top || near_bottom {
-                blend_bgra(
-                    &mut image.pixels_bgra8,
-                    image.width,
-                    px,
-                    py,
-                    color,
-                    opacity,
-                );
+                blend_bgra(&mut image.pixels_bgra8, image.width, px, py, color, opacity);
             }
         }
     }

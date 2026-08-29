@@ -5,10 +5,10 @@ use std::mem::size_of;
 use std::ptr;
 
 use windows_sys::Win32::Graphics::Gdi::{
-    CreateDIBSection, DeleteObject, BI_RGB, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, HBITMAP,
+    CreateDIBSection, DeleteObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HBITMAP,
     RGBQUAD,
 };
-use windows_sys::Win32::UI::Shell::{WTS_ALPHATYPE, WTSAT_ARGB, WTSAT_RGB};
+use windows_sys::Win32::UI::Shell::{WTSAT_ARGB, WTSAT_RGB, WTS_ALPHATYPE};
 
 /// Build a device-independent bitmap from `premultiplied_rgba`.
 ///
@@ -31,7 +31,9 @@ pub(crate) fn rgba_to_hbitmap(
         return Err(());
     }
 
-    let has_alpha = premultiplied_rgba.chunks_exact(4).any(|pixel| pixel[3] < 255);
+    let has_alpha = premultiplied_rgba
+        .chunks_exact(4)
+        .any(|pixel| pixel[3] < 255);
 
     let bitmap_info = BITMAPINFO {
         bmiHeader: BITMAPINFOHEADER {
@@ -79,8 +81,7 @@ pub(crate) fn rgba_to_hbitmap(
     // SAFETY: `bits` points to `width * height * 4` bytes owned by the DIB
     // section for the lifetime of `bitmap`.
     unsafe {
-        let destination =
-            std::slice::from_raw_parts_mut(bits as *mut u8, premultiplied_rgba.len());
+        let destination = std::slice::from_raw_parts_mut(bits as *mut u8, premultiplied_rgba.len());
         for (dst, src) in destination
             .chunks_exact_mut(4)
             .zip(premultiplied_rgba.chunks_exact(4))

@@ -363,7 +363,11 @@ impl LumiaApp {
         cx.notify();
     }
 
-    pub(crate) fn notify_canvas_operation(&self, operation: CanvasOperation, cx: &mut Context<Self>) {
+    pub(crate) fn notify_canvas_operation(
+        &self,
+        operation: CanvasOperation,
+        cx: &mut Context<Self>,
+    ) {
         let Some(active) = self.plugins.active.as_ref() else {
             return;
         };

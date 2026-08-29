@@ -42,9 +42,7 @@ pub(crate) fn tr_community(language: Language, key: CommunityTextKey) -> &'stati
             CommunityTextKey::CommunityInstall => "Install",
             CommunityTextKey::CommunityUpdate => "Update",
             CommunityTextKey::CommunityInstalled => "Installed",
-            CommunityTextKey::CommunityIncompatible => {
-                "Not compatible with this version of Lumia"
-            }
+            CommunityTextKey::CommunityIncompatible => "Not compatible with this version of Lumia",
             CommunityTextKey::CommunityDownloading => "Downloading",
             CommunityTextKey::CommunityAuthor => "by",
             CommunityTextKey::CommunityRequiresLumia => "Requires Lumia",
