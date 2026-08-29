@@ -2,7 +2,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use gpui::{AppContext, Context, Focusable, ParentElement, Window};
+use gpui::{AppContext, Context, Focusable, ParentElement, Pixels, Point, Window};
 use gpui_component::dialog::DialogButtonProps;
 use gpui_component::input::{Input, InputState};
 use gpui_component::WindowExt;
@@ -15,8 +15,56 @@ use lumia_core::{
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
 use crate::load_state::PreparedImage;
-use crate::{OpenFile, RotateClockwise, RotateCounterClockwise, ZoomFit, ZoomIn, ZoomOut};
+use crate::{
+    CloseComparison, CompareImages, OpenFile, RotateClockwise, RotateCounterClockwise,
+    ToggleComparisonTarget, ZoomFit, ZoomIn, ZoomOut,
+};
 
+impl LumiaApp {
+    pub(crate) fn compare_images(
+        &mut self,
+        _: &CompareImages,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.is_viewer_blocked() || self.image_path().is_none() {
+            return;
+        }
+        let handle = self.self_handle.clone();
+        cx.spawn(async move |_, cx| {
+            let picked = cx
+                .background_executor()
+                .spawn(async move {
+                    rfd::FileDialog::new()
+                        .add_filter("Images", supported_image_extensions())
+                        .pick_file()
+                })
+                .await;
+            if let Some(path) = picked {
+                let _ = handle.update(cx, |this, cx| this.start_comparison(path, cx));
+            }
+        })
+        .detach();
+    }
+
+    pub(crate) fn toggle_comparison_target_action(
+        &mut self,
+        _: &ToggleComparisonTarget,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.toggle_comparison_target(cx);
+    }
+
+    pub(crate) fn close_comparison_action(
+        &mut self,
+        _: &CloseComparison,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.close_comparison(cx);
+    }
+}
 impl LumiaApp {
     pub(crate) fn open_file(&mut self, _: &OpenFile, window: &mut Window, cx: &mut Context<Self>) {
         if !self.is_viewer_blocked() {
@@ -152,16 +200,92 @@ impl LumiaApp {
     }
 
     pub(crate) fn zoom_in_view(&mut self, window: &Window, cx: &mut Context<Self>) {
+        self.ui.show_zoom_menu = false;
+        // Comparison mode drives two viewports at once, so it owns its own
+        // stepped zoom. `compare_zoom_step` performs the FitToWindow
+        // conversion that `prepare_manual_zoom` does for the single viewer.
+        if self.comparison_active() {
+            self.compare_zoom_in(window, cx);
+            return;
+        }
         self.prepare_manual_zoom(window);
         self.viewer.viewport_mut().zoom_in();
-        self.ui.show_zoom_menu = false;
         self.refresh_large_image_tiles(window, cx);
         cx.notify();
     }
 
     pub(crate) fn zoom_out_view(&mut self, window: &Window, cx: &mut Context<Self>) {
+        self.ui.show_zoom_menu = false;
+        if self.comparison_active() {
+            self.compare_zoom_out(window, cx);
+            return;
+        }
         self.prepare_manual_zoom(window);
         self.viewer.viewport_mut().zoom_out();
+        self.refresh_large_image_tiles(window, cx);
+        cx.notify();
+    }
+
+    /// Scroll-wheel zoom anchored on the cursor position: the image point
+    /// under the cursor stays fixed while the scale steps.
+    ///
+    /// The pre-zoom scale is derived from the displayed image frame's real
+    /// on-screen bounds (captured each paint), and the post-zoom pan is set
+    /// absolutely so anchoring never depends on recomputing layout analytically.
+    pub(crate) fn scroll_zoom_at_cursor(
+        &mut self,
+        inward: bool,
+        cursor: Point<Pixels>,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.is_viewer_blocked() {
+            return;
+        }
+        // Convert FitToWindow to an equivalent ActualSize zoom first so the
+        // step multiplies the scale that is actually on screen.
+        self.prepare_manual_zoom(window);
+        let image_bounds = self.ui.viewer_image_bounds;
+        let surface_center = self.ui.viewer_surface_bounds.map(|bounds| bounds.center());
+        let dimensions = self.displayed_source_dimensions();
+        {
+            let viewport = self.viewer.viewport_mut();
+            if inward {
+                viewport.zoom_in();
+            } else {
+                viewport.zoom_out();
+            }
+        }
+        // The renderer sizes the frame from this function's output, so gate on
+        // it being known rather than trusting a letterboxed fallback element.
+        if image_bounds.is_some()
+            && surface_center.is_some()
+            && self.scaled_image_size(window).is_some()
+        {
+            if let (Some(image_bounds), Some(center), Some(dimensions)) =
+                (image_bounds, surface_center, dimensions)
+            {
+                let old_scale = f32::from(image_bounds.size.width) / dimensions.0 as f32;
+                let new_scale = self.viewer.viewport().zoom;
+                if old_scale > 1e-6 && old_scale.is_finite() && new_scale.is_finite() {
+                    let cursor_x = f32::from(cursor.x);
+                    let cursor_y = f32::from(cursor.y);
+                    let anchor_x = (cursor_x - f32::from(image_bounds.origin.x)) / old_scale;
+                    let anchor_y = (cursor_y - f32::from(image_bounds.origin.y)) / old_scale;
+                    // Frame origin that keeps the anchored point under the
+                    // cursor at the new scale.
+                    let origin_x = cursor_x - anchor_x * new_scale;
+                    let origin_y = cursor_y - anchor_y * new_scale;
+                    // The renderer places the frame at
+                    // center - dims*scale/2 + pan, so invert for the pan.
+                    let pan_x =
+                        origin_x - f32::from(center.x) + dimensions.0 as f32 * new_scale / 2.0;
+                    let pan_y =
+                        origin_y - f32::from(center.y) + dimensions.1 as f32 * new_scale / 2.0;
+                    self.viewer.viewport_mut().set_pan(pan_x, pan_y);
+                }
+            }
+        }
         self.ui.show_zoom_menu = false;
         self.refresh_large_image_tiles(window, cx);
         cx.notify();
@@ -197,7 +321,6 @@ impl LumiaApp {
         self.refresh_large_image_tiles(window, cx);
         cx.notify();
     }
-
     pub(crate) fn toggle_fit_or_actual_size(&mut self, window: &Window, cx: &mut Context<Self>) {
         if self.is_viewer_blocked() || !self.viewer.has_document() {
             return;
@@ -227,7 +350,11 @@ impl LumiaApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.rotate_display(1, window, cx);
+        if self.comparison_active() {
+            self.compare_rotate(1, window, cx);
+        } else {
+            self.rotate_display(1, window, cx);
+        }
     }
 
     pub(crate) fn rotate_counter_clockwise(
@@ -236,7 +363,11 @@ impl LumiaApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.rotate_display(3, window, cx);
+        if self.comparison_active() {
+            self.compare_rotate(3, window, cx);
+        } else {
+            self.rotate_display(3, window, cx);
+        }
     }
 
     pub(crate) fn rotate_display(

@@ -55,6 +55,19 @@ impl LumiaApp {
             .file_metadata()
             .map(|metadata| format_file_size(metadata.size_bytes))
             .unwrap_or_else(|| "--".to_string());
+        // While comparing, surface the reference (right) image next to the
+        // folder position so both panes are identifiable.
+        let position_label = match self.comparison.as_ref() {
+            Some(state) => {
+                let right_name = state
+                    .path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("?");
+                format!("{current}/{count} ⇄ {right_name}")
+            }
+            None => format!("{current}/{count}"),
+        };
         div()
             .id("status-bar")
             .when(!self.ui.status_bar_locked, |bar| {
@@ -92,7 +105,7 @@ impl LumiaApp {
                             cx.notify();
                         },
                     ))
-                    .child(self.render_status_text(format!("{current}/{count}"), palette))
+                    .child(self.render_status_text(position_label, palette))
                     .child(self.render_status_icon_button(
                         "status-next-image",
                         IconName::ChevronRight,
@@ -111,7 +124,11 @@ impl LumiaApp {
                         palette,
                         cx,
                         |this, _, window, cx| {
-                            this.rotate_display(3, window, cx);
+                            if this.comparison_active() {
+                                this.compare_rotate(3, window, cx);
+                            } else {
+                                this.rotate_display(3, window, cx);
+                            }
                         },
                     ))
                     .child(self.render_status_icon_button(
@@ -121,7 +138,11 @@ impl LumiaApp {
                         palette,
                         cx,
                         |this, _, window, cx| {
-                            this.rotate_display(1, window, cx);
+                            if this.comparison_active() {
+                                this.compare_rotate(1, window, cx);
+                            } else {
+                                this.rotate_display(1, window, cx);
+                            }
                         },
                     ))
                     .child(self.render_status_text(file_size, palette))
@@ -150,7 +171,11 @@ impl LumiaApp {
                         palette,
                         cx,
                         |this, _, window, cx| {
-                            this.toggle_fit_or_actual_size(window, cx);
+                            if this.comparison_active() {
+                                this.compare_toggle_fit(cx);
+                            } else {
+                                this.toggle_fit_or_actual_size(window, cx);
+                            }
                         },
                     ))
                     .child(self.render_status_zoom_button(
@@ -281,7 +306,10 @@ impl LumiaApp {
             )
             .child(format!(
                 "{:.0}%",
-                self.image_display_scale(window).unwrap_or(1.0) * 100.0
+                self.comparison_zoom_fraction()
+                    .or_else(|| self.image_display_scale(window))
+                    .unwrap_or(1.0)
+                    * 100.0
             ))
             .child(
                 Icon::new(if self.ui.show_zoom_menu {
@@ -347,42 +375,6 @@ impl LumiaApp {
             )
             .into_any_element()
     }
-    fn render_status_icon_button(
-        &self,
-        id: &'static str,
-        icon: impl Into<Icon>,
-        enabled: bool,
-        palette: Palette,
-        cx: &mut Context<Self>,
-        on_click: impl Fn(&mut LumiaApp, &MouseDownEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
-    ) -> AnyElement {
-        let icon_color = if enabled {
-            palette.text
-        } else {
-            palette.muted_text
-        };
-
-        div()
-            .id(id)
-            .w(px(28.0))
-            .h(px(24.0))
-            .flex()
-            .items_center()
-            .justify_center()
-            .rounded_sm()
-            .hover(move |style| style.bg(rgb(palette.status_hover)))
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |this, event, window, cx| {
-                    if enabled {
-                        on_click(this, event, window, cx);
-                    }
-                }),
-            )
-            .child(Icon::new(icon).size(px(16.0)).text_color(rgb(icon_color)))
-            .into_any_element()
-    }
-
     fn render_dimensions_button(
         &self,
         dimensions: String,
@@ -478,15 +470,6 @@ impl LumiaApp {
                 }
             })
             .child(button)
-            .into_any_element()
-    }
-
-    fn render_status_text(&self, label: impl Into<String>, palette: Palette) -> AnyElement {
-        div()
-            .px_2()
-            .text_sm()
-            .text_color(rgb(palette.muted_text))
-            .child(label.into())
             .into_any_element()
     }
 }

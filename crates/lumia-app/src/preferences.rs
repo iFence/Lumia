@@ -1,11 +1,12 @@
 use gpui::{Action, Context, KeyBinding, Window};
-use lumia_core::{default_shortcuts, Language, ShortcutId, ThemeAccent};
+use lumia_core::{default_shortcuts, Language, ResampleFilter, ShortcutId, ThemeAccent};
 
 use crate::app::LumiaApp;
 use crate::persistence::save_settings;
 use crate::{
-    About, ExitFullscreen, NextImage, OpenFile, OpenSettings, PreviousImage, Quit, SelectLanguage,
-    SelectThemeAccent, ToggleFullscreen, ToggleImageInfo, ZoomFit, ZoomIn, ZoomOut,
+    About, CloseComparison, CompareImages, ExitFullscreen, NextImage, OpenFile, OpenSettings,
+    PreviousImage, Quit, SelectLanguage, SelectResampleFilter, SelectThemeAccent,
+    ToggleComparisonTarget, ToggleFullscreen, ToggleImageInfo, ZoomFit, ZoomIn, ZoomOut,
 };
 
 impl LumiaApp {
@@ -27,6 +28,12 @@ impl LumiaApp {
         cx.notify();
     }
 
+    pub(crate) fn set_resample_filter(&mut self, filter: ResampleFilter, cx: &mut Context<Self>) {
+        self.settings.resample_filter = filter;
+        let _ = save_settings(&self.settings);
+        cx.notify();
+    }
+
     pub(crate) fn apply_selected_language(
         &mut self,
         action: &SelectLanguage,
@@ -43,6 +50,15 @@ impl LumiaApp {
         cx: &mut Context<Self>,
     ) {
         self.set_theme_accent(action.0, cx);
+    }
+
+    pub(crate) fn apply_selected_resample_filter(
+        &mut self,
+        action: &SelectResampleFilter,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_resample_filter(action.0, cx);
     }
 
     pub(crate) fn rebuild_keybindings(&self, cx: &mut Context<Self>) {
@@ -97,6 +113,13 @@ impl LumiaApp {
         if let Some(key) = shortcuts.get(&ShortcutId::Quit) {
             bindings.push(KeyBinding::new(key.as_str(), Quit, Some("Lumia")));
         }
+        bindings.push(KeyBinding::new("ctrl-alt-c", CompareImages, Some("Lumia")));
+        bindings.push(KeyBinding::new(
+            "tab",
+            ToggleComparisonTarget,
+            Some("Lumia"),
+        ));
+        bindings.push(KeyBinding::new("escape", CloseComparison, Some("Lumia")));
         cx.bind_keys(bindings);
     }
 
