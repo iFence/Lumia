@@ -2,7 +2,7 @@ use gpui::{
     div, px, rgb, Context, InteractiveElement, IntoElement, ParentElement,
     StatefulInteractiveElement, Styled, Window,
 };
-use lumia_core::{Language, SettingsGroup, ShortcutId, ThemeAccent};
+use lumia_core::{Language, ResampleFilter, SettingsGroup, ShortcutId, ThemeAccent};
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
@@ -13,6 +13,14 @@ pub(crate) fn language_text_key(language: Language) -> TextKey {
     match language {
         Language::English => TextKey::English,
         Language::Chinese => TextKey::Chinese,
+    }
+}
+
+pub(crate) fn resample_filter_text_key(filter: ResampleFilter) -> TextKey {
+    match filter {
+        ResampleFilter::NearestNeighbor => TextKey::FilterNearestNeighbor,
+        ResampleFilter::Bilinear => TextKey::FilterBilinear,
+        ResampleFilter::Lanczos => TextKey::FilterLanczos,
     }
 }
 
