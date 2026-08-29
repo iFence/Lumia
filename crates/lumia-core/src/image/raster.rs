@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use super::{decode_heic, DecodeCancellation, DecodePolicy, DecodedImage, ImageLoadError};
+use crate::settings::ResampleFilter;
 
 pub fn decoded_image_from_rgba(
     mut rgba: Vec<u8>,
@@ -134,6 +135,42 @@ pub fn rotate_decoded_image(
     )
 }
 
+/// Resample a decoded image to `target_width` x `target_height` with the
+/// given filter. Channel order is preserved byte-for-byte; only pixel
+/// positions change.
+pub fn resize_decoded_image(
+    decoded: &DecodedImage,
+    filter: ResampleFilter,
+    target_width: u32,
+    target_height: u32,
+) -> Result<DecodedImage, ImageLoadError> {
+    if target_width == 0 || target_height == 0 {
+        return Err(invalid_buffer_length("target"));
+    }
+    let source_len = pixel_buffer_len(decoded.width, decoded.height)?;
+    if decoded.pixels_bgra8.len() != source_len {
+        return Err(invalid_buffer_length("BGRA"));
+    }
+    let filter_type = match filter {
+        ResampleFilter::NearestNeighbor => image::imageops::FilterType::Nearest,
+        ResampleFilter::Bilinear => image::imageops::FilterType::Triangle,
+        ResampleFilter::Lanczos => image::imageops::FilterType::Lanczos3,
+    };
+    let source =
+        image::RgbaImage::from_raw(decoded.width, decoded.height, decoded.pixels_bgra8.clone())
+            .ok_or_else(invalid_buffer_length_bgra)?;
+    let resized = image::imageops::resize(&source, target_width, target_height, filter_type);
+    Ok(DecodedImage {
+        pixels_bgra8: resized.into_raw(),
+        width: target_width,
+        height: target_height,
+    })
+}
+
+fn invalid_buffer_length_bgra() -> ImageLoadError {
+    invalid_buffer_length("BGRA")
+}
+
 pub fn rotate_bgra8(
     source_bgra8: &[u8],
     source_width: u32,
@@ -233,5 +270,45 @@ mod tests {
             })
         ));
         assert!(validate_output_size(2, 2, 16).is_ok());
+    }
+
+    #[test]
+    fn resize_preserves_channel_order_and_target_dimensions() {
+        // Two horizontal pixels: red then blue (BGRA-named buffer, channels
+        // must survive untouched).
+        let decoded = DecodedImage {
+            pixels_bgra8: vec![1, 2, 3, 255, 4, 5, 6, 255],
+            width: 2,
+            height: 1,
+        };
+
+        let resized =
+            resize_decoded_image(&decoded, ResampleFilter::NearestNeighbor, 4, 2).unwrap();
+
+        assert_eq!(resized.width, 4);
+        assert_eq!(resized.height, 2);
+        for pixel in resized.pixels_bgra8.chunks_exact(4) {
+            assert!(
+                pixel == [1, 2, 3, 255] || pixel == [4, 5, 6, 255],
+                "unexpected pixel {pixel:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn resize_rejects_zero_targets_and_bad_buffers() {
+        let decoded = DecodedImage {
+            pixels_bgra8: vec![0; 8],
+            width: 2,
+            height: 1,
+        };
+        assert!(resize_decoded_image(&decoded, ResampleFilter::Lanczos, 0, 4).is_err());
+        assert!(resize_decoded_image(&decoded, ResampleFilter::Lanczos, 4, 0).is_err());
+        let short = DecodedImage {
+            pixels_bgra8: vec![0; 4],
+            width: 2,
+            height: 1,
+        };
+        assert!(resize_decoded_image(&short, ResampleFilter::Bilinear, 4, 4).is_err());
     }
 }

@@ -71,6 +71,33 @@ pub enum FitMode {
     FitWidth,
 }
 
+/// Pan adjustment that keeps the image point under `cursor` stationary while
+/// the effective display scale changes from `old_scale` to `new_scale`.
+///
+/// The viewer layout must be a pane centered at `center` that shows the image
+/// offset by `pan`, where the image occupies `display_size` screen pixels
+/// before the zoom change. Returns the `(dx, dy)` delta to add to both pan
+/// offsets of every viewport that must stay aligned with the anchored one.
+pub fn anchor_pan_delta(
+    old_scale: f32,
+    new_scale: f32,
+    cursor: (f32, f32),
+    center: (f32, f32),
+    pan: (f32, f32),
+    display_size: (f32, f32),
+) -> (f32, f32) {
+    if old_scale <= 0.0 || new_scale <= 0.0 {
+        return (0.0, 0.0);
+    }
+    let image_x = (cursor.0 - center.0 + display_size.0 / 2.0 - pan.0) / old_scale;
+    let image_y = (cursor.1 - center.1 + display_size.1 / 2.0 - pan.1) / old_scale;
+    let scale_delta = new_scale - old_scale;
+    (
+        scale_delta * (display_size.0 / 2.0 - image_x),
+        scale_delta * (display_size.1 / 2.0 - image_y),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -120,5 +147,35 @@ mod tests {
         assert_eq!(viewport.pan_x, 0.0);
         assert_eq!(viewport.pan_y, 0.0);
         assert_eq!(viewport.fit_mode, FitMode::ActualSize);
+    }
+
+    #[test]
+    fn anchor_pan_delta_keeps_cursor_point_stationary() {
+        // Pane centered at (400, 300); a 100x80 image shown at scale 1 with
+        // no pan sits at (350, 260)..(450, 340).
+        let center = (400.0, 300.0);
+        let display = (100.0, 80.0);
+        let pan = (12.0, -6.0);
+        let cursor = (420.0, 280.0);
+
+        for new_scale in [0.25_f32, 0.5, 1.5, 2.0, 4.0] {
+            let (dx, dy) = anchor_pan_delta(1.0, new_scale, cursor, center, pan, display);
+            let image_x = (cursor.0 - center.0 + display.0 / 2.0 - pan.0) / 1.0;
+            let image_y = (cursor.1 - center.1 + display.1 / 2.0 - pan.1) / 1.0;
+            let position_x =
+                center.0 - display.0 * new_scale / 2.0 + (pan.0 + dx) + image_x * new_scale;
+            let position_y =
+                center.1 - display.1 * new_scale / 2.0 + (pan.1 + dy) + image_y * new_scale;
+            assert!((position_x - cursor.0).abs() < 1e-4);
+            assert!((position_y - cursor.1).abs() < 1e-4);
+        }
+    }
+
+    #[test]
+    fn anchor_pan_delta_ignores_degenerate_scales() {
+        let delta = anchor_pan_delta(0.0, 2.0, (10.0, 10.0), (0.0, 0.0), (0.0, 0.0), (8.0, 8.0));
+        assert_eq!(delta, (0.0, 0.0));
+        let delta = anchor_pan_delta(1.0, -1.0, (10.0, 10.0), (0.0, 0.0), (0.0, 0.0), (8.0, 8.0));
+        assert_eq!(delta, (0.0, 0.0));
     }
 }
