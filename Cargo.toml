@@ -27,7 +27,7 @@ base64 = "0.22"
 chrono = "0.4"
 dirs = "6.0"
 gpui = { git = "https://github.com/zed-industries/zed" }
-gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["font-kit"] }
+gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["font-kit", "wayland"] }
 gpui-component = { git = "https://github.com/longbridge/gpui-component" }
 gpui-component-assets = { git = "https://github.com/longbridge/gpui-component" }
 http_client = { git = "https://github.com/zed-industries/zed" }
