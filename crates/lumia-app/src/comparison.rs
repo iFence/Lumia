@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
 use gpui::{
-    div, img, px, rgb, AnyElement, Bounds, InteractiveElement, IntoElement, ObjectFit,
+    div, img, px, rgb, AnyElement, Bounds, Context, InteractiveElement, IntoElement, ObjectFit,
     ParentElement, Pixels, Styled, StyledImage, Window,
 };
-use lumia_core::{rotate_bgra8, FitMode, ViewportState};
+use lumia_core::{rotate_bgra8, FitMode, FolderNavigation, ViewportState};
 
 use crate::app::LumiaApp;
 use crate::display_resample::{pane_fit_scale, ResampleKey};
@@ -25,6 +25,15 @@ pub(crate) struct ComparisonState {
     pub(crate) individual_target: Option<bool>,
     pub(crate) loading: bool,
     pub(crate) error: Option<String>,
+    /// Siblings of `path` in its own folder, so the right pane steps through
+    /// its directory independently of the left pane's.
+    pub(crate) navigation: FolderNavigation,
+    /// Size of `path` on disk, surfaced beside the left pane's in the status
+    /// bar. Read alongside the decode rather than on the render path.
+    pub(crate) file_size: Option<u64>,
+    /// Defers the fit reset until the incoming decode lands. Navigation must
+    /// not re-scale the outgoing image, which stays on screen until then.
+    pending_fit_reset: bool,
     /// Screen-space pane bounds captured each frame, used to anchor
     /// scroll-wheel zoom on the cursor position.
     pub(crate) left_pane_bounds: Option<Bounds<Pixels>>,
@@ -48,6 +57,9 @@ impl ComparisonState {
             individual_target: None,
             loading: true,
             error: None,
+            navigation: FolderNavigation::default(),
+            file_size: None,
+            pending_fit_reset: false,
             left_pane_bounds: None,
             right_pane_bounds: None,
             left_image_bounds: None,
@@ -55,6 +67,35 @@ impl ComparisonState {
             left_resample: Default::default(),
             right_resample: Default::default(),
         }
+    }
+
+    /// Point the pane at a new file. The previous bitmap deliberately stays in
+    /// `image` so the pane keeps showing it until the replacement decodes,
+    /// which is what stops navigation from flashing an empty frame.
+    ///
+    /// Rotation resets like the left pane's: a new document starts upright,
+    /// and the previous image is then drawn unrotated while it waits.
+    pub(crate) fn begin_load(&mut self, path: PathBuf) {
+        self.path = path;
+        self.loading = true;
+        self.error = None;
+        self.file_size = None;
+        self.rotation_quarter_turns = 0;
+        self.rotated_image = None;
+        self.pending_fit_reset = true;
+    }
+
+    /// Consume a deferred fit reset. Taking rather than reading makes this a
+    /// no-op on every later call, so animation frames are safe.
+    pub(crate) fn take_pending_fit_reset(&mut self) -> bool {
+        std::mem::take(&mut self.pending_fit_reset)
+    }
+
+    /// Drop both bitmaps. Used when a decode fails so a stale image from the
+    /// previous file is never left on screen under an error state.
+    pub(crate) fn clear_image(&mut self) {
+        self.image = None;
+        self.rotated_image = None;
     }
 
     /// Image the right pane should draw: the rotated copy while a rotation is
@@ -89,6 +130,32 @@ impl ComparisonState {
     }
 }
 
+/// Next target after a pane chip is clicked: clicking the pane that is
+/// already targeted clears the target so both panes move together again,
+/// clicking the other pane moves the target across.
+pub(crate) fn next_pane_target(current: Option<bool>, clicked_right: bool) -> Option<bool> {
+    if current == Some(clicked_right) {
+        None
+    } else {
+        Some(clicked_right)
+    }
+}
+
+/// Per-pane figures rendered as a status-bar chip while comparing.
+///
+/// Every field is optional: a pane that has not decoded yet still gets a chip
+/// so the two panes keep their places instead of the bar reflowing once the
+/// image arrives.
+pub(crate) struct PaneSummary {
+    pub(crate) label: &'static str,
+    pub(crate) position: Option<(usize, usize)>,
+    pub(crate) dimensions: Option<(u32, u32)>,
+    pub(crate) file_size: Option<u64>,
+    /// True when this pane receives the current transform commands. Both chips
+    /// read as selected while no pane is individually targeted.
+    pub(crate) selected: bool,
+}
+
 /// Effective on-screen size of an image in a pane, following the renderer's
 /// fit-or-zoom rule. Returns `None` while dimensions are unknown.
 pub(crate) fn pane_display_size(
@@ -109,14 +176,13 @@ pub(crate) fn pane_display_size(
 }
 
 fn pane_resample_key(
-    source: &PreparedImage,
+    dimensions: (u32, u32),
     path: &std::path::Path,
     filter: lumia_core::ResampleFilter,
     viewport: &ViewportState,
     pane_bounds: Option<Bounds<Pixels>>,
 ) -> Option<ResampleKey> {
-    let (width, height) =
-        pane_display_size(viewport, source.dimensions(), pane_bounds.map(|b| b.size))?;
+    let (width, height) = pane_display_size(viewport, dimensions, pane_bounds.map(|b| b.size))?;
     Some(ResampleKey {
         path: path.to_path_buf(),
         filter,
@@ -126,11 +192,48 @@ fn pane_resample_key(
 }
 
 impl LumiaApp {
+    /// Summaries for the left (A) and right (B) panes, in display order.
+    /// `None` outside comparison mode, where the status bar shows a single
+    /// folder position instead.
+    pub(crate) fn comparison_pane_summaries(&self) -> Option<[PaneSummary; 2]> {
+        let state = self.comparison.as_ref()?;
+        let target = state.individual_target;
+        let right_position = state
+            .navigation
+            .current_index(&state.path)
+            .map(|index| (index + 1, state.navigation.len()));
+        Some([
+            PaneSummary {
+                label: "A",
+                position: self.current_image_position(),
+                dimensions: self.viewer.display_dimensions(),
+                file_size: self.loads.file_metadata().map(|meta| meta.size_bytes),
+                selected: target != Some(true),
+            },
+            PaneSummary {
+                label: "B",
+                position: right_position,
+                dimensions: state.display_image().map(PreparedImage::dimensions),
+                file_size: state.file_size,
+                selected: target != Some(false),
+            },
+        ])
+    }
+
+    /// Select a pane as the target for transform commands, or clear the
+    /// selection when the same pane is clicked again.
+    pub(crate) fn select_comparison_pane(&mut self, right: bool, cx: &mut Context<Self>) {
+        let Some(state) = self.comparison.as_mut() else {
+            return;
+        };
+        state.individual_target = next_pane_target(state.individual_target, right);
+        cx.notify();
+    }
+
     /// Effective scale of the viewport comparison input currently targets;
     /// drives the status-bar zoom readout.
     pub(crate) fn comparison_zoom_fraction(&self) -> Option<f32> {
         let state = self.comparison.as_ref()?;
-        let rotation = self.viewer.rotation_quarter_turns();
         let (viewport, dimensions, bounds) = match state.individual_target {
             Some(true) => (
                 &state.viewport,
@@ -139,9 +242,7 @@ impl LumiaApp {
             ),
             _ => (
                 self.viewer.viewport(),
-                self.loads
-                    .display_image(rotation)
-                    .map(PreparedImage::dimensions),
+                self.viewer.display_dimensions(),
                 state.left_pane_bounds,
             ),
         };
@@ -170,13 +271,21 @@ impl LumiaApp {
             .as_ref()
             .zip(self.image_path())
             .and_then(|(base, path)| {
-                pane_resample_key(base, path, filter, left_viewport, state.left_pane_bounds)
+                pane_resample_key(
+                    self.viewer
+                        .display_dimensions()
+                        .unwrap_or_else(|| base.dimensions()),
+                    path,
+                    filter,
+                    left_viewport,
+                    state.left_pane_bounds,
+                )
             })
             .and_then(|key| state.left_resample.ready(&key));
         let right_override = right
             .and_then(|base| {
                 pane_resample_key(
-                    base,
+                    base.dimensions(),
                     &state.path,
                     filter,
                     right_viewport,
@@ -203,7 +312,9 @@ impl LumiaApp {
                     viewport: &ViewportState,
                     pane_size: gpui::Size<Pixels>,
                     active: bool,
-                    capture: Option<(gpui::WeakEntity<LumiaApp>, bool)>| {
+                    capture: Option<(gpui::WeakEntity<LumiaApp>, bool)>,
+                    empty_message: Option<&str>,
+                    tiled: Option<AnyElement>| {
             let mut pane_div = div()
                 .flex_1()
                 .h_full()
@@ -241,19 +352,24 @@ impl LumiaApp {
                 pane_div = pane_div.child(
                     div()
                         .relative()
+                        .flex_shrink_0()
                         .left(px(viewport.pan_x))
                         .top(px(viewport.pan_y))
                         .w(px(source_dims.0 as f32 * scale))
                         .h(px(source_dims.1 as f32 * scale))
-                        .child(
+                        .child(tiled.unwrap_or_else(|| {
                             img(image.render_image())
                                 .size_full()
-                                .object_fit(ObjectFit::Contain),
-                        ),
+                                .object_fit(ObjectFit::Contain)
+                                .into_any_element()
+                        })),
                 );
             } else {
-                pane_div =
-                    pane_div.child(status_message(id, "Loading image...", palette.muted_text));
+                pane_div = pane_div.child(status_message(
+                    id,
+                    empty_message.unwrap_or("Loading image..."),
+                    palette.muted_text,
+                ));
             }
             if active {
                 pane_div = pane_div.border_2().border_color(rgb(palette.accent));
@@ -261,22 +377,28 @@ impl LumiaApp {
             pane_div.into_any_element()
         };
 
-        let left_source_dims = left.map(PreparedImage::dimensions);
+        let left_source_dims = self.viewer.display_dimensions();
         let right_source_dims = right.map(PreparedImage::dimensions);
         let right = state.display_image().cloned();
+        let left_override = left_override.or_else(|| {
+            self.image_path()
+                .and_then(|path| state.left_resample.latest_for(path))
+        });
+        let left_tiled = if left_override.is_some() {
+            None
+        } else {
+            self.render_large_image_content(window)
+        };
         let left_pane = pane(
             "comparison-left",
-            left_override
-                .or_else(|| {
-                    self.image_path()
-                        .and_then(|path| state.left_resample.latest_for(path))
-                })
-                .or_else(|| left.cloned()),
+            left_override.or_else(|| left.cloned()),
             left_source_dims.unwrap_or((1, 1)),
             left_viewport,
             left_pane_size,
             state.individual_target == Some(false),
             Some((self.self_handle.clone(), false)),
+            None,
+            left_tiled,
         );
         let right_pane = pane(
             "comparison-right",
@@ -288,6 +410,8 @@ impl LumiaApp {
             right_pane_size,
             state.individual_target == Some(true),
             Some((self.self_handle.clone(), true)),
+            state.error.as_deref(),
+            None,
         );
 
         let capture = self.self_handle.clone();
@@ -301,9 +425,13 @@ impl LumiaApp {
                 .flex()
                 .on_children_prepainted(move |bounds, _, cx| {
                     if let Some(bounds) = bounds.first() {
-                        let _ = handle.update(cx, |this, _| {
+                        let _ = handle.update(cx, |this, cx| {
                             if let Some(state) = this.comparison.as_mut() {
-                                *pick(state) = Some(*bounds);
+                                let slot = pick(state);
+                                if *slot != Some(*bounds) {
+                                    *slot = Some(*bounds);
+                                    cx.notify();
+                                }
                             }
                         });
                     }

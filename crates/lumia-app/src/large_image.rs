@@ -53,6 +53,7 @@ pub(crate) struct LargeImageSession<T> {
     pixel_budget: PixelBudget,
     retired_tiles: Vec<T>,
     raster_building: bool,
+    view_geometry: Option<LargeImageViewGeometry>,
 }
 
 impl<T> Default for LargeImageSession<T> {
@@ -90,6 +91,7 @@ impl<T> LargeImageSession<T> {
             pixel_budget: PixelBudget::new(16 * 1024 * 1024),
             retired_tiles: Vec::new(),
             raster_building: false,
+            view_geometry: None,
         }
     }
 
@@ -119,6 +121,7 @@ impl<T> LargeImageSession<T> {
         self.detail_error = None;
         self.active_tiles = 0;
         self.raster_building = false;
+        self.view_geometry = None;
     }
 
     pub(crate) fn matches(&self, generation: u64, path: &Path) -> bool {
@@ -257,6 +260,7 @@ impl<T> LargeImageSession<T> {
     }
 
     pub(crate) fn clear_tile_requests(&mut self) {
+        self.view_geometry = None;
         self.visible_queue.clear();
         self.prefetch_queue.clear();
     }
@@ -274,7 +278,8 @@ impl LumiaApp {
         let Some((width, height)) = self.viewer.display_dimensions() else {
             return;
         };
-        let Some(scale) = self.image_display_scale(window) else {
+        let Some((viewport_width, viewport_height, scale)) = self.large_image_viewport(window)
+        else {
             return;
         };
         if let Some(preview) = self.loads.current_image() {
@@ -286,7 +291,6 @@ impl LumiaApp {
                 return;
             }
         }
-        let (viewport_width, viewport_height) = self.viewer_available_size(window);
         let Some(geometry) = LargeImageViewGeometry::calculate(
             width,
             height,
@@ -297,8 +301,13 @@ impl LumiaApp {
             self.viewer.viewport().pan_y,
             self.viewer.rotation_quarter_turns(),
         ) else {
+            self.large_image.clear_tile_requests();
             return;
         };
+        if self.large_image.view_geometry.as_ref() == Some(&geometry) {
+            return;
+        }
+        self.large_image.view_geometry = Some(geometry.clone());
         self.large_image
             .queue_tiles(geometry.visible_tiles, geometry.prefetch_tiles);
         self.start_large_image_tile_jobs(cx);

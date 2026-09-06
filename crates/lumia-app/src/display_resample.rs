@@ -37,7 +37,12 @@ pub(crate) enum ResampleSlot {
 
 pub(crate) struct ResampleRequest {
     key: ResampleKey,
-    source: Arc<RenderImage>,
+    source: ResampleSource,
+}
+
+enum ResampleSource {
+    Bitmap(Arc<RenderImage>),
+    Raster(lumia_core::LargeImageRaster),
 }
 
 /// Caches one filtered, display-sized bitmap per slot and schedules the
@@ -78,6 +83,25 @@ impl ResamplePreview {
             Some(key) if key.path == path => self.image.clone(),
             _ => None,
         }
+    }
+
+    /// Drop the cached bitmap and abandon any running job.
+    ///
+    /// A cached bitmap is only valid for the source image it was produced
+    /// from, so this must run whenever that source is replaced. Navigation
+    /// changes the pane's path before the replacement decodes, which leaves a
+    /// window where the cache answers for the new path while still holding the
+    /// outgoing image's pixels; clearing it here keeps the incoming image on
+    /// its own unfiltered bitmap until its resample finishes.
+    pub(crate) fn invalidate(&mut self) {
+        self.cancel_job();
+        // Bumping the generation makes an in-flight completion a no-op, so it
+        // cannot repopulate the cache after this point.
+        self.generation = self.generation.wrapping_add(1);
+        self.key = None;
+        self.ready_key = None;
+        self.pending = false;
+        self.image = None;
     }
 
     /// Schedule (or drop) the pending request for this preview. Passing
@@ -196,12 +220,24 @@ impl LumiaApp {
     /// Refresh the pending resample requests for the main viewer and, when
     /// comparison mode is active, both comparison panes.
     pub(crate) fn schedule_viewer_resamples(&mut self, window: &Window, cx: &mut Context<Self>) {
+        if self.comparison.is_some()
+            && self.viewer.rotation_quarter_turns() == 0
+            && self.large_image.begin_raster_build()
+        {
+            self.start_large_image_raster_build(cx);
+        }
         let filter = self.settings.resample_filter;
         let handle = self.self_handle.clone();
         let rotation = self.viewer.rotation_quarter_turns();
 
         let main_display = self.scaled_image_size(window);
-        let base = self.loads.display_image(rotation);
+        // Tiled sources already have a preview and a detail layer. Resizing
+        // their preview cannot create detail and competes with tile jobs.
+        let base = self.loads.display_image(rotation).filter(|_| {
+            !self
+                .image_path()
+                .is_some_and(|path| self.large_image.is_active(path))
+        });
         let main_request = plan_display_resample(base, self.image_path(), filter, main_display);
 
         // Snapshot before the match: both are immutable reads and
@@ -237,7 +273,7 @@ impl LumiaApp {
             ),
         };
 
-        let left_request = match (base.as_ref(), self.image_path(), left_bounds) {
+        let mut left_request = match (base.as_ref(), self.image_path(), left_bounds) {
             (Some(source), Some(path), Some(bounds)) => crate::comparison::pane_display_size(
                 &left_viewport,
                 source.dimensions(),
@@ -246,6 +282,32 @@ impl LumiaApp {
             .and_then(|display| build_request(source, path, filter, display)),
             _ => None,
         };
+        if rotation == 0 {
+            if let (Some(raster), Some(path), Some(bounds)) =
+                (self.large_image.raster(), self.image_path(), left_bounds)
+            {
+                left_request = crate::comparison::pane_display_size(
+                    &left_viewport,
+                    raster.dimensions(),
+                    Some(bounds.size),
+                )
+                .and_then(|display| {
+                    let width = display.0.round().max(1.0) as u32;
+                    let height = display.1.round().max(1.0) as u32;
+                    (u64::from(width) * u64::from(height) <= MAX_RESAMPLE_PIXELS).then(|| {
+                        ResampleRequest {
+                            key: ResampleKey {
+                                path: path.to_path_buf(),
+                                filter,
+                                width,
+                                height,
+                            },
+                            source: ResampleSource::Raster(raster),
+                        }
+                    })
+                });
+            }
+        }
         let right_request = match (
             comparison_image.as_ref(),
             comparison_path.as_deref(),
@@ -311,7 +373,7 @@ fn build_request(
             width: target_width,
             height: target_height,
         },
-        source: source.render_image(),
+        source: ResampleSource::Bitmap(source.render_image()),
     })
 }
 
@@ -324,9 +386,18 @@ pub(crate) fn pane_fit_scale(pane_size: gpui::Size<gpui::Pixels>, dimensions: (u
 }
 
 fn run_resample_job(
-    source: Arc<RenderImage>,
+    source: ResampleSource,
     key: &ResampleKey,
 ) -> Result<Option<PreparedImage>, ImageLoadError> {
+    let source = match source {
+        ResampleSource::Raster(raster) => {
+            return raster
+                .resize(key.filter, key.width, key.height)
+                .map(PreparedImage::from_decoded)
+                .map(Some)
+        }
+        ResampleSource::Bitmap(source) => source,
+    };
     let Some(pixels) = source.as_bytes(0) else {
         return Ok(None);
     };
@@ -350,56 +421,5 @@ fn run_resample_job(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn key(path: &str, size: u32) -> ResampleKey {
-        ResampleKey {
-            path: Path::new(path).to_path_buf(),
-            filter: ResampleFilter::Lanczos,
-            width: size,
-            height: size,
-        }
-    }
-
-    fn finish(preview: &mut ResamplePreview, key: ResampleKey) {
-        preview.key = Some(key.clone());
-        preview.pending = true;
-        // Key size is irrelevant here; a 1x1 bitmap keeps the fixture small.
-        let image = PreparedImage::from_decoded(DecodedImage {
-            pixels_bgra8: vec![0, 0, 0, 255],
-            width: 1,
-            height: 1,
-        });
-        assert!(preview.complete(preview.generation, key, Ok(Some(image))));
-    }
-
-    #[test]
-    fn latest_for_keeps_the_previous_scale_of_the_same_document() {
-        let mut preview = ResamplePreview::default();
-        finish(&mut preview, key("a.png", 100));
-
-        // Still the same file, only the scale changed: the stale bitmap is a
-        // valid stopgap while the new one is being produced.
-        preview.key = Some(key("a.png", 200));
-        preview.pending = true;
-        assert!(preview.ready(&key("a.png", 200)).is_none());
-        assert!(preview.latest_for(Path::new("a.png")).is_some());
-    }
-
-    #[test]
-    fn latest_for_withholds_the_outgoing_documents_bitmap() {
-        // After navigating, the previous file's bitmap must not be stretched
-        // into the incoming image's frame.
-        let mut preview = ResamplePreview::default();
-        finish(&mut preview, key("a.png", 100));
-        assert!(preview.latest_for(Path::new("a.png")).is_some());
-        assert!(preview.latest_for(Path::new("b.png")).is_none());
-    }
-
-    #[test]
-    fn latest_for_is_empty_before_any_resample_finishes() {
-        let preview = ResamplePreview::default();
-        assert!(preview.latest_for(Path::new("a.png")).is_none());
-    }
-}
+#[path = "display_resample_tests.rs"]
+mod tests;

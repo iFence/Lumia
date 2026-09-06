@@ -23,12 +23,17 @@ impl Render for LumiaApp {
         self.sync_annotation_text_input(window, cx);
         self.sync_community_search_input(window, cx);
         self.schedule_viewer_resamples(window, cx);
+        self.refresh_large_image_tiles(window, cx);
         let dialog_layer = Root::render_dialog_layer(window, cx);
 
         div()
             .id("lumia-root")
             .track_focus(&self.focus_handle)
-            .key_context("Lumia")
+            .key_context(if self.comparison_active() {
+                "Lumia Comparison"
+            } else {
+                "Lumia"
+            })
             .relative()
             .on_action(cx.listener(Self::open_file))
             .on_action(cx.listener(Self::zoom_in))
@@ -324,6 +329,7 @@ impl LumiaApp {
                 self.render_crop_overlay(scale, palette, cx)
             });
             let mut image_frame = div()
+                .flex_shrink_0()
                 .relative()
                 .left(px(self.viewer.viewport().pan_x))
                 .top(px(self.viewer.viewport().pan_y))

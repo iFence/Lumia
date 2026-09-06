@@ -23,7 +23,24 @@ impl LumiaApp {
         self.navigation.len()
     }
 
+    /// Step the images on screen. While comparing, this advances whichever
+    /// panes are in scope, so keyboard actions, the status-bar buttons and the
+    /// slideshow all get the same behaviour from one place.
     pub(crate) fn navigate_image(
+        &mut self,
+        step: i32,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.comparison_active() {
+            self.navigate_comparison(step, window, cx);
+            return;
+        }
+        self.navigate_current_image(step, window, cx);
+    }
+
+    /// Step the left pane, or the only pane outside comparison mode.
+    pub(crate) fn navigate_current_image(
         &mut self,
         step: i32,
         window: &mut Window,
@@ -236,6 +253,9 @@ impl LumiaApp {
         if !self.loads.set_current_image(generation, image) {
             return false;
         }
+        // The bitmap on screen just changed, so any cached resample of the
+        // previous one is now stale.
+        self.display_resample.invalidate();
         self.apply_deferred_viewport_reset();
         true
     }

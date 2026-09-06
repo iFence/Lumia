@@ -144,11 +144,29 @@ pub fn resize_decoded_image(
     target_width: u32,
     target_height: u32,
 ) -> Result<DecodedImage, ImageLoadError> {
+    resize_bgra8(
+        &decoded.pixels_bgra8,
+        decoded.width,
+        decoded.height,
+        filter,
+        target_width,
+        target_height,
+    )
+}
+
+pub(crate) fn resize_bgra8(
+    pixels: &[u8],
+    width: u32,
+    height: u32,
+    filter: ResampleFilter,
+    target_width: u32,
+    target_height: u32,
+) -> Result<DecodedImage, ImageLoadError> {
     if target_width == 0 || target_height == 0 {
         return Err(invalid_buffer_length("target"));
     }
-    let source_len = pixel_buffer_len(decoded.width, decoded.height)?;
-    if decoded.pixels_bgra8.len() != source_len {
+    let source_len = pixel_buffer_len(width, height)?;
+    if pixels.len() != source_len {
         return Err(invalid_buffer_length("BGRA"));
     }
     let filter_type = match filter {
@@ -156,9 +174,8 @@ pub fn resize_decoded_image(
         ResampleFilter::Bilinear => image::imageops::FilterType::Triangle,
         ResampleFilter::Lanczos => image::imageops::FilterType::Lanczos3,
     };
-    let source =
-        image::RgbaImage::from_raw(decoded.width, decoded.height, decoded.pixels_bgra8.clone())
-            .ok_or_else(invalid_buffer_length_bgra)?;
+    let source = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(width, height, pixels)
+        .ok_or_else(invalid_buffer_length_bgra)?;
     let resized = image::imageops::resize(&source, target_width, target_height, filter_type);
     Ok(DecodedImage {
         pixels_bgra8: resized.into_raw(),

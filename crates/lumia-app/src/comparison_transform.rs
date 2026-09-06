@@ -1,7 +1,7 @@
 //! Zoom, pan, and rotation transforms for comparison mode, split from
 //! `comparison.rs`, which owns the state and pane rendering.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use gpui::{Context, Pixels, Point, Window};
 use lumia_core::{FitMode, ViewportState};
@@ -74,30 +74,7 @@ impl LumiaApp {
             return;
         }
         self.comparison = Some(ComparisonState::new(path.clone()));
-        let handle = self.self_handle.clone();
-        cx.spawn(async move |_, cx| {
-            let result = cx
-                .background_executor()
-                .spawn(async move { load_decoded_image_from_path_with_policy(&path) })
-                .await;
-            let _ = handle.update(cx, |this, cx| {
-                let Some(state) = this.comparison.as_mut() else {
-                    return;
-                };
-                state.loading = false;
-                match result {
-                    Ok(decoded) => {
-                        state.image = Some(PreparedImage::from_decoded(decoded));
-                        // A rotation requested while this decode was still in
-                        // flight applies as soon as the image arrives.
-                        state.rebuild_rotated_image();
-                    }
-                    Err(error) => state.error = Some(error.to_string()),
-                }
-                cx.notify();
-            });
-        })
-        .detach();
+        self.load_comparison_image(path, cx);
     }
 
     pub(crate) fn toggle_comparison_target(&mut self, cx: &mut Context<Self>) {
@@ -119,10 +96,7 @@ impl LumiaApp {
     /// One zoom step for every viewport affected by the current target mode,
     /// converting out of FitToWindow first so steps stay proportional.
     fn compare_zoom_step(&mut self, inward: bool, cx: &mut Context<Self>) {
-        let left_dims = self
-            .loads
-            .display_image(self.viewer.rotation_quarter_turns())
-            .map(PreparedImage::dimensions);
+        let left_dims = self.viewer.display_dimensions();
         let (individual, left_pane, right_pane, right_dims) = match self.comparison.as_ref() {
             Some(state) => (
                 state.individual_target,
@@ -228,10 +202,7 @@ impl LumiaApp {
         _window: &Window,
         cx: &mut Context<Self>,
     ) {
-        let left_dims = self
-            .loads
-            .display_image(self.viewer.rotation_quarter_turns())
-            .map(PreparedImage::dimensions);
+        let left_dims = self.viewer.display_dimensions();
         // The left pane renders from the main viewer's viewport; snapshot it
         // before the match so the partner-pan delta uses the right baseline.
         let main_viewport = *self.viewer.viewport();
@@ -459,8 +430,10 @@ impl LumiaApp {
     }
 }
 
-fn load_decoded_image_from_path_with_policy(
-    path: &PathBuf,
+/// Decode the right pane's image. Shared by the comparison entry point and by
+/// folder navigation, so both paths apply the same limits.
+pub(crate) fn load_decoded_image_for_comparison(
+    path: &Path,
 ) -> Result<lumia_core::DecodedImage, lumia_core::ImageLoadError> {
     lumia_core::load_decoded_image_from_path(path)
 }

@@ -202,6 +202,10 @@ impl RasterCacheReader {
         Ok(Self { map, layout })
     }
 
+    pub(crate) fn pixels(&self) -> &[u8] {
+        &self.map
+    }
+
     pub(crate) fn row(&self, row: u32) -> Option<&[u8]> {
         self.map.get(self.layout.row_range(row)?)
     }

@@ -55,19 +55,25 @@ impl LumiaApp {
             .file_metadata()
             .map(|metadata| format_file_size(metadata.size_bytes))
             .unwrap_or_else(|| "--".to_string());
-        // While comparing, surface the reference (right) image next to the
-        // folder position so both panes are identifiable.
-        let position_label = match self.comparison.as_ref() {
-            Some(state) => {
-                let right_name = state
-                    .path
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .unwrap_or("?");
-                format!("{current}/{count} ⇄ {right_name}")
-            }
-            None => format!("{current}/{count}"),
+        // While comparing, each pane reports its own figures in a chip, so
+        // the standalone left-pane size would only be a duplicate.
+        let pane_chips = self.render_comparison_summaries(palette, cx);
+        let comparing = pane_chips.is_some();
+        let position_label = format!("{current}/{count}");
+        // Each pane walks its own folder, so a step is offered whenever
+        // either of them has somewhere to go.
+        let (can_previous, can_next) = if comparing {
+            (
+                viewer_enabled && self.comparison_can_step(-1),
+                viewer_enabled && self.comparison_can_step(1),
+            )
+        } else {
+            (
+                viewer_enabled && current > 1,
+                viewer_enabled && current < count,
+            )
         };
+        let position_text = (!comparing).then(|| self.render_status_text(position_label, palette));
         div()
             .id("status-bar")
             .when(!self.ui.status_bar_locked, |bar| {
@@ -97,7 +103,7 @@ impl LumiaApp {
                     .child(self.render_status_icon_button(
                         "status-prev-image",
                         IconName::ChevronLeft,
-                        viewer_enabled && current > 1,
+                        can_previous,
                         palette,
                         cx,
                         |this, _, window, cx| {
@@ -105,11 +111,12 @@ impl LumiaApp {
                             cx.notify();
                         },
                     ))
-                    .child(self.render_status_text(position_label, palette))
+                    .children(position_text)
+                    .children(pane_chips)
                     .child(self.render_status_icon_button(
                         "status-next-image",
                         IconName::ChevronRight,
-                        viewer_enabled && current < count,
+                        can_next,
                         palette,
                         cx,
                         |this, _, window, cx| {
@@ -145,7 +152,7 @@ impl LumiaApp {
                             }
                         },
                     ))
-                    .child(self.render_status_text(file_size, palette))
+                    .children((!comparing).then(|| self.render_status_text(file_size, palette)))
                     .child(self.render_dimensions_button(dimensions, has_image, palette, cx))
                     .when(self.current_gps_coordinates().is_some(), |controls| {
                         controls.child(self.render_status_location_button(

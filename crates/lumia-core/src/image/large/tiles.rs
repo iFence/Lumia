@@ -32,6 +32,24 @@ impl LargeImageRaster {
         (self.layout.width(), self.layout.height())
     }
 
+    /// Apply the same display filter as ordinary decoded images, borrowing
+    /// mapped source pixels instead of allocating a full-resolution copy.
+    pub fn resize(
+        &self,
+        filter: crate::ResampleFilter,
+        width: u32,
+        height: u32,
+    ) -> Result<DecodedImage, crate::ImageLoadError> {
+        crate::image::raster::resize_bgra8(
+            self.reader.pixels(),
+            self.layout.width(),
+            self.layout.height(),
+            filter,
+            width,
+            height,
+        )
+    }
+
     pub fn decode_tile(
         &self,
         coordinate: TileCoordinate,
@@ -284,6 +302,44 @@ mod tests {
         assert_eq!(pixel(&left, 511, 1), pixel(&right, 0, 1));
         assert_eq!(pixel(&left, 512, 1), pixel(&right, 1, 1));
 
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn mapped_and_decoded_sources_use_identical_scaling_filters() {
+        let dir = temp_dir("resample");
+        fs::create_dir_all(&dir).unwrap();
+        let source = dir.join("source.png");
+        let image = RgbaImage::from_fn(103, 79, |x, y| {
+            Rgba([
+                (x * 17 % 256) as u8,
+                (y * 31 % 256) as u8,
+                ((x + y) % 256) as u8,
+                255,
+            ])
+        });
+        DynamicImage::ImageRgba8(image)
+            .save_with_format(&source, ImageFormat::Png)
+            .unwrap();
+        let raster =
+            build_large_image_raster(&source, &dir.join("cache"), &DecodeCancellation::default())
+                .unwrap();
+        let decoded = crate::load_decoded_image_from_path(&source).unwrap();
+        for filter in [
+            crate::ResampleFilter::NearestNeighbor,
+            crate::ResampleFilter::Bilinear,
+            crate::ResampleFilter::Lanczos,
+        ] {
+            for (width, height) in [(37, 29), (103, 79), (151, 113)] {
+                let mapped = raster.resize(filter, width, height).unwrap();
+                let ordinary =
+                    crate::resize_decoded_image(&decoded, filter, width, height).unwrap();
+                assert_eq!(
+                    mapped.pixels_bgra8, ordinary.pixels_bgra8,
+                    "{filter:?} at {width}x{height}"
+                );
+            }
+        }
         fs::remove_dir_all(dir).unwrap();
     }
 
