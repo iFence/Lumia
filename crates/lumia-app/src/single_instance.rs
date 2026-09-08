@@ -2,10 +2,8 @@ use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
 use async_channel::{Receiver, Sender};
-use gpui::{Context, Window};
+use gpui::App;
 use serde::{Deserialize, Serialize};
-
-use crate::app::LumiaApp;
 
 const MAX_REQUEST_BYTES: usize = 1024 * 1024;
 const ACK: u8 = 0x4c;
@@ -37,25 +35,19 @@ pub(crate) fn acquire(initial_path: Option<&Path>) -> anyhow::Result<Option<Prim
     })
 }
 
-impl LumiaApp {
-    pub(crate) fn listen_for_instance_requests(
-        &mut self,
-        primary_instance: PrimaryInstance,
-        window: &Window,
-        cx: &mut Context<Self>,
-    ) {
-        cx.spawn_in(window, async move |this, cx| {
-            while let Ok(request) = primary_instance.receiver.recv().await {
-                let result = this.update_in(cx, |this, window, cx| {
-                    window.activate_window();
-                    if let InstanceRequest::OpenFile(path) = request {
-                        this.load_image(path, Some(window), cx);
-                    }
-                    cx.notify();
+impl PrimaryInstance {
+    pub(crate) fn listen(self, cx: &mut App) {
+        cx.spawn(async move |cx| {
+            // Keep the instance guard alive independently of any viewer window.
+            let primary = self;
+            while let Ok(request) = primary.receiver.recv().await {
+                cx.update(|cx| {
+                    let path = match request {
+                        InstanceRequest::OpenFile(path) => Some(path),
+                        InstanceRequest::Activate => None,
+                    };
+                    crate::bootstrap::open_viewer_window(path, cx);
                 });
-                if result.is_err() {
-                    break;
-                }
             }
         })
         .detach();

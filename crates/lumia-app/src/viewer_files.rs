@@ -1,10 +1,11 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use gpui::{ClipboardItem, Context, Window};
 use lumia_core::{FitMode, ViewportState};
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
+use crate::load_state::PreparedImage;
 use crate::{NextImage, PreviousImage};
 use crate::{APP_TITLE, EDIT_PANEL_WIDTH, PLUGIN_PANEL_WIDTH, STATUS_BAR_HEIGHT};
 
@@ -22,7 +23,24 @@ impl LumiaApp {
         self.navigation.len()
     }
 
+    /// Step the images on screen. While comparing, this advances whichever
+    /// panes are in scope, so keyboard actions, the status-bar buttons and the
+    /// slideshow all get the same behaviour from one place.
     pub(crate) fn navigate_image(
+        &mut self,
+        step: i32,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.comparison_active() {
+            self.navigate_comparison(step, window, cx);
+            return;
+        }
+        self.navigate_current_image(step, window, cx);
+    }
+
+    /// Step the left pane, or the only pane outside comparison mode.
+    pub(crate) fn navigate_current_image(
         &mut self,
         step: i32,
         window: &mut Window,
@@ -74,13 +92,28 @@ impl LumiaApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let path = self.ui.pending_drop_paths.iter().find(|path| {
-            path.extension()
-                .and_then(|extension| extension.to_str())
-                .is_some_and(lumia_core::is_supported_image_extension)
-        });
-        match path.cloned() {
-            Some(path) => self.load_image(path, Some(window), cx),
+        let supported: Vec<PathBuf> = self
+            .ui
+            .pending_drop_paths
+            .iter()
+            .filter(|path| {
+                path.extension()
+                    .and_then(|extension| extension.to_str())
+                    .is_some_and(lumia_core::is_supported_image_extension)
+            })
+            .cloned()
+            .collect();
+        match supported.split_first() {
+            Some((first, rest)) => {
+                self.load_image(first.clone(), Some(window), cx);
+                match rest.first() {
+                    // Dropping two images at once opens them side by side.
+                    Some(second) => self.start_comparison(second.clone(), cx),
+                    // A single image drop exits an active comparison.
+                    None if self.comparison.is_some() => self.close_comparison(cx),
+                    None => {}
+                }
+            }
             None => {
                 self.ui.error_message =
                     Some("No supported image found in dropped files".to_string())
@@ -200,6 +233,39 @@ impl LumiaApp {
         Some((image_width as f32 * scale, image_height as f32 * scale))
     }
 
+    /// Apply a fit reset deferred by `ViewerSession::replace_document`.
+    ///
+    /// Navigation must not re-scale the outgoing image, which stays on screen
+    /// until the incoming one is decoded, so the reset is parked until the
+    /// displayed image genuinely changes. Consuming the flag makes this a
+    /// no-op on every later call, so animation frames are safe.
+    pub(crate) fn apply_deferred_viewport_reset(&mut self) {
+        if self.viewer.take_pending_fit_reset() {
+            self.viewer.viewport_mut().reset_fit();
+        }
+    }
+
+    /// Make a decoded image the visible one.
+    ///
+    /// Every path that puts a newly decoded image on screen goes through
+    /// here, which makes it the one place the deferred reset can be applied.
+    pub(crate) fn install_current_image(&mut self, generation: u64, image: PreparedImage) -> bool {
+        if !self.loads.set_current_image(generation, image) {
+            return false;
+        }
+        // The bitmap on screen just changed, so any cached resample of the
+        // previous one is now stale.
+        self.display_resample.invalidate();
+        self.apply_deferred_viewport_reset();
+        true
+    }
+
+    /// Drop the displayed images, applying any deferred fit reset with them.
+    pub(crate) fn clear_displayed_images(&mut self) {
+        self.loads.clear_display_images();
+        self.apply_deferred_viewport_reset();
+    }
+
     pub(crate) fn image_display_scale(&self, window: &Window) -> Option<f32> {
         let (image_width, image_height) = self.displayed_source_dimensions()?;
         let (available_width, available_height) = self.viewer_available_size(window);
@@ -212,7 +278,7 @@ impl LumiaApp {
         ))
     }
 
-    fn displayed_source_dimensions(&self) -> Option<(u32, u32)> {
+    pub(crate) fn displayed_source_dimensions(&self) -> Option<(u32, u32)> {
         if self.loads.is_transitioning() {
             self.loads
                 .display_source_dimensions(self.viewer.rotation_quarter_turns())

@@ -1,9 +1,9 @@
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    div, px, rgb, Context, InteractiveElement, IntoElement, Keystroke, MouseButton, MouseDownEvent,
-    ParentElement, StatefulInteractiveElement, Styled, Window,
+    div, px, rgb, AnyElement, Context, InteractiveElement, IntoElement, Keystroke, MouseButton,
+    MouseDownEvent, ParentElement, StatefulInteractiveElement, Styled, Window,
 };
-use gpui_component::{button::ButtonVariants as _, Disableable as _};
+use gpui_component::{button::ButtonVariants as _, tooltip::Tooltip, Disableable as _, Icon};
 use gpui_component::{
     button::{Button, ButtonRounded},
     kbd::Kbd,
@@ -265,4 +265,55 @@ pub(crate) fn shortcut_reset_button(
         .compact()
         .on_click(cx.listener(on_click))
         .into_any_element()
+}
+
+impl LumiaApp {
+    pub(crate) fn render_status_icon_button(
+        &self,
+        id: &'static str,
+        icon: impl Into<Icon>,
+        enabled: bool,
+        palette: Palette,
+        cx: &mut Context<Self>,
+        on_click: impl Fn(&mut LumiaApp, &MouseDownEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
+    ) -> AnyElement {
+        let icon_color = if enabled {
+            palette.text
+        } else {
+            palette.muted_text
+        };
+
+        div()
+            .id(id)
+            .w(px(28.0))
+            .h(px(24.0))
+            .flex()
+            .items_center()
+            .justify_center()
+            .rounded_sm()
+            .hover(move |style| style.bg(rgb(palette.status_hover)))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |this, event, window, cx| {
+                    if enabled {
+                        on_click(this, event, window, cx);
+                    }
+                }),
+            )
+            .child(Icon::new(icon).size(px(16.0)).text_color(rgb(icon_color)))
+            .into_any_element()
+    }
+
+    pub(crate) fn render_status_text(
+        &self,
+        label: impl Into<String>,
+        palette: Palette,
+    ) -> AnyElement {
+        div()
+            .px_2()
+            .text_sm()
+            .text_color(rgb(palette.muted_text))
+            .child(label.into())
+            .into_any_element()
+    }
 }

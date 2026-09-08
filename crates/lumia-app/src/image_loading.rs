@@ -60,7 +60,7 @@ impl LumiaApp {
             }
             self.large_image
                 .begin(path.clone(), generation, cancellation);
-            self.loads.set_current_image(generation, cached.image());
+            self.install_current_image(generation, cached.image());
             self.large_image.mark_preview_ready(generation);
             self.loads.finish_decode(generation);
             self.ui.error_message = None;
@@ -95,7 +95,7 @@ impl LumiaApp {
                         Ok(probe) => probe,
                         Err(error) => {
                             this.loads.finish_decode(generation);
-                            this.loads.clear_display_images();
+                            this.clear_displayed_images();
                             this.release_retired_images(None, cx);
                             this.ui.error_message = Some(format_load_error(&error));
                             cx.notify();
@@ -170,7 +170,7 @@ impl LumiaApp {
                         this.loads.finish_decode(generation);
                         // SVG is rendered directly from its path, so retire any
                         // raster image left over from the previous document.
-                        this.loads.clear_display_images();
+                        this.clear_displayed_images();
                         this.release_retired_images(None, cx);
                         this.ui.error_message = None;
                     } else {
@@ -274,7 +274,7 @@ impl LumiaApp {
                             .document()
                             .and_then(|document| document.metadata.clone());
                         let cached_file = this.loads.file_metadata().cloned();
-                        this.loads.set_current_image(generation, preview);
+                        this.install_current_image(generation, preview);
                         this.release_retired_images(None, cx);
                         if let (Some(metadata), Some(file)) = (cached_metadata, cached_file) {
                             this.store_cached_preview(
@@ -293,7 +293,7 @@ impl LumiaApp {
                     }
                     Err(_error) if cancellation.is_cancelled() => {}
                     Err(error) => {
-                        this.loads.clear_display_images();
+                        this.clear_displayed_images();
                         this.release_retired_images(None, cx);
                         this.loads.finish_decode(generation);
                         this.ui.error_message =
@@ -392,7 +392,7 @@ impl LumiaApp {
                         return false;
                     }
                     if let Some(preview) = preview {
-                        this.loads.set_current_image(generation, preview);
+                        this.install_current_image(generation, preview);
                         this.release_retired_images(None, cx);
                         if this.viewer.rotation_quarter_turns() != 0 {
                             this.rebuild_rotated_image(None, cx);
@@ -426,7 +426,7 @@ impl LumiaApp {
                 }
                 match full_image {
                     Ok(image) => {
-                        this.loads.set_current_image(generation, image);
+                        this.install_current_image(generation, image);
                         this.release_retired_images(None, cx);
                         this.ui.error_message = None;
                         if this.viewer.rotation_quarter_turns() != 0 {

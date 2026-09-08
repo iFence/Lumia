@@ -47,8 +47,9 @@ pub fn rasterize_text_line(text: &str, font_size_px: f32) -> TextRaster {
     for ch in text.chars() {
         match face.glyph_index(ch) {
             Some(glyph_id) => {
-                let advance =
-                    face.glyph_hor_advance(glyph_id).unwrap_or(units_per_em as u16) as f32;
+                let advance = face
+                    .glyph_hor_advance(glyph_id)
+                    .unwrap_or(units_per_em as u16) as f32;
                 glyphs.push(GlyphOrBox::Glyph {
                     glyph_id,
                     pen_x: pen,
@@ -57,7 +58,10 @@ pub fn rasterize_text_line(text: &str, font_size_px: f32) -> TextRaster {
                 pen += advance;
             }
             None => {
-                glyphs.push(GlyphOrBox::Box { pen_x: pen, advance: units_per_em });
+                glyphs.push(GlyphOrBox::Box {
+                    pen_x: pen,
+                    advance: units_per_em,
+                });
                 pen += units_per_em;
             }
         }
@@ -76,7 +80,15 @@ pub fn rasterize_text_line(text: &str, font_size_px: f32) -> TextRaster {
             } => {
                 let mut builder = ContourBuilder::default();
                 if face.outline_glyph(*glyph_id, &mut builder).is_some() {
-                    rasterize_contours(&builder.contours, *pen_x, ascent, scale, width, height, &mut alpha);
+                    rasterize_contours(
+                        &builder.contours,
+                        *pen_x,
+                        ascent,
+                        scale,
+                        width,
+                        height,
+                        &mut alpha,
+                    );
                 } else {
                     rasterize_placeholder_box(*pen_x, *advance, scale, width, height, &mut alpha);
                 }
@@ -87,7 +99,11 @@ pub fn rasterize_text_line(text: &str, font_size_px: f32) -> TextRaster {
         }
     }
 
-    TextRaster { width, height, alpha }
+    TextRaster {
+        width,
+        height,
+        alpha,
+    }
 }
 
 /// Blend a text raster into a BGRA8 image at (x, y), top-left anchored.
@@ -118,7 +134,17 @@ pub fn blend_text_raster(
             if ix < 0 || ix >= image_width as i32 {
                 continue;
             }
-            blend_pixel(pixels, iy as u32, ix as u32, image_width, color, red, green, blue, coverage * opacity);
+            blend_pixel(
+                pixels,
+                iy as u32,
+                ix as u32,
+                image_width,
+                color,
+                red,
+                green,
+                blue,
+                coverage * opacity,
+            );
         }
     }
 }
@@ -278,7 +304,12 @@ fn rasterize_contours(
     alpha: &mut [u8],
 ) {
     let mut polys: Vec<Vec<(f32, f32)>> = Vec::with_capacity(contours.len());
-    let mut bounds = (f32::INFINITY, f32::INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY);
+    let mut bounds = (
+        f32::INFINITY,
+        f32::INFINITY,
+        f32::NEG_INFINITY,
+        f32::NEG_INFINITY,
+    );
     for contour in contours {
         let mut poly = Vec::with_capacity(contour.len());
         for &(x, y) in contour {

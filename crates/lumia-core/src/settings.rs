@@ -23,6 +23,9 @@ pub struct AppSettings {
     pub language: Language,
     #[serde(default)]
     pub theme_accent: ThemeAccent,
+    /// Filter applied when resampling images for display.
+    #[serde(default)]
+    pub resample_filter: ResampleFilter,
     #[serde(
         default = "default_shortcuts",
         deserialize_with = "deserialize_shortcuts"
@@ -53,6 +56,7 @@ impl Default for AppSettings {
         Self {
             language: Language::English,
             theme_accent: ThemeAccent::default(),
+            resample_filter: ResampleFilter::default(),
             shortcuts: default_shortcuts(),
             check_updates_on_startup: true,
             skipped_update_version: None,
@@ -118,6 +122,21 @@ impl Default for ThemeAccent {
     }
 }
 
+/// Resampling filter used when preparing display-sized image bitmaps.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ResampleFilter {
+    NearestNeighbor,
+    Bilinear,
+    Lanczos,
+}
+
+impl Default for ResampleFilter {
+    fn default() -> Self {
+        Self::Lanczos
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SettingsGroup {
     General,
@@ -137,6 +156,7 @@ mod tests {
 
         assert_eq!(settings.language, Language::English);
         assert_eq!(settings.theme_accent, ThemeAccent::Blue);
+        assert_eq!(settings.resample_filter, ResampleFilter::Lanczos);
         assert!(!settings.shortcuts.is_empty());
         assert!(settings.check_updates_on_startup);
     }
@@ -146,6 +166,7 @@ mod tests {
         let settings = AppSettings {
             language: Language::Chinese,
             theme_accent: ThemeAccent::Rose,
+            resample_filter: ResampleFilter::NearestNeighbor,
             shortcuts: default_shortcuts(),
             check_updates_on_startup: false,
             skipped_update_version: Some("0.1.1".into()),
@@ -155,6 +176,14 @@ mod tests {
         let parsed: AppSettings = serde_json::from_str(&json).expect("deserialize settings");
 
         assert_eq!(parsed, settings);
+    }
+
+    #[test]
+    fn missing_resample_filter_in_json_defaults_to_lanczos() {
+        let json = r#"{"language":"English","theme":"Light"}"#;
+        let parsed: AppSettings =
+            serde_json::from_str(json).expect("deserialize without resample filter");
+        assert_eq!(parsed.resample_filter, ResampleFilter::Lanczos);
     }
 
     #[test]

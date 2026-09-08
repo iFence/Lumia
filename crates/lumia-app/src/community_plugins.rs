@@ -151,9 +151,11 @@ impl LumiaApp {
     ) {
         if self.community_browser_visible() {
             if self.community_plugins.search_input.is_none() {
-                let placeholder =
-                    tr_community(self.settings.language, CommunityTextKey::CommunitySearchPlaceholder)
-                        .to_string();
+                let placeholder = tr_community(
+                    self.settings.language,
+                    CommunityTextKey::CommunitySearchPlaceholder,
+                )
+                .to_string();
                 let input = cx.new(|cx| InputState::new(window, cx).placeholder(placeholder));
                 let subscription =
                     cx.subscribe_in(&input, window, Self::handle_community_search_input);
@@ -246,17 +248,23 @@ impl LumiaApp {
         let Some(plugin) = index.plugins.iter().find(|plugin| plugin.id == plugin_id) else {
             return;
         };
-        let current = Version::parse(env!("CARGO_PKG_VERSION"))
-            .expect("CARGO_PKG_VERSION is valid semver");
+        let current =
+            Version::parse(env!("CARGO_PKG_VERSION")).expect("CARGO_PKG_VERSION is valid semver");
         let Some((version, artifact)) = best_compatible_artifact_for_host(plugin, &current) else {
             // Distinguish "no artifact for this platform" from "incompatible
             // with this Lumia build" so the user gets an actionable message.
             let message = if best_artifact_for_host(plugin).is_some() {
-                tr_community(self.settings.language, CommunityTextKey::CommunityIncompatible)
-                    .to_string()
+                tr_community(
+                    self.settings.language,
+                    CommunityTextKey::CommunityIncompatible,
+                )
+                .to_string()
             } else {
-                tr_community(self.settings.language, CommunityTextKey::CommunityRequiresLumia)
-                    .to_string()
+                tr_community(
+                    self.settings.language,
+                    CommunityTextKey::CommunityRequiresLumia,
+                )
+                .to_string()
             };
             self.community_plugins.status = CommunityStatus::Error(message);
             cx.notify();
@@ -285,8 +293,9 @@ impl LumiaApp {
         cx.spawn(async move |_this, cx| {
             let cleanup_dest = dest.clone();
             let result: anyhow::Result<PathBuf> = async {
-                let response =
-                    client.get(&url, http_client::AsyncBody::from(()), true).await?;
+                let response = client
+                    .get(&url, http_client::AsyncBody::from(()), true)
+                    .await?;
                 if !response.status().is_success() {
                     anyhow::bail!("http status {}", response.status());
                 }
@@ -337,18 +346,15 @@ impl LumiaApp {
             }
             .await;
 
-            let _ = handle.update(cx, |this, cx| {
-                match result {
-                    Ok(path) => {
-                        this.community_plugins.status = CommunityStatus::Idle;
-                        this.inspect_plugin_package(path, cx);
-                    }
-                    Err(error) => {
-                        let _ = std::fs::remove_file(&cleanup_dest);
-                        this.community_plugins.status =
-                            CommunityStatus::Error(format!("{error:#}"));
-                        cx.notify();
-                    }
+            let _ = handle.update(cx, |this, cx| match result {
+                Ok(path) => {
+                    this.community_plugins.status = CommunityStatus::Idle;
+                    this.inspect_plugin_package(path, cx);
+                }
+                Err(error) => {
+                    let _ = std::fs::remove_file(&cleanup_dest);
+                    this.community_plugins.status = CommunityStatus::Error(format!("{error:#}"));
+                    cx.notify();
                 }
             });
         })
@@ -362,8 +368,8 @@ impl LumiaApp {
             return Vec::new();
         };
         let query = self.community_plugins.search_query.clone();
-        let current = Version::parse(env!("CARGO_PKG_VERSION"))
-            .expect("CARGO_PKG_VERSION is valid semver");
+        let current =
+            Version::parse(env!("CARGO_PKG_VERSION")).expect("CARGO_PKG_VERSION is valid semver");
         let mut results: Vec<&CommunityPlugin> = index
             .plugins
             .iter()

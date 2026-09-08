@@ -1,6 +1,6 @@
 use gpui::{
-    div, img, px, AnyElement, InteractiveElement, IntoElement, ObjectFit, ParentElement, Styled,
-    StyledImage, Window,
+    canvas, div, img, point, px, size, AnyElement, Bounds, ContentMask, InteractiveElement,
+    IntoElement, ObjectFit, ParentElement, Styled, StyledImage, Window,
 };
 use lumia_core::{ImagePixelRect, TileCoordinate, TileLevel};
 
@@ -38,8 +38,8 @@ impl LargeImageTileLayout {
         }
         let clip = scaled_rect(level.source_rect(coordinate)?, scale)?;
         let padded = scaled_rect(
-            level.source_rect_with_gutter(coordinate, LARGE_IMAGE_TILE_GUTTER)?,
-            scale,
+            level.tile_rect_with_gutter(coordinate, LARGE_IMAGE_TILE_GUTTER)?,
+            scale * level.divisor() as f32,
         )?;
         Some(Self {
             clip,
@@ -143,6 +143,28 @@ fn level_for_scale(scale: f32) -> u8 {
 }
 
 impl LumiaApp {
+    /// Tile scheduling and painting must use the same pane geometry.
+    pub(crate) fn large_image_viewport(&self, window: &Window) -> Option<(f32, f32, f32)> {
+        if let Some(state) = self.comparison.as_ref() {
+            let bounds = state.left_pane_bounds?;
+            let dimensions = self.viewer.display_dimensions()?;
+            let viewport = self.viewer.viewport();
+            let scale = if viewport.fit_mode == lumia_core::FitMode::FitToWindow {
+                crate::display_resample::pane_fit_scale(bounds.size, dimensions)
+            } else {
+                viewport.zoom
+            };
+            Some((
+                f32::from(bounds.size.width),
+                f32::from(bounds.size.height),
+                scale,
+            ))
+        } else {
+            let (width, height) = self.viewer_available_size(window);
+            Some((width, height, self.image_display_scale(window)?))
+        }
+    }
+
     pub(crate) fn render_large_image_content(&self, window: &Window) -> Option<AnyElement> {
         let path = self.image_path()?;
         if !self.large_image.is_active(path) || !self.large_image.is_preview_ready() {
@@ -151,9 +173,13 @@ impl LumiaApp {
         let prepared = self
             .loads
             .display_image(self.viewer.rotation_quarter_turns())?;
-        let (display_width, display_height) = self.scaled_image_size(window)?;
+        let (image_width, image_height) = self.viewer.display_dimensions()?;
+        let (viewport_width, viewport_height, scale) = self.large_image_viewport(window)?;
+        let (display_width, display_height) =
+            (image_width as f32 * scale, image_height as f32 * scale);
         let mut content = div()
             .id("large-image-content")
+            .flex_shrink_0()
             .relative()
             .w(px(display_width))
             .h(px(display_height))
@@ -167,9 +193,6 @@ impl LumiaApp {
             return Some(content.into_any_element());
         }
 
-        let (image_width, image_height) = self.viewer.display_dimensions()?;
-        let scale = self.image_display_scale(window)?;
-        let (viewport_width, viewport_height) = self.viewer_available_size(window);
         let geometry = LargeImageViewGeometry::calculate(
             image_width,
             image_height,
@@ -186,32 +209,46 @@ impl LumiaApp {
             geometry.level,
             LARGE_IMAGE_TILE_SIZE,
         )?;
-        content = content.children(geometry.visible_tiles.into_iter().filter_map(|coordinate| {
-            let tile = self.large_image.tile(&coordinate)?;
-            let layout = LargeImageTileLayout::calculate(&level, coordinate, scale)?;
-            Some(
-                div()
-                    .id(format!(
-                        "large-image-tile-{}-{}-{}",
-                        coordinate.level, coordinate.x, coordinate.y
-                    ))
-                    .absolute()
-                    .left(px(layout.clip.left))
-                    .top(px(layout.clip.top))
-                    .w(px(layout.clip.width))
-                    .h(px(layout.clip.height))
-                    .overflow_hidden()
-                    .child(
-                        img(tile.render_image())
-                            .absolute()
-                            .left(px(layout.image.left))
-                            .top(px(layout.image.top))
-                            .w(px(layout.image.width))
-                            .h(px(layout.image.height))
-                            .object_fit(ObjectFit::Fill),
-                    ),
+        let tiles: Vec<_> = geometry
+            .visible_tiles
+            .into_iter()
+            .filter_map(|coordinate| {
+                let tile = self.large_image.tile(&coordinate)?;
+                let layout = LargeImageTileLayout::calculate(&level, coordinate, scale)?;
+                Some((tile.render_image(), layout))
+            })
+            .collect();
+        content = content.child(
+            canvas(
+                |_, _, _| (),
+                move |bounds, _, window, _| {
+                    // Derive every boundary from one origin, bypassing independent
+                    // flex-layout rounding of each tile and its gutter image.
+                    for (tile, layout) in tiles {
+                        let clip = Bounds::new(
+                            bounds.origin + point(px(layout.clip.left), px(layout.clip.top)),
+                            size(px(layout.clip.width), px(layout.clip.height)),
+                        );
+                        let image = Bounds::new(
+                            clip.origin + point(px(layout.image.left), px(layout.image.top)),
+                            size(px(layout.image.width), px(layout.image.height)),
+                        );
+                        window.with_content_mask(Some(ContentMask { bounds: clip }), |window| {
+                            let _ = window.paint_image(
+                                image,
+                                image,
+                                Default::default(),
+                                tile,
+                                0,
+                                false,
+                            );
+                        });
+                    }
+                },
             )
-        }));
+            .absolute()
+            .size_full(),
+        );
         Some(content.into_any_element())
     }
 }
@@ -264,6 +301,35 @@ mod tests {
         assert_eq!(right.image.width, 642.5);
         assert!(left.image.width > left.clip.width);
         assert!(right.image.left < 0.0);
+    }
+
+    #[test]
+    fn odd_sized_edge_tiles_keep_the_same_texel_scale() {
+        let level = TileLevel::new(2051, 1031, 1, LARGE_IMAGE_TILE_SIZE).unwrap();
+        let coordinate = TileCoordinate::new(1, 2, 0);
+        let layout = LargeImageTileLayout::calculate(&level, coordinate, 0.73).unwrap();
+        let pixels = level
+            .tile_rect_with_gutter(coordinate, LARGE_IMAGE_TILE_GUTTER)
+            .unwrap();
+        assert!((layout.image.width - pixels.width as f32 * 2.0 * 0.73).abs() < 0.001);
+        // The last texel extends past the source edge; clip it instead of
+        // squeezing the entire edge tile into a different sampling scale.
+        assert!(layout.image.left + layout.image.width > layout.clip.width);
+    }
+
+    #[test]
+    fn fractional_scale_tiles_share_both_axes() {
+        let level = TileLevel::new(20000, 15001, 3, LARGE_IMAGE_TILE_SIZE).unwrap();
+        for scale in [0.137, 0.333, 0.731] {
+            let a = LargeImageTileLayout::calculate(&level, TileCoordinate::new(3, 0, 0), scale)
+                .unwrap();
+            let b = LargeImageTileLayout::calculate(&level, TileCoordinate::new(3, 1, 0), scale)
+                .unwrap();
+            let c = LargeImageTileLayout::calculate(&level, TileCoordinate::new(3, 0, 1), scale)
+                .unwrap();
+            assert_eq!(a.clip.left + a.clip.width, b.clip.left);
+            assert_eq!(a.clip.top + a.clip.height, c.clip.top);
+        }
     }
 
     #[test]

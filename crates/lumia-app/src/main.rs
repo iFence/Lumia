@@ -10,8 +10,12 @@ mod common_decode;
 mod community_index;
 mod community_plugins;
 mod community_text;
+mod comparison;
+mod comparison_navigation;
+mod comparison_transform;
 mod crop_overlay;
 mod custom_icons;
+mod display_resample;
 mod edit_discard;
 mod editing;
 mod editing_export;
@@ -53,6 +57,7 @@ mod shell;
 mod single_instance;
 mod slideshow;
 mod status_bar;
+mod status_bar_comparison;
 mod tile_cache;
 mod ui_state;
 mod update_check;
@@ -64,7 +69,7 @@ mod widgets;
 mod window_actions;
 
 use gpui::{actions, Action};
-use lumia_core::{Language, ThemeAccent};
+use lumia_core::{Language, ResampleFilter, ThemeAccent};
 use serde::Deserialize;
 
 pub(crate) const STATUS_BAR_HEIGHT: f32 = 36.0;
@@ -101,6 +106,10 @@ pub(crate) struct SelectLanguage(pub(crate) Language);
 #[action(namespace = lumia, no_json)]
 pub(crate) struct SelectThemeAccent(pub(crate) ThemeAccent);
 
+#[derive(Action, Clone, PartialEq, Eq, Deserialize)]
+#[action(namespace = lumia, no_json)]
+pub(crate) struct SelectResampleFilter(pub(crate) ResampleFilter);
+
 actions!(
     lumia,
     [
@@ -118,6 +127,9 @@ actions!(
         OpenSettings,
         About,
         CheckForUpdates,
+        CompareImages,
+        ToggleComparisonTarget,
+        CloseComparison,
         Quit
     ]
 );

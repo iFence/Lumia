@@ -1,11 +1,12 @@
 use gpui::{Action, Context, KeyBinding, Window};
-use lumia_core::{default_shortcuts, Language, ShortcutId, ThemeAccent};
+use lumia_core::{default_shortcuts, Language, ResampleFilter, ShortcutId, ThemeAccent};
 
 use crate::app::LumiaApp;
 use crate::persistence::save_settings;
 use crate::{
-    About, ExitFullscreen, NextImage, OpenFile, OpenSettings, PreviousImage, Quit, SelectLanguage,
-    SelectThemeAccent, ToggleFullscreen, ToggleImageInfo, ZoomFit, ZoomIn, ZoomOut,
+    About, CloseComparison, CompareImages, ExitFullscreen, NextImage, OpenFile, OpenSettings,
+    PreviousImage, Quit, SelectLanguage, SelectResampleFilter, SelectThemeAccent,
+    ToggleComparisonTarget, ToggleFullscreen, ToggleImageInfo, ZoomFit, ZoomIn, ZoomOut,
 };
 
 impl LumiaApp {
@@ -27,6 +28,12 @@ impl LumiaApp {
         cx.notify();
     }
 
+    pub(crate) fn set_resample_filter(&mut self, filter: ResampleFilter, cx: &mut Context<Self>) {
+        self.settings.resample_filter = filter;
+        let _ = save_settings(&self.settings);
+        cx.notify();
+    }
+
     pub(crate) fn apply_selected_language(
         &mut self,
         action: &SelectLanguage,
@@ -43,6 +50,15 @@ impl LumiaApp {
         cx: &mut Context<Self>,
     ) {
         self.set_theme_accent(action.0, cx);
+    }
+
+    pub(crate) fn apply_selected_resample_filter(
+        &mut self,
+        action: &SelectResampleFilter,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_resample_filter(action.0, cx);
     }
 
     pub(crate) fn rebuild_keybindings(&self, cx: &mut Context<Self>) {
@@ -97,6 +113,7 @@ impl LumiaApp {
         if let Some(key) = shortcuts.get(&ShortcutId::Quit) {
             bindings.push(KeyBinding::new(key.as_str(), Quit, Some("Lumia")));
         }
+        bindings.extend(comparison_keybindings());
         cx.bind_keys(bindings);
     }
 
@@ -166,6 +183,14 @@ impl LumiaApp {
     }
 }
 
+fn comparison_keybindings() -> [KeyBinding; 3] {
+    [
+        KeyBinding::new("ctrl-alt-c", CompareImages, Some("Lumia")),
+        KeyBinding::new("tab", ToggleComparisonTarget, Some("Lumia && Comparison")),
+        KeyBinding::new("escape", CloseComparison, Some("Lumia && Comparison")),
+    ]
+}
+
 fn is_lumia_shortcut_action(action: &dyn Action) -> bool {
     action.as_any().is::<OpenFile>()
         || action.as_any().is::<ZoomIn>()
@@ -179,6 +204,9 @@ fn is_lumia_shortcut_action(action: &dyn Action) -> bool {
         || action.as_any().is::<OpenSettings>()
         || action.as_any().is::<About>()
         || action.as_any().is::<Quit>()
+        || action.as_any().is::<CompareImages>()
+        || action.as_any().is::<ToggleComparisonTarget>()
+        || action.as_any().is::<CloseComparison>()
 }
 
 fn preserve_non_lumia_bindings<'a>(
@@ -192,10 +220,44 @@ fn preserve_non_lumia_bindings<'a>(
 
 #[cfg(test)]
 mod tests {
-    use gpui::Keymap;
+    use gpui::{KeyContext, Keymap, Keystroke};
     use gpui_component::input::Paste;
 
     use super::*;
+
+    #[test]
+    fn comparison_shortcuts_do_not_shadow_normal_viewer_shortcuts() {
+        let mut bindings = vec![
+            KeyBinding::new("tab", ToggleImageInfo, Some("Lumia")),
+            KeyBinding::new("escape", ExitFullscreen, Some("Lumia")),
+        ];
+        bindings.extend(comparison_keybindings());
+        let keymap = Keymap::new(bindings);
+        for (key, normal, comparison) in [
+            (
+                "tab",
+                Box::new(ToggleImageInfo) as Box<dyn Action>,
+                Box::new(ToggleComparisonTarget) as Box<dyn Action>,
+            ),
+            (
+                "escape",
+                Box::new(ExitFullscreen),
+                Box::new(CloseComparison),
+            ),
+        ] {
+            for (context, expected) in [("Lumia", normal), ("Lumia Comparison", comparison)] {
+                let (matches, _) = keymap.bindings_for_input(
+                    &[Keystroke::parse(key).unwrap()],
+                    &[KeyContext::parse(context).unwrap()],
+                );
+                assert_eq!(
+                    matches[0].action().as_any().type_id(),
+                    expected.as_any().type_id()
+                );
+            }
+        }
+        assert!(preserve_non_lumia_bindings(keymap.bindings()).is_empty());
+    }
 
     #[test]
     fn rebuilding_shortcuts_preserves_component_input_bindings() {

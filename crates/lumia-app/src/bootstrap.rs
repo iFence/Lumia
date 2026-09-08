@@ -41,37 +41,42 @@ pub(crate) fn run_gui(initial_path: Option<PathBuf>) -> anyhow::Result<()> {
         set_macos_dock_icon();
         cx.on_action(|_: &Quit, cx| cx.quit());
 
-        let bounds = Bounds::centered(None, size(px(1200.0), px(800.0)), cx);
-        cx.open_window(
-            WindowOptions {
-                window_bounds: Some(WindowBounds::Windowed(bounds)),
-                titlebar: Some(gpui::TitlebarOptions {
-                    title: Some(APP_TITLE.into()),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            },
-            move |window, cx| {
-                let view = cx.new(|cx| LumiaApp::new(window, cx, initial_path.clone()));
-                view.update(cx, |app, cx| {
-                    app.set_self_handle(view.downgrade(), cx);
-                    app.listen_for_instance_requests(primary_instance, window, cx);
-                    app.listen_for_platform_open_requests(platform_open_receiver, window, cx);
-                    app.maybe_check_for_updates_on_startup(cx);
-                    // Seed the community plugin index lazily so the official
-                    // RAW/Annotation plugins show up in the browser without a
-                    // manual Refresh. Silent on failure; renders the cached
-                    // copy when offline.
-                    app.load_community_index(false, cx);
-                });
-                cx.new(|cx| gpui_component::Root::new(view, window, cx).bordered(false))
-            },
-        )
-        .expect("failed to open Lumia window");
+        open_viewer_window(initial_path, cx);
+        primary_instance.listen(cx);
+        crate::platform_open::listen(platform_open_receiver, cx);
         cx.activate(true);
     });
 
     Ok(())
+}
+
+pub(crate) fn open_viewer_window(initial_path: Option<PathBuf>, cx: &mut App) {
+    let bounds = Bounds::centered(None, size(px(1200.0), px(800.0)), cx);
+    cx.open_window(
+        WindowOptions {
+            window_bounds: Some(WindowBounds::Windowed(bounds)),
+            titlebar: Some(gpui::TitlebarOptions {
+                title: Some(APP_TITLE.into()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+        move |window, cx| {
+            let view = cx.new(|cx| LumiaApp::new(window, cx, initial_path.clone()));
+            view.update(cx, |app, cx| {
+                app.set_self_handle(view.downgrade(), cx);
+                app.maybe_check_for_updates_on_startup(cx);
+                // Seed the community plugin index lazily so the official
+                // RAW/Annotation plugins show up in the browser without a
+                // manual Refresh. Silent on failure; renders the cached
+                // copy when offline.
+                app.load_community_index(false, cx);
+            });
+            cx.new(|cx| gpui_component::Root::new(view, window, cx).bordered(false))
+        },
+    )
+    .expect("failed to open Lumia window");
+    cx.activate(true);
 }
 
 /// On macOS a bare binary launched outside a `.app` bundle shows the generic

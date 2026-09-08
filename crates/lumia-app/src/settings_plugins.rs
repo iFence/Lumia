@@ -44,12 +44,9 @@ impl LumiaApp {
                             .font_weight(FontWeight::BOLD)
                             .child(tr(language, TextKey::Plugins)),
                     )
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(rgb(palette.muted_text))
-                            .child(tr_community(language, CommunityTextKey::CommunityPluginsDescription)),
-                    ),
+                    .child(div().text_xs().text_color(rgb(palette.muted_text)).child(
+                        tr_community(language, CommunityTextKey::CommunityPluginsDescription),
+                    )),
             )
             .child(self.render_plugin_sub_tabs(palette, cx))
             .children(match self.community_plugins.active_tab {
@@ -154,9 +151,10 @@ impl LumiaApp {
         let language = self.settings.language;
         let (message, is_error) = match &self.community_plugins.status {
             CommunityStatus::Idle | CommunityStatus::Loaded => return None,
-            CommunityStatus::Loading => {
-                (tr_community(language, CommunityTextKey::CommunityLoading).to_string(), false)
-            }
+            CommunityStatus::Loading => (
+                tr_community(language, CommunityTextKey::CommunityLoading).to_string(),
+                false,
+            ),
             CommunityStatus::Downloading {
                 plugin_id,
                 downloaded_bytes,
@@ -226,7 +224,12 @@ impl LumiaApp {
             .author
             .as_ref()
             .map(|author| author.name.clone())
-            .map(|name| format!("  {}  {name}", tr_community(language, CommunityTextKey::CommunityAuthor)))
+            .map(|name| {
+                format!(
+                    "  {}  {name}",
+                    tr_community(language, CommunityTextKey::CommunityAuthor)
+                )
+            })
             .unwrap_or_default();
 
         // Action button. Self-drawn div (matching the installed-plugin Remove
@@ -234,18 +237,26 @@ impl LumiaApp {
         // `flex_shrink_0`, so a long label like the "incompatible" hint would
         // push the card wider than its container.
         let (button_label, button_primary, button_disabled) = match action {
-            CommunityAction::Incompatible => {
-                (tr_community(language, CommunityTextKey::CommunityIncompatible), false, true)
-            }
-            CommunityAction::Install => {
-                (tr_community(language, CommunityTextKey::CommunityInstall), true, busy)
-            }
-            CommunityAction::Update => {
-                (tr_community(language, CommunityTextKey::CommunityUpdate), true, busy)
-            }
-            CommunityAction::Installed => {
-                (tr_community(language, CommunityTextKey::CommunityInstalled), false, true)
-            }
+            CommunityAction::Incompatible => (
+                tr_community(language, CommunityTextKey::CommunityIncompatible),
+                false,
+                true,
+            ),
+            CommunityAction::Install => (
+                tr_community(language, CommunityTextKey::CommunityInstall),
+                true,
+                busy,
+            ),
+            CommunityAction::Update => (
+                tr_community(language, CommunityTextKey::CommunityUpdate),
+                true,
+                busy,
+            ),
+            CommunityAction::Installed => (
+                tr_community(language, CommunityTextKey::CommunityInstalled),
+                false,
+                true,
+            ),
         };
         let install_handle = install_handle.clone();
         let install_id = plugin_id.clone();
@@ -334,23 +345,19 @@ impl LumiaApp {
                         )
                     })
                     .when(!plugin.tags.is_empty(), |card| {
-                        card.child(
-                            div()
-                                .flex()
-                                .flex_wrap()
-                                .gap_1()
-                                .children(plugin.tags.iter().map(|tag| {
-                                    div()
-                                        .px_2()
-                                        .py_1()
-                                        .rounded_full()
-                                        .border_1()
-                                        .border_color(rgb(palette.border))
-                                        .text_xs()
-                                        .text_color(rgb(palette.muted_text))
-                                        .child(tag.clone())
-                                })),
-                        )
+                        card.child(div().flex().flex_wrap().gap_1().children(
+                            plugin.tags.iter().map(|tag| {
+                                div()
+                                    .px_2()
+                                    .py_1()
+                                    .rounded_full()
+                                    .border_1()
+                                    .border_color(rgb(palette.border))
+                                    .text_xs()
+                                    .text_color(rgb(palette.muted_text))
+                                    .child(tag.clone())
+                            }),
+                        ))
                     })
                     .when(!plugin.permissions.is_empty(), |card| {
                         card.child(

@@ -34,6 +34,13 @@ pub(crate) struct UiState {
     /// Screen-space bounds of the zoom button, used to center the zoom menu
     /// under it and to keep the menu open while the pointer hovers it.
     pub(crate) zoom_menu_anchor: Option<Bounds<Pixels>>,
+    /// Screen-space bounds of the main image surface, captured each frame so
+    /// scroll-zoom can anchor on the cursor position.
+    pub(crate) viewer_surface_bounds: Option<Bounds<Pixels>>,
+    /// Screen-space bounds of the displayed image frame itself, including the
+    /// pan offset. Lets scroll-zoom derive the true effective scale from the
+    /// pixels actually drawn instead of recomputing it analytically.
+    pub(crate) viewer_image_bounds: Option<Bounds<Pixels>>,
     pub(crate) show_status_bar: bool,
     pub(crate) status_bar_locked: bool,
     /// Active rectangle drag on the annotation overlay.
@@ -61,6 +68,8 @@ impl Default for UiState {
             recording_shortcut: None,
             show_zoom_menu: false,
             zoom_menu_anchor: None,
+            viewer_surface_bounds: None,
+            viewer_image_bounds: None,
             show_status_bar: false,
             status_bar_locked: false,
             annotation_drag: None,

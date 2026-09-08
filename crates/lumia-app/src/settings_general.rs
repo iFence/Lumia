@@ -3,13 +3,13 @@ use gpui::{
     Styled, Window,
 };
 use gpui_component::switch::Switch;
-use lumia_core::{Language, ThemeAccent};
+use lumia_core::{Language, ResampleFilter, ThemeAccent};
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
-use crate::settings_ui::{language_text_key, theme_accent_text_key};
+use crate::settings_ui::{language_text_key, resample_filter_text_key, theme_accent_text_key};
 use crate::widgets::{settings_dropdown_button, settings_label};
-use crate::{SelectLanguage, SelectThemeAccent};
+use crate::{SelectLanguage, SelectResampleFilter, SelectThemeAccent};
 
 impl LumiaApp {
     pub(crate) fn render_general_settings(
@@ -20,6 +20,7 @@ impl LumiaApp {
         let language = self.settings.language;
         let selected_language = self.settings.language;
         let selected_accent = self.settings.theme_accent;
+        let selected_filter = self.settings.resample_filter;
         let check_updates_on_startup = self.settings.check_updates_on_startup;
         let self_handle = self.self_handle.clone();
 
@@ -86,6 +87,35 @@ impl LumiaApp {
                                 tr(language, TextKey::AccentRose),
                                 selected_accent == ThemeAccent::Rose,
                                 Box::new(SelectThemeAccent(ThemeAccent::Rose)),
+                            )
+                        },
+                    )),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .gap_4()
+                    .child(settings_label(tr(language, TextKey::ScalingAlgorithm)))
+                    .child(settings_dropdown_button(
+                        "settings-resample-filter-select",
+                        tr(language, resample_filter_text_key(selected_filter)),
+                        move |menu, _, _| {
+                            menu.menu_with_check(
+                                tr(language, TextKey::FilterNearestNeighbor),
+                                selected_filter == ResampleFilter::NearestNeighbor,
+                                Box::new(SelectResampleFilter(ResampleFilter::NearestNeighbor)),
+                            )
+                            .menu_with_check(
+                                tr(language, TextKey::FilterBilinear),
+                                selected_filter == ResampleFilter::Bilinear,
+                                Box::new(SelectResampleFilter(ResampleFilter::Bilinear)),
+                            )
+                            .menu_with_check(
+                                tr(language, TextKey::FilterLanczos),
+                                selected_filter == ResampleFilter::Lanczos,
+                                Box::new(SelectResampleFilter(ResampleFilter::Lanczos)),
                             )
                         },
                     )),
