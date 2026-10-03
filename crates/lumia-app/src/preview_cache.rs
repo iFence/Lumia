@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use gpui::Context;
+use gpui_kit::Context;
 use lumia_core::{DecodeCancellation, ImageDocument, ImageFileMetadata, ImageMetadata};
 
 use crate::app::LumiaApp;

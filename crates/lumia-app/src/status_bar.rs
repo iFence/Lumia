@@ -1,9 +1,9 @@
-use gpui::prelude::FluentBuilder;
-use gpui::{
+use gpui_kit::component::{tooltip::Tooltip, Icon, IconName};
+use gpui_kit::prelude::FluentBuilder;
+use gpui_kit::{
     div, px, rgb, AnyElement, Context, InteractiveElement, IntoElement, MouseButton,
     MouseDownEvent, ParentElement, Rgba, StatefulInteractiveElement, Styled, Window,
 };
-use gpui_component::{tooltip::Tooltip, Icon, IconName};
 use lumia_core::FitMode;
 
 use crate::app::LumiaApp;

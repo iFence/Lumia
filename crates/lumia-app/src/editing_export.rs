@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use gpui::Context;
+use gpui_kit::Context;
 use lumia_core::{
     apply_image_edit, export_decoded_image, load_decoded_image_from_path_with_policy,
     rotate_decoded_image, DecodeCancellation, DecodePolicy, ImageEditOperation, ImageEditPolicy,

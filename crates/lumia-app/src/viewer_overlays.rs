@@ -1,8 +1,8 @@
-use gpui::{
+use gpui_kit::component::{Icon, IconName};
+use gpui_kit::{
     div, point, px, rgb, AnyElement, Context, InteractiveElement, IntoElement, Keystroke,
     MouseButton, ParentElement, Pixels, Point, Styled, Window,
 };
-use gpui_component::{Icon, IconName};
 use lumia_core::{SettingsGroup, ShortcutId};
 
 use crate::app::LumiaApp;

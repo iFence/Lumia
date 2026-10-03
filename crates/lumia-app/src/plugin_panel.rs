@@ -1,10 +1,10 @@
-use gpui::prelude::FluentBuilder;
-use gpui::{
+use gpui_kit::component::scroll::ScrollableElement;
+use gpui_kit::component::{Icon, IconName};
+use gpui_kit::prelude::FluentBuilder;
+use gpui_kit::{
     div, px, rgb, AnyElement, Context, InteractiveElement, IntoElement, MouseButton, ParentElement,
     Styled,
 };
-use gpui_component::scroll::ScrollableElement;
-use gpui_component::{Icon, IconName};
 use lumia_core::Language;
 
 use crate::app::LumiaApp;

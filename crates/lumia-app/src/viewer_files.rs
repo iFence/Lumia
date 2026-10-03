@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use gpui::{ClipboardItem, Context, Window};
+use gpui_kit::{ClipboardItem, Context, Window};
 use lumia_core::{FitMode, ViewportState};
 
 use crate::app::LumiaApp;

@@ -5,7 +5,7 @@
 //! of the bar reporting the left image's figures with the right image's name
 //! beside them. Clicking a chip targets that pane for transform commands.
 
-use gpui::{
+use gpui_kit::{
     div, px, rgb, Context, InteractiveElement, IntoElement, MouseButton, ParentElement, Styled,
 };
 
@@ -21,7 +21,7 @@ impl LumiaApp {
         &self,
         palette: Palette,
         cx: &mut Context<Self>,
-    ) -> Option<gpui::AnyElement> {
+    ) -> Option<gpui_kit::AnyElement> {
         let summaries = self.comparison_pane_summaries()?;
         let mut row = div().flex().items_center().gap_1();
         for pane in summaries {

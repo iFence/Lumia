@@ -1,13 +1,13 @@
-use gpui::prelude::FluentBuilder;
-use gpui::{
-    div, px, rgb, AnyElement, Context, InteractiveElement, IntoElement, Keystroke, MouseButton,
-    MouseDownEvent, ParentElement, StatefulInteractiveElement, Styled, Window,
-};
-use gpui_component::{button::ButtonVariants as _, tooltip::Tooltip, Disableable as _, Icon};
-use gpui_component::{
+use gpui_kit::component::{button::ButtonVariants as _, Disableable as _, Icon};
+use gpui_kit::component::{
     button::{Button, ButtonRounded},
     kbd::Kbd,
     menu::{DropdownMenu, PopupMenu},
+};
+use gpui_kit::prelude::FluentBuilder;
+use gpui_kit::{
+    div, px, rgb, AnyElement, Context, InteractiveElement, IntoElement, Keystroke, MouseButton,
+    MouseDownEvent, ParentElement, StatefulInteractiveElement, Styled, Window,
 };
 
 use crate::app::LumiaApp;
@@ -22,7 +22,7 @@ pub(crate) fn context_menu_item(
     palette: Palette,
     cx: &mut Context<LumiaApp>,
     on_click: impl Fn(&mut LumiaApp, &MouseDownEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
-) -> gpui::AnyElement {
+) -> gpui_kit::AnyElement {
     context_menu_item_enabled(id, label, true, shortcut, palette, cx, on_click)
 }
 
@@ -34,7 +34,7 @@ pub(crate) fn context_menu_item_enabled(
     palette: Palette,
     cx: &mut Context<LumiaApp>,
     on_click: impl Fn(&mut LumiaApp, &MouseDownEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
-) -> gpui::AnyElement {
+) -> gpui_kit::AnyElement {
     div()
         .id(id)
         .w_full()
@@ -72,7 +72,7 @@ pub(crate) fn edit_menu_item(
     palette: Palette,
     cx: &mut Context<LumiaApp>,
     on_click: impl Fn(&mut LumiaApp, &MouseDownEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
-) -> gpui::AnyElement {
+) -> gpui_kit::AnyElement {
     div()
         .id(id)
         .w_full()
@@ -102,8 +102,9 @@ pub(crate) fn settings_group_button(
     active: bool,
     palette: Palette,
     cx: &mut Context<LumiaApp>,
-    on_click: impl Fn(&mut LumiaApp, &gpui::ClickEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
-) -> gpui::AnyElement {
+    on_click: impl Fn(&mut LumiaApp, &gpui_kit::ClickEvent, &mut Window, &mut Context<LumiaApp>)
+        + 'static,
+) -> gpui_kit::AnyElement {
     let label_color = if active {
         palette.text
     } else {
@@ -153,7 +154,7 @@ pub(crate) fn settings_dropdown_button(
     id: &'static str,
     label: &'static str,
     menu: impl Fn(PopupMenu, &mut Window, &mut Context<PopupMenu>) -> PopupMenu + 'static,
-) -> gpui::AnyElement {
+) -> gpui_kit::AnyElement {
     Button::new(format!("{id}-trigger"))
         .w(px(172.0))
         .h(px(36.0))
@@ -171,8 +172,8 @@ pub(crate) fn settings_action_button(
     label: &'static str,
     primary: bool,
     disabled: bool,
-    on_click: impl Fn(&gpui::ClickEvent, &mut Window, &mut gpui::App) + 'static,
-) -> gpui::AnyElement {
+    on_click: impl Fn(&gpui_kit::ClickEvent, &mut Window, &mut gpui_kit::App) + 'static,
+) -> gpui_kit::AnyElement {
     let button = Button::new(id)
         .h(px(32.0))
         .px_3()
@@ -192,8 +193,9 @@ pub(crate) fn edit_option_button(
     active: bool,
     palette: Palette,
     cx: &mut Context<LumiaApp>,
-    on_click: impl Fn(&mut LumiaApp, &gpui::ClickEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
-) -> gpui::AnyElement {
+    on_click: impl Fn(&mut LumiaApp, &gpui_kit::ClickEvent, &mut Window, &mut Context<LumiaApp>)
+        + 'static,
+) -> gpui_kit::AnyElement {
     div()
         .id(id)
         .px_2()
@@ -223,7 +225,7 @@ pub(crate) fn edit_option_button(
         .into_any_element()
 }
 
-pub(crate) fn settings_label(title: &'static str) -> impl gpui::IntoElement {
+pub(crate) fn settings_label(title: &'static str) -> impl gpui_kit::IntoElement {
     div().flex_1().text_sm().child(title)
 }
 
@@ -232,8 +234,9 @@ pub(crate) fn shortcut_record_button(
     current_binding: String,
     is_recording: bool,
     cx: &mut Context<LumiaApp>,
-    on_click: impl Fn(&mut LumiaApp, &gpui::ClickEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
-) -> gpui::AnyElement {
+    on_click: impl Fn(&mut LumiaApp, &gpui_kit::ClickEvent, &mut Window, &mut Context<LumiaApp>)
+        + 'static,
+) -> gpui_kit::AnyElement {
     let button = Button::new(id)
         .min_w(px(132.0))
         .h(px(32.0))
@@ -257,8 +260,9 @@ pub(crate) fn shortcut_reset_button(
     id: &'static str,
     label: &'static str,
     cx: &mut Context<LumiaApp>,
-    on_click: impl Fn(&mut LumiaApp, &gpui::ClickEvent, &mut Window, &mut Context<LumiaApp>) + 'static,
-) -> gpui::AnyElement {
+    on_click: impl Fn(&mut LumiaApp, &gpui_kit::ClickEvent, &mut Window, &mut Context<LumiaApp>)
+        + 'static,
+) -> gpui_kit::AnyElement {
     Button::new(id)
         .label(label)
         .ghost()

@@ -1,8 +1,8 @@
-use gpui::{
+use gpui_kit::component::switch::Switch;
+use gpui_kit::{
     div, Context, InteractiveElement, IntoElement, ParentElement, StatefulInteractiveElement,
     Styled, Window,
 };
-use gpui_component::switch::Switch;
 use lumia_core::{Language, ResampleFilter, ThemeAccent};
 
 use crate::app::LumiaApp;

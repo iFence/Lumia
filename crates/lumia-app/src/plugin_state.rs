@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use gpui::{Context, Window};
+use gpui_kit::{Context, Window};
 use lumia_plugin_api::{
     CanvasToolSettings, CanvasToolState, DocumentContext, PanelModel, PluginIcon, PluginManifest,
     UiActivateParams, UiEventParams, UiSessionResult, UiUpdateResult, UiValue,

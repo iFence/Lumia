@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use gpui::{App, AppContext, Bounds, Context, Entity, Pixels, Subscription, Window};
-use gpui_component::input::{InputEvent, InputState};
+use gpui_kit::component::input::{InputEvent, InputState};
+use gpui_kit::{App, AppContext, Bounds, Context, Entity, Pixels, Subscription, Window};
 use lumia_core::{CropRect, ImageEditPolicy, ViewportState};
 
 use crate::app::LumiaApp;

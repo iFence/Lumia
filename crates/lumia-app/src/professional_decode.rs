@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use gpui::Context;
+use gpui_kit::Context;
 use lumia_core::Language;
 use lumia_plugin_api::PluginManifest;
 

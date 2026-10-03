@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use gpui::prelude::FluentBuilder;
-use gpui::{
+use gpui_kit::prelude::FluentBuilder;
+use gpui_kit::{
     div, px, rgb, AnyElement, Context, Focusable, InteractiveElement, IntoElement, ParentElement,
     Point, Styled, Window,
 };
@@ -184,7 +184,7 @@ impl LumiaApp {
     /// Returns false when the pointer misses the image so the caller can pan.
     pub(crate) fn handle_annotation_mouse_down(
         &mut self,
-        position: Point<gpui::Pixels>,
+        position: Point<gpui_kit::Pixels>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
@@ -260,7 +260,7 @@ impl LumiaApp {
 
     pub(crate) fn update_annotation_drag(
         &mut self,
-        position: Point<gpui::Pixels>,
+        position: Point<gpui_kit::Pixels>,
         window: &Window,
     ) {
         let Some(geometry) = self.annotation_geometry(window) else {

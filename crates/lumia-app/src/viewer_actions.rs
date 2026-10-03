@@ -2,10 +2,10 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use gpui::{AppContext, Context, Focusable, ParentElement, Pixels, Point, Window};
-use gpui_component::dialog::DialogButtonProps;
-use gpui_component::input::{Input, InputState};
-use gpui_component::WindowExt;
+use gpui_kit::component::dialog::DialogButtonProps;
+use gpui_kit::component::input::{Input, InputState};
+use gpui_kit::component::WindowExt;
+use gpui_kit::{AppContext, Context, Focusable, ParentElement, Pixels, Point, Window};
 use http_client::{AsyncBody, HttpClient};
 use lumia_core::{
     load_decoded_image_from_path, rotate_bgra8, rotate_decoded_image, supported_image_extensions,

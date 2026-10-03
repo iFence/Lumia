@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use gpui::{Context, Pixels, Point, Window};
+use gpui_kit::{Context, Pixels, Point, Window};
 use lumia_core::{FitMode, ViewportState};
 
 use crate::app::LumiaApp;

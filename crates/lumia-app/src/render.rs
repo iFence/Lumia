@@ -1,9 +1,9 @@
-use gpui::{
+use gpui_kit::component::{Theme, ThemeMode as ComponentThemeMode};
+use gpui_kit::{
     div, img, px, rgb, App, Context, ExternalPaths, FontWeight, InteractiveElement, IntoElement,
     MouseButton, MouseDownEvent, MouseMoveEvent, ObjectFit, ParentElement, Render, ScrollDelta,
     ScrollWheelEvent, StatefulInteractiveElement, Styled, StyledImage, Window,
 };
-use gpui_component::{Root, Theme, ThemeMode as ComponentThemeMode};
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
@@ -24,7 +24,6 @@ impl Render for LumiaApp {
         self.sync_community_search_input(window, cx);
         self.schedule_viewer_resamples(window, cx);
         self.refresh_large_image_tiles(window, cx);
-        let dialog_layer = Root::render_dialog_layer(window, cx);
 
         div()
             .id("lumia-root")
@@ -75,7 +74,6 @@ impl Render for LumiaApp {
                     .then(|| self.render_status_bar(window, palette, cx)),
             )
             .children(self.render_settings_panel(window, palette, cx))
-            .children(dialog_layer)
     }
 }
 

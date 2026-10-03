@@ -1,4 +1,4 @@
-use gpui::{
+use gpui_kit::{
     canvas, div, img, point, px, size, AnyElement, Bounds, ContentMask, InteractiveElement,
     IntoElement, ObjectFit, ParentElement, Styled, StyledImage, Window,
 };

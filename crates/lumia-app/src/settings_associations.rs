@@ -1,8 +1,8 @@
-use gpui::{
+use gpui_kit::component::{Icon, IconName};
+use gpui_kit::{
     div, px, rgb, Context, FontWeight, InteractiveElement, IntoElement, ParentElement,
     StatefulInteractiveElement, Styled,
 };
-use gpui_component::{Icon, IconName};
 use lumia_core::SUPPORTED_IMAGE_EXTENSIONS;
 
 use crate::app::LumiaApp;
@@ -269,7 +269,7 @@ impl LumiaApp {
         &self,
         palette: Palette,
         _cx: &mut Context<Self>,
-    ) -> gpui::AnyElement {
+    ) -> gpui_kit::AnyElement {
         let language = self.settings.language;
         let (message, is_error) = if self.ui.file_associations.is_busy {
             (tr(language, TextKey::AssociationLoading).to_string(), false)

@@ -1,6 +1,6 @@
-use gpui::{Context, Window};
-use gpui_component::dialog::DialogButtonProps;
-use gpui_component::WindowExt;
+use gpui_kit::component::dialog::DialogButtonProps;
+use gpui_kit::component::WindowExt;
+use gpui_kit::{Context, Window};
 use lumia_core::{CropRect, Language};
 
 use crate::app::LumiaApp;

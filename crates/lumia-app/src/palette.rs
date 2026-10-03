@@ -1,4 +1,4 @@
-use gpui::Window;
+use gpui_kit::Window;
 use lumia_core::ThemeAccent;
 
 use crate::app::LumiaApp;

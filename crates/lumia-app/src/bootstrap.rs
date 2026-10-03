@@ -1,7 +1,7 @@
 use std::{path::PathBuf, sync::Arc, thread};
 
 use async_channel;
-use gpui::{px, size, App, AppContext, Bounds, WindowBounds, WindowOptions};
+use gpui_kit::{px, size, App, AppContext, Bounds, WindowBounds, WindowOptions};
 use reqwest_client::ReqwestClient;
 
 use crate::{
@@ -23,7 +23,7 @@ pub(crate) fn run_gui(initial_path: Option<PathBuf>) -> anyhow::Result<()> {
         });
 
     let (platform_open_sender, platform_open_receiver) = async_channel::unbounded();
-    let application = gpui_platform::application().with_assets(CustomAssets);
+    let application = gpui_kit::application().with_assets(CustomAssets);
     application.on_open_urls(move |urls| {
         for path in urls
             .into_iter()
@@ -33,7 +33,7 @@ pub(crate) fn run_gui(initial_path: Option<PathBuf>) -> anyhow::Result<()> {
         }
     });
     application.run(move |cx: &mut App| {
-        gpui_component::init(cx);
+        gpui_kit::init(cx);
         let http_client = ReqwestClient::user_agent(concat!("Lumia/", env!("CARGO_PKG_VERSION")))
             .expect("failed to initialize Lumia HTTP client");
         cx.set_http_client(Arc::new(http_client));
@@ -52,15 +52,16 @@ pub(crate) fn run_gui(initial_path: Option<PathBuf>) -> anyhow::Result<()> {
 
 pub(crate) fn open_viewer_window(initial_path: Option<PathBuf>, cx: &mut App) {
     let bounds = Bounds::centered(None, size(px(1200.0), px(800.0)), cx);
-    cx.open_window(
+    gpui_kit::open_window(
         WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
-            titlebar: Some(gpui::TitlebarOptions {
+            titlebar: Some(gpui_kit::TitlebarOptions {
                 title: Some(APP_TITLE.into()),
                 ..Default::default()
             }),
             ..Default::default()
         },
+        cx,
         move |window, cx| {
             let view = cx.new(|cx| LumiaApp::new(window, cx, initial_path.clone()));
             view.update(cx, |app, cx| {
@@ -72,7 +73,7 @@ pub(crate) fn open_viewer_window(initial_path: Option<PathBuf>, cx: &mut App) {
                 // copy when offline.
                 app.load_community_index(false, cx);
             });
-            cx.new(|cx| gpui_component::Root::new(view, window, cx).bordered(false))
+            view
         },
     )
     .expect("failed to open Lumia window");

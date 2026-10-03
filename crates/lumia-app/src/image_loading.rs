@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use gpui::{Context, Window};
+use gpui_kit::{Context, Window};
 use lumia_core::{FolderNavigation, ImageDocument};
 
 use crate::app::LumiaApp;

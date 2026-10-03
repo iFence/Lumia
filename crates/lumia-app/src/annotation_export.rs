@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use gpui::{Context, Window};
+use gpui_kit::{Context, Window};
 use lumia_core::{
     blend_text_raster, export_decoded_image, rasterize_text_line, Annotation, DecodedImage,
     ImageExportFormat,

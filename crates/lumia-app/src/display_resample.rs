@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use gpui::{Context, RenderImage, WeakEntity, Window};
+use gpui_kit::{Context, RenderImage, WeakEntity, Window};
 use lumia_core::{
     resize_decoded_image, DecodedImage, ImageLoadError, ResampleFilter, ViewportState,
 };
@@ -379,7 +379,10 @@ fn build_request(
 
 /// Scale at which an image fits inside a pane of the given size; mirrors the
 /// comparison renderer's fit computation.
-pub(crate) fn pane_fit_scale(pane_size: gpui::Size<gpui::Pixels>, dimensions: (u32, u32)) -> f32 {
+pub(crate) fn pane_fit_scale(
+    pane_size: gpui_kit::Size<gpui_kit::Pixels>,
+    dimensions: (u32, u32),
+) -> f32 {
     let width = f32::from(pane_size.width).max(1.0);
     let height = f32::from(pane_size.height).max(1.0);
     (width / dimensions.0 as f32).min(height / dimensions.1 as f32)

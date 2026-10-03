@@ -102,20 +102,20 @@ lumia-plugin-sample ──> lumia-plugin-api
 ## GPUI Guidance
 
 - Prefer stable GPUI element IDs and avoid expensive allocations in `Render::render`.
-- GPUI is sourced from the workspace's current Zed dependency set. For framework behavior, prefer the locked dependency source and local tutorial over external docs when they differ. Any dependency policy change or major upgrade must include an ADR with the reason, API impact, and verification result.
-- The `actions!` macro must stay in `main.rs` (crate root). Action types are referenced from other modules via `crate::OpenFile` etc.
+- The GPUI ecosystem is sourced through the single `gpui-kit` crate (crates.io; the repo was renamed from `gpui-component`). `gpui_kit::*` is GPUI, and the layers are `gpui_kit::base`, `gpui_kit::component`, `gpui_kit::assets`, and `gpui_kit::platform`. For framework behavior, prefer the locked dependency source and local tutorial over external docs when they differ. Any dependency policy change or major upgrade must include an ADR with the reason, API impact, and verification result; write it under `docs/adr/` (that directory is gitignored, e.g. `docs/adr/0001-migrate-to-gpui-kit.md`).
+- The `actions!` macro must stay in `main.rs` (crate root). Action types are referenced from other modules via `crate::OpenFile` etc. `main.rs` also declares `extern crate gpui_kit as gpui;` so the `Action` derive/attribute macros, which expand to `gpui::…` paths, resolve through the kit.
 - GPUI trait imports ( `InteractiveElement`, `ParentElement`, `StatefulInteractiveElement`, `StyledImage`, etc.) must be explicitly listed in each module that uses them — they do not carry over from other modules.
 
 ## UI Component Library
 
-- Lumia uses `gpui-component` as the shared UI component library for `crates/lumia-app`. Besides reading existing Lumia code, you may also reference the upstream documentation and examples at `https://github.com/longbridge/gpui-component`.
-- Keep the direct `gpui`/`gpui_platform` dependencies in `Cargo.toml` using the same unpinned git URL shape as `gpui-component`; do NOT add `rev = ...` there. Cargo treats `git+url` and `git+url?rev=...` as different sources, which creates two incompatible `gpui` crates even when both resolve to the same commit.
-- Pin the actual Zed/GPUI revision through the committed `Cargo.lock` instead. If the Zed revision needs to change, use `cargo update` and verify the whole workspace rather than editing dependency source or vendoring Zed.
-- Keep `rust-toolchain.toml` aligned with the Rust version required by the locked Zed revision. Recent Zed GPUI commits use Rust APIs such as `slice_as_array` and `cold_path`, so older local stable toolchains may fail even when dependency source is correct.
-- Initialize the component library in `bootstrap.rs` with `gpui_component::init(cx)` before creating application UI, and keep the root view wrapped in `gpui_component::Root`.
-- Prefer `gpui_component` widgets for common controls such as buttons. Button helpers belong in `widgets.rs` and should return `AnyElement` when shared across render modules.
-- When bridging `gpui_component::button::Button::on_click` into `LumiaApp`, use the callback-provided `&mut Window` directly and update app state through the stored `WeakEntity`; avoid `update_in` unless the code specifically requires GPUI to resolve the entity window.
-- Raw GPUI `div()`-based controls are still acceptable for viewer-specific interactions, context menu rows, drag regions, or cases where `gpui-component` does not expose the needed mouse/keyboard semantics.
+- Lumia uses `gpui-kit` for `crates/lumia-app`; the styled component library lives at `gpui_kit::component`. Besides reading existing Lumia code, you may also reference the upstream documentation and examples at `https://github.com/longbridge/gpui-kit` (formerly `gpui-component`).
+- Depend on GPUI only through `gpui-kit`; do NOT re-add the Zed git dependencies (`gpui`, `gpui_platform`) or any second `gpui` source. GPUI ships as the weekly crates.io snapshot family `gpui-pre*`, and `gpui-kit` pins the matching snapshot exactly. Mixing sources produces two incompatible `gpui` crates.
+- The only exceptions are `http_client` and `reqwest_client`, which map to `gpui-pre-http-client` / `gpui-pre-reqwest-client` in `Cargo.toml` with exact `=0.3.7` pins that must always match the snapshot `gpui-kit` resolves to. Pin the resolved versions through the committed `Cargo.lock`, and bump `gpui-kit` and both `gpui-pre` client crates together.
+- Keep `rust-toolchain.toml` aligned with the Rust version required by the locked GPUI snapshot. Recent GPUI revisions use Rust APIs such as `slice_as_array` and `cold_path`, so older local stable toolchains may fail even when the dependency source is correct.
+- Initialize in `bootstrap.rs` with `gpui_kit::init(cx)` before creating application UI, and open windows with `gpui_kit::open_window(options, cx, ...)`. That helper mounts the framework `Root` and its dialog/sheet/notification layers; do not build a `Root` by hand or call the removed `Root::render_*_layer` APIs.
+- Prefer `gpui_kit::component` widgets for common controls such as buttons. Button helpers belong in `widgets.rs` and should return `AnyElement` when shared across render modules.
+- When bridging `gpui_kit::component::button::Button::on_click` into `LumiaApp`, use the callback-provided `&mut Window` directly and update app state through the stored `WeakEntity`; avoid `update_in` unless the code specifically requires GPUI to resolve the entity window.
+- Raw GPUI `div()`-based controls are still acceptable for viewer-specific interactions, context menu rows, drag regions, or cases where `gpui_kit::component` does not expose the needed mouse/keyboard semantics.
 - Keep component styling aligned with `Palette`; do not hard-code colors in component wrappers unless the palette cannot express the state.
 
 ## Verification

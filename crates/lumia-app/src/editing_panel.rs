@@ -1,10 +1,10 @@
-use gpui::prelude::FluentBuilder;
-use gpui::{
+use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::input::Input;
+use gpui_kit::component::{Disableable as _, Icon, IconName};
+use gpui_kit::prelude::FluentBuilder;
+use gpui_kit::{
     div, px, rgb, AnyElement, Context, InteractiveElement, IntoElement, ParentElement, Styled,
 };
-use gpui_component::button::{Button, ButtonVariants as _};
-use gpui_component::input::Input;
-use gpui_component::{Disableable as _, Icon, IconName};
 
 use crate::app::LumiaApp;
 use crate::editing::{CropAspect, EditMode};

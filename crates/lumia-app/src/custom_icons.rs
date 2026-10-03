@@ -1,7 +1,7 @@
-use gpui::{AssetSource, Result, SharedString};
+use gpui_kit::{AssetSource, Result, SharedString};
 use std::borrow::Cow;
 
-/// Asset source that wraps the default gpui_component_assets to provide
+/// Asset source that wraps the default `gpui_kit::assets` bundle to provide
 /// custom SVG icons on top of the built-in icon set.
 pub(crate) struct CustomAssets;
 
@@ -32,7 +32,7 @@ impl AssetSource for CustomAssets {
             "custom/status-bar-unlock.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../resources/icons/status-bar-unlock.svg"
             )))),
-            other => gpui_component_assets::Assets.load(other),
+            other => gpui_kit::assets::Assets.load(other),
         }
     }
 
@@ -49,7 +49,7 @@ impl AssetSource for CustomAssets {
                 "custom/status-bar-unlock.svg".into(),
             ])
         } else {
-            gpui_component_assets::Assets.list(path)
+            gpui_kit::assets::Assets.list(path)
         }
     }
 }

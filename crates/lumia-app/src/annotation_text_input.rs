@@ -5,8 +5,8 @@
 //! `InputState` entity, seeds it from the panel value on creation, and commits
 //! the pending click point when the user presses Enter.
 
-use gpui::{AppContext, Context, Entity, Window};
-use gpui_component::input::{InputEvent, InputState};
+use gpui_kit::component::input::{InputEvent, InputState};
+use gpui_kit::{AppContext, Context, Entity, Window};
 use lumia_core::Annotation;
 use lumia_plugin_api::CanvasOperation;
 

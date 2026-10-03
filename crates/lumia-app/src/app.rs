@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use gpui::{App, Context, Entity, FocusHandle, Focusable, Subscription, WeakEntity, Window};
-use gpui_component::input::InputState;
+use gpui_kit::component::input::InputState;
+use gpui_kit::{App, Context, Entity, FocusHandle, Focusable, Subscription, WeakEntity, Window};
 use lumia_core::{AnnotationDocument, AppSettings, FolderNavigation, SettingsGroup, ViewerSession};
 
 use crate::community_plugins::CommunityPluginsState;

@@ -1,8 +1,8 @@
-use gpui::{
+use gpui_kit::component::{tooltip::Tooltip, Icon};
+use gpui_kit::{
     div, px, rgb, ClipboardItem, Context, InteractiveElement, IntoElement, MouseButton,
     ParentElement, StatefulInteractiveElement, Styled, Window,
 };
-use gpui_component::{tooltip::Tooltip, Icon};
 use lumia_core::{ExifMetadata, Language};
 
 use crate::app::LumiaApp;
@@ -29,7 +29,7 @@ impl LumiaApp {
                     .px_3()
                     .py_2()
                     .rounded_md()
-                    .bg(gpui::black().opacity(0.72))
+                    .bg(gpui_kit::black().opacity(0.72))
                     .text_color(rgb(0xf2f2f2))
                     .text_xs()
                     .shadow_md()
@@ -52,7 +52,7 @@ impl LumiaApp {
                                     .justify_center()
                                     .rounded_sm()
                                     .cursor_pointer()
-                                    .hover(move |style| style.bg(gpui::white().opacity(0.12)))
+                                    .hover(move |style| style.bg(gpui_kit::white().opacity(0.12)))
                                     .tooltip(move |window, cx| {
                                         Tooltip::new(tooltip).build(window, cx)
                                     })
@@ -82,7 +82,7 @@ impl LumiaApp {
                                     .justify_center()
                                     .rounded_sm()
                                     .cursor_pointer()
-                                    .hover(move |style| style.bg(gpui::white().opacity(0.12)))
+                                    .hover(move |style| style.bg(gpui_kit::white().opacity(0.12)))
                                     .tooltip(move |window, cx| {
                                         Tooltip::new(close_tooltip).build(window, cx)
                                     })

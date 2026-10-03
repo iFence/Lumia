@@ -6,7 +6,7 @@ use std::{
 use lumia_core::{large_image_worker_count, PixelBudget};
 use lumia_core::{DecodeCancellation, LargeImagePolicy, LargeImageRaster, TileCoordinate};
 
-use gpui::{Context, Window};
+use gpui_kit::{Context, Window};
 
 use crate::app::LumiaApp;
 use crate::large_image_render::LargeImageViewGeometry;

@@ -1,10 +1,10 @@
-use gpui::prelude::FluentBuilder;
-use gpui::{
+use gpui_kit::component::input::Input;
+use gpui_kit::component::{Icon, IconName};
+use gpui_kit::prelude::FluentBuilder;
+use gpui_kit::{
     div, px, rgb, svg, AnyElement, Context, InteractiveElement, IntoElement, MouseButton,
     ParentElement, Styled,
 };
-use gpui_component::input::Input;
-use gpui_component::{Icon, IconName};
 use lumia_plugin_api::{PanelControl, PluginIcon, UiValue};
 
 use crate::app::LumiaApp;

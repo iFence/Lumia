@@ -3,8 +3,8 @@
 //! Split out of `settings_plugins.rs` to keep each module under the project's
 //! 500-line limit.
 
-use gpui::prelude::FluentBuilder as _;
-use gpui::{
+use gpui_kit::prelude::FluentBuilder as _;
+use gpui_kit::{
     div, px, rgb, AnyElement, Context, FontWeight, InteractiveElement, IntoElement, ParentElement,
     StatefulInteractiveElement, Styled,
 };

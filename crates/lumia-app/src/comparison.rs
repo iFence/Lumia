@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use gpui::{
+use gpui_kit::{
     div, img, px, rgb, AnyElement, Bounds, Context, InteractiveElement, IntoElement, ObjectFit,
     ParentElement, Pixels, Styled, StyledImage, Window,
 };
@@ -161,7 +161,7 @@ pub(crate) struct PaneSummary {
 pub(crate) fn pane_display_size(
     viewport: &ViewportState,
     dimensions: (u32, u32),
-    pane_size: Option<gpui::Size<Pixels>>,
+    pane_size: Option<gpui_kit::Size<Pixels>>,
 ) -> Option<(f32, f32)> {
     let scale = match viewport.fit_mode {
         FitMode::FitToWindow => {
@@ -295,7 +295,7 @@ impl LumiaApp {
             .and_then(|key| state.right_resample.ready(&key));
 
         let window_size = window.viewport_size();
-        let fallback_pane_size = gpui::size(
+        let fallback_pane_size = gpui_kit::size(
             px(f32::from(window_size.width) / 2.0),
             px(f32::from(window_size.height)),
         );
@@ -310,9 +310,9 @@ impl LumiaApp {
                     image: Option<PreparedImage>,
                     source_dims: (u32, u32),
                     viewport: &ViewportState,
-                    pane_size: gpui::Size<Pixels>,
+                    pane_size: gpui_kit::Size<Pixels>,
                     active: bool,
-                    capture: Option<(gpui::WeakEntity<LumiaApp>, bool)>,
+                    capture: Option<(gpui_kit::WeakEntity<LumiaApp>, bool)>,
                     empty_message: Option<&str>,
                     tiled: Option<AnyElement>| {
             let mut pane_div = div()
@@ -417,7 +417,7 @@ impl LumiaApp {
         let capture = self.self_handle.clone();
         let wrap = |element: AnyElement,
                     pick: fn(&mut ComparisonState) -> &mut Option<Bounds<Pixels>>,
-                    handle: gpui::WeakEntity<LumiaApp>| {
+                    handle: gpui_kit::WeakEntity<LumiaApp>| {
             div()
                 .flex_1()
                 .min_w_0()

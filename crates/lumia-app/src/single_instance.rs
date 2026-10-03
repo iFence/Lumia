@@ -2,7 +2,7 @@ use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
 use async_channel::{Receiver, Sender};
-use gpui::App;
+use gpui_kit::App;
 use serde::{Deserialize, Serialize};
 
 const MAX_REQUEST_BYTES: usize = 1024 * 1024;

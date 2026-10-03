@@ -1,6 +1,6 @@
 use std::{path::PathBuf, time::Duration};
 
-use gpui::Context;
+use gpui_kit::Context;
 use lumia_core::{AnimatedImageFormat, DecodeCancellation, DecodePolicy, DecodedAnimationFrame};
 
 use crate::{app::LumiaApp, load_state::PreparedImage, util::format_load_error};

@@ -1,5 +1,10 @@
 #![windows_subsystem = "windows"]
 
+// The `#[derive(Action)]` / `#[action(...)]` macros expand to `gpui::...` paths.
+// GPUI now reaches the app through the `gpui-kit` facade, so expose the kit
+// under the `gpui` name for those macro expansions to resolve.
+extern crate gpui_kit as gpui;
+
 mod annotation_export;
 mod annotation_overlay;
 mod annotation_text_input;
@@ -68,7 +73,7 @@ mod viewer_overlays;
 mod widgets;
 mod window_actions;
 
-use gpui::{actions, Action};
+use gpui_kit::{actions, Action};
 use lumia_core::{Language, ResampleFilter, ThemeAccent};
 use serde::Deserialize;
 

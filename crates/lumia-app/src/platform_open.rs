@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use async_channel::Receiver;
-use gpui::App;
+use gpui_kit::App;
 
 pub(crate) fn file_path(url: &str) -> Option<PathBuf> {
     url::Url::parse(url).ok()?.to_file_path().ok()

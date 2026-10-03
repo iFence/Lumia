@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use gpui::{Bounds, Pixels, Point};
+use gpui_kit::{Bounds, Pixels, Point};
 use lumia_core::{SettingsGroup, ShortcutId};
 
 use crate::file_association_state::FileAssociationUiState;

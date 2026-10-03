@@ -1,4 +1,4 @@
-use gpui::{
+use gpui_kit::{
     div, img, px, rgb, AnyElement, Context, InteractiveElement, IntoElement, MouseButton,
     MouseDownEvent, MouseMoveEvent, ObjectFit, ParentElement, Point, Styled, StyledImage, Window,
 };
@@ -147,8 +147,8 @@ impl LumiaApp {
                 .p(px(PANEL_PADDING))
                 .rounded_md()
                 .border_1()
-                .border_color(gpui::white().opacity(0.22))
-                .bg(gpui::black().opacity(0.74))
+                .border_color(gpui_kit::white().opacity(0.22))
+                .bg(gpui_kit::black().opacity(0.74))
                 .shadow_md()
                 .cursor_pointer()
                 .on_mouse_down(
@@ -201,7 +201,7 @@ impl LumiaApp {
                                 .h(px(geometry.viewport_height))
                                 .rounded_sm()
                                 .border_2()
-                                .border_color(gpui::white().opacity(0.95)),
+                                .border_color(gpui_kit::white().opacity(0.95)),
                         ),
                 )
                 .into_any_element(),
@@ -230,7 +230,7 @@ impl LumiaApp {
         }
     }
 
-    fn pan_from_overview(&mut self, position: Point<gpui::Pixels>, window: &Window) {
+    fn pan_from_overview(&mut self, position: Point<gpui_kit::Pixels>, window: &Window) {
         let Some(geometry) = self.overview_geometry(window) else {
             return;
         };

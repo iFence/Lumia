@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use gpui::Context;
+use gpui_kit::Context;
 use lumia_core::SUPPORTED_IMAGE_EXTENSIONS;
 
 use crate::app::LumiaApp;

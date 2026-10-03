@@ -12,7 +12,7 @@ name = "lumia_svg_thumbnail"
 crate-type = ["cdylib"]
 
 [dependencies]
-# Pin to the same 0.46 line already pulled in by the gpui git dependency, so no
+# Pin to the same 0.46 line already pulled in by the gpui dependency, so no
 # new resvg/usvg copy enters the lockfile. Default features cover text
 # rendering (system-fonts), embedded raster images, and gzip'd SVG parsing.
 resvg = "0.46"

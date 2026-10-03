@@ -1,4 +1,4 @@
-use gpui::{Bounds, Context, MouseMoveEvent, Pixels, Window};
+use gpui_kit::{Bounds, Context, MouseMoveEvent, Pixels, Window};
 use lumia_core::SettingsGroup;
 
 use crate::app::LumiaApp;

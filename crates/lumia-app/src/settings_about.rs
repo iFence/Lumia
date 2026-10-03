@@ -1,9 +1,9 @@
-use gpui::prelude::FluentBuilder;
-use gpui::{
+use gpui_kit::component::text::TextView;
+use gpui_kit::prelude::FluentBuilder;
+use gpui_kit::{
     div, px, rgb, Context, FontWeight, InteractiveElement, IntoElement, ParentElement,
     StatefulInteractiveElement, Styled,
 };
-use gpui_component::text::TextView;
 
 use crate::app::LumiaApp;
 use crate::i18n::{tr, TextKey};
@@ -23,7 +23,7 @@ impl LumiaApp {
         let is_busy = self.ui.update_check.is_busy();
         let has_update = self.ui.update_check.has_update();
 
-        let status_element: gpui::AnyElement = match update_state {
+        let status_element: gpui_kit::AnyElement = match update_state {
             UpdateState::Idle => div().into_any_element(),
             UpdateState::Checking => div()
                 .text_sm()

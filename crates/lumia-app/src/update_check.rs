@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::Context as _;
-use gpui::{Context, Window};
+use gpui_kit::{Context, Window};
 use http_client::{AsyncBody, HttpClient};
 use semver::Version;
 

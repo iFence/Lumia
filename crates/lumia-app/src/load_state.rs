@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui::RenderImage;
+use gpui_kit::RenderImage;
 use image::{Frame, RgbaImage};
 use lumia_core::{DecodeCancellation, DecodedImage, ImageFileMetadata};
 

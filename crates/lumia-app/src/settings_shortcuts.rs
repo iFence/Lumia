@@ -1,4 +1,4 @@
-use gpui::{
+use gpui_kit::{
     div, px, rgb, Context, InteractiveElement, IntoElement, ParentElement,
     StatefulInteractiveElement, Styled,
 };

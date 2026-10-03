@@ -1,4 +1,4 @@
-use gpui::{Action, Context, KeyBinding, Window};
+use gpui_kit::{Action, Context, KeyBinding, Window};
 use lumia_core::{default_shortcuts, Language, ResampleFilter, ShortcutId, ThemeAccent};
 
 use crate::app::LumiaApp;
@@ -133,7 +133,7 @@ impl LumiaApp {
 
     pub(crate) fn handle_shortcut_recording(
         &mut self,
-        event: &gpui::KeyDownEvent,
+        event: &gpui_kit::KeyDownEvent,
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -220,8 +220,8 @@ fn preserve_non_lumia_bindings<'a>(
 
 #[cfg(test)]
 mod tests {
-    use gpui::{KeyContext, Keymap, Keystroke};
-    use gpui_component::input::Paste;
+    use gpui_kit::component::input::Paste;
+    use gpui_kit::{KeyContext, Keymap, Keystroke};
 
     use super::*;
 

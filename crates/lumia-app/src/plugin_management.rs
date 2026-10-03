@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use gpui::Context;
+use gpui_kit::Context;
 use lumia_plugin_api::PluginPermission;
 
 use crate::app::LumiaApp;

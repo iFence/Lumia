@@ -1,4 +1,4 @@
-use gpui::{
+use gpui_kit::{
     div, px, rgb, AnyElement, Context, InteractiveElement, IntoElement, MouseButton,
     MouseDownEvent, MouseMoveEvent, ParentElement, Styled,
 };
@@ -27,7 +27,7 @@ impl LumiaApp {
         let height = rect.height as f32 * scale;
         let image_width = self.editing.source_width as f32 * scale;
         let image_height = self.editing.source_height as f32 * scale;
-        let mask = gpui::black().opacity(0.5);
+        let mask = gpui_kit::black().opacity(0.5);
 
         Some(
             div()
@@ -142,7 +142,7 @@ impl LumiaApp {
             .h(px(HANDLE_SIZE))
             .rounded_sm()
             .border_1()
-            .border_color(gpui::white())
+            .border_color(gpui_kit::white())
             .bg(rgb(palette.accent))
             .cursor_crosshair()
             .on_mouse_down(

@@ -1,9 +1,9 @@
-use gpui::prelude::FluentBuilder as _;
-use gpui::{
+use gpui_kit::component::input::Input;
+use gpui_kit::prelude::FluentBuilder as _;
+use gpui_kit::{
     div, px, rgb, AnyElement, Context, FontWeight, InteractiveElement, IntoElement, ParentElement,
     StatefulInteractiveElement, Styled,
 };
-use gpui_component::input::Input;
 
 use crate::app::LumiaApp;
 use crate::community_index::CommunityPlugin;
@@ -233,7 +233,7 @@ impl LumiaApp {
             .unwrap_or_default();
 
         // Action button. Self-drawn div (matching the installed-plugin Remove
-        // button) instead of gpui-component Button: the component's base is
+        // button) instead of gpui-kit::component Button: the component's base is
         // `flex_shrink_0`, so a long label like the "incompatible" hint would
         // push the card wider than its container.
         let (button_label, button_primary, button_disabled) = match action {

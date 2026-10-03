@@ -1,4 +1,4 @@
-use gpui::{
+use gpui_kit::{
     div, px, rgb, Context, InteractiveElement, IntoElement, ParentElement,
     StatefulInteractiveElement, Styled, Window,
 };
@@ -96,8 +96,8 @@ impl LumiaApp {
                 .flex()
                 .items_center()
                 .justify_center()
-                .bg(gpui::black().opacity(0.48))
-                .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                .bg(gpui_kit::black().opacity(0.48))
+                .on_mouse_down(gpui_kit::MouseButton::Left, |_, _, cx| {
                     cx.stop_propagation();
                 });
 
@@ -251,7 +251,7 @@ impl LumiaApp {
         window: &Window,
         palette: Palette,
         cx: &mut Context<Self>,
-    ) -> gpui::AnyElement {
+    ) -> gpui_kit::AnyElement {
         match self.ui.active_settings_group {
             SettingsGroup::General => self.render_general_settings(window, cx).into_any_element(),
             SettingsGroup::Plugins => self.render_plugin_settings(palette, cx).into_any_element(),

@@ -7,7 +7,7 @@
 
 use std::path::Path;
 
-use gpui::{Context, Window};
+use gpui_kit::{Context, Window};
 use lumia_core::FolderNavigation;
 
 use crate::app::LumiaApp;

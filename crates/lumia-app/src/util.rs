@@ -1,5 +1,5 @@
 use chrono::{DateTime, Local};
-use gpui::{div, rgb, InteractiveElement, IntoElement, ParentElement, Styled};
+use gpui_kit::{div, rgb, InteractiveElement, IntoElement, ParentElement, Styled};
 use lumia_core::{ImageLoadError, Language, LargeImageError};
 use std::{
     fs, io,
