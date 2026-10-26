@@ -2,7 +2,7 @@ use gpui_kit::component::{Theme, ThemeMode as ComponentThemeMode};
 use gpui_kit::{
     div, img, px, rgb, App, Context, ExternalPaths, FontWeight, InteractiveElement, IntoElement,
     MouseButton, MouseDownEvent, MouseMoveEvent, ObjectFit, ParentElement, Render, ScrollDelta,
-    ScrollWheelEvent, StatefulInteractiveElement, Styled, StyledImage, Window,
+    ScrollEvent, StatefulInteractiveElement, Styled, StyledImage, Window,
 };
 
 use crate::app::LumiaApp;
@@ -147,7 +147,7 @@ impl LumiaApp {
                 this.ui.pending_drop_paths = paths.paths().to_vec();
                 this.load_first_supported_drop(window, cx);
             }))
-            .on_scroll_wheel(cx.listener(|this, event: &ScrollWheelEvent, window, cx| {
+            .on_scroll(cx.listener(|this, event: &ScrollEvent, window, cx| {
                 if this.is_viewer_blocked() {
                     return;
                 }

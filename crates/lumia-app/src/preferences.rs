@@ -1,4 +1,6 @@
-use gpui_kit::{Action, Context, KeyBinding, Window};
+use std::rc::Rc;
+
+use gpui_kit::{Action, App, Context, KeyBinding, KeyBindingContextPredicate, Window};
 use lumia_core::{default_shortcuts, Language, ResampleFilter, ShortcutId, ThemeAccent};
 
 use crate::app::LumiaApp;
@@ -68,50 +70,93 @@ impl LumiaApp {
         cx.bind_keys(component_bindings);
         let shortcuts = &self.settings.shortcuts;
         let mut bindings = Vec::new();
+        let lumia_context = KeyBindingContextPredicate::parse("Lumia").ok().map(Rc::new);
 
         if let Some(key) = shortcuts.get(&ShortcutId::OpenFile) {
-            bindings.push(KeyBinding::new(key.as_str(), OpenFile, Some("Lumia")));
+            bindings.extend(load_shortcut_binding(
+                key,
+                OpenFile,
+                lumia_context.clone(),
+                cx,
+            ));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::ZoomIn) {
-            bindings.push(KeyBinding::new(key.as_str(), ZoomIn, Some("Lumia")));
+            bindings.extend(load_shortcut_binding(
+                key,
+                ZoomIn,
+                lumia_context.clone(),
+                cx,
+            ));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::ZoomOut) {
-            bindings.push(KeyBinding::new(key.as_str(), ZoomOut, Some("Lumia")));
+            bindings.extend(load_shortcut_binding(
+                key,
+                ZoomOut,
+                lumia_context.clone(),
+                cx,
+            ));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::ZoomFit) {
-            bindings.push(KeyBinding::new(key.as_str(), ZoomFit, Some("Lumia")));
+            bindings.extend(load_shortcut_binding(
+                key,
+                ZoomFit,
+                lumia_context.clone(),
+                cx,
+            ));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::ToggleFullscreen) {
-            bindings.push(KeyBinding::new(
-                key.as_str(),
+            bindings.extend(load_shortcut_binding(
+                key,
                 ToggleFullscreen,
-                Some("Lumia"),
+                lumia_context.clone(),
+                cx,
             ));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::ExitFullscreen) {
-            bindings.push(KeyBinding::new(key.as_str(), ExitFullscreen, Some("Lumia")));
+            bindings.extend(load_shortcut_binding(
+                key,
+                ExitFullscreen,
+                lumia_context.clone(),
+                cx,
+            ));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::ToggleImageInfo) {
-            bindings.push(KeyBinding::new(
-                key.as_str(),
+            bindings.extend(load_shortcut_binding(
+                key,
                 ToggleImageInfo,
-                Some("Lumia"),
+                lumia_context.clone(),
+                cx,
             ));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::NextImage) {
-            bindings.push(KeyBinding::new(key.as_str(), NextImage, Some("Lumia")));
+            bindings.extend(load_shortcut_binding(
+                key,
+                NextImage,
+                lumia_context.clone(),
+                cx,
+            ));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::PreviousImage) {
-            bindings.push(KeyBinding::new(key.as_str(), PreviousImage, Some("Lumia")));
+            bindings.extend(load_shortcut_binding(
+                key,
+                PreviousImage,
+                lumia_context.clone(),
+                cx,
+            ));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::OpenSettings) {
-            bindings.push(KeyBinding::new(key.as_str(), OpenSettings, Some("Lumia")));
+            bindings.extend(load_shortcut_binding(
+                key,
+                OpenSettings,
+                lumia_context.clone(),
+                cx,
+            ));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::About) {
-            bindings.push(KeyBinding::new(key.as_str(), About, Some("Lumia")));
+            bindings.extend(load_shortcut_binding(key, About, lumia_context.clone(), cx));
         }
         if let Some(key) = shortcuts.get(&ShortcutId::Quit) {
-            bindings.push(KeyBinding::new(key.as_str(), Quit, Some("Lumia")));
+            bindings.extend(load_shortcut_binding(key, Quit, lumia_context, cx));
         }
         bindings.extend(comparison_keybindings());
         cx.bind_keys(bindings);
@@ -145,7 +190,7 @@ impl LumiaApp {
             return;
         }
 
-        let binding = event.keystroke.unparse();
+        let binding = event.keystroke.unparse(cx.platform_info().os);
         if binding.is_empty() || ["shift", "ctrl", "alt", "cmd"].contains(&binding.as_str()) {
             return;
         }
@@ -181,6 +226,15 @@ impl LumiaApp {
             .cloned()
             .unwrap_or_default()
     }
+}
+
+fn load_shortcut_binding(
+    keystroke: &str,
+    action: impl Action,
+    context: Option<Rc<KeyBindingContextPredicate>>,
+    cx: &App,
+) -> Option<KeyBinding> {
+    KeyBinding::load(keystroke, Box::new(action), context, false, None, cx).ok()
 }
 
 fn comparison_keybindings() -> [KeyBinding; 3] {

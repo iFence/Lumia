@@ -195,7 +195,11 @@ impl LumiaApp {
                 .child(context_menu_item(
                     "open-menu-item",
                     tr(language, TextKey::Open),
-                    Keystroke::parse(&self.get_shortcut_binding(ShortcutId::OpenFile)).ok(),
+                    Keystroke::parse_with_os(
+                        &self.get_shortcut_binding(ShortcutId::OpenFile),
+                        cx.platform_info().os,
+                    )
+                    .ok(),
                     palette,
                     cx,
                     |this, _, _, cx| {
@@ -226,7 +230,11 @@ impl LumiaApp {
                 .child(context_menu_item(
                     "fullscreen-menu-item",
                     tr(language, fullscreen_label),
-                    Keystroke::parse(&self.get_shortcut_binding(ShortcutId::ToggleFullscreen)).ok(),
+                    Keystroke::parse_with_os(
+                        &self.get_shortcut_binding(ShortcutId::ToggleFullscreen),
+                        cx.platform_info().os,
+                    )
+                    .ok(),
                     palette,
                     cx,
                     |this, _, window, cx| {
@@ -250,7 +258,11 @@ impl LumiaApp {
                     "show-exif-menu-item",
                     tr(language, TextKey::ShowExifInfo),
                     has_image,
-                    Keystroke::parse(&self.get_shortcut_binding(ShortcutId::ToggleImageInfo)).ok(),
+                    Keystroke::parse_with_os(
+                        &self.get_shortcut_binding(ShortcutId::ToggleImageInfo),
+                        cx.platform_info().os,
+                    )
+                    .ok(),
                     palette,
                     cx,
                     |this, _, _, cx| {
@@ -296,7 +308,11 @@ impl LumiaApp {
                 .child(context_menu_item(
                     "settings-menu-item",
                     tr(language, TextKey::Settings),
-                    Keystroke::parse(&self.get_shortcut_binding(ShortcutId::OpenSettings)).ok(),
+                    Keystroke::parse_with_os(
+                        &self.get_shortcut_binding(ShortcutId::OpenSettings),
+                        cx.platform_info().os,
+                    )
+                    .ok(),
                     palette,
                     cx,
                     |this, _, _, cx| {
@@ -306,7 +322,11 @@ impl LumiaApp {
                 .child(context_menu_item(
                     "about-menu-item",
                     tr(language, TextKey::About),
-                    Keystroke::parse(&self.get_shortcut_binding(ShortcutId::About)).ok(),
+                    Keystroke::parse_with_os(
+                        &self.get_shortcut_binding(ShortcutId::About),
+                        cx.platform_info().os,
+                    )
+                    .ok(),
                     palette,
                     cx,
                     |this, _, _, cx| {
@@ -317,7 +337,11 @@ impl LumiaApp {
                 .child(context_menu_item(
                     "quit-menu-item",
                     tr(language, TextKey::Quit),
-                    Keystroke::parse(&self.get_shortcut_binding(ShortcutId::Quit)).ok(),
+                    Keystroke::parse_with_os(
+                        &self.get_shortcut_binding(ShortcutId::Quit),
+                        cx.platform_info().os,
+                    )
+                    .ok(),
                     palette,
                     cx,
                     |this, _, _, cx| {

@@ -246,7 +246,7 @@ pub(crate) fn shortcut_record_button(
     if is_recording {
         button.primary().label("…").into_any_element()
     } else {
-        match Keystroke::parse(&current_binding) {
+        match Keystroke::parse_with_os(&current_binding, cx.platform_info().os) {
             Ok(stroke) => button
                 .ghost()
                 .child(Kbd::new(stroke).outline())
