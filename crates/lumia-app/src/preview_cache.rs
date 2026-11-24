@@ -288,7 +288,7 @@ impl LumiaApp {
             let result = cx
                 .background_executor()
                 .spawn(async move {
-                    let probe = ImageDocument::probe_from_path(&worker_path).ok()?;
+                    let probe = ImageDocument::probe_layout_from_path(&worker_path).ok()?;
                     let metadata = probe.document.metadata?;
                     if !should_decode_large_image(&worker_path, metadata.width, metadata.height) {
                         return None;

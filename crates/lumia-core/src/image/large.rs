@@ -13,7 +13,11 @@ pub use tiles::{build_large_image_raster, LargeImageRaster};
 pub use worker::{large_image_worker_count, PixelBudget};
 
 const DEFAULT_MAX_TEXTURE_EDGE: u32 = 8192;
-const DEFAULT_MAX_DECODED_BYTES: u64 = 96 * 1024 * 1024;
+/// Above this size, decode a display-bounded preview before any
+/// full-resolution pixels are requested. This covers common 4K and 12 MP
+/// photos while keeping the full decode path for smaller images where its
+/// lower setup cost still wins.
+const DEFAULT_MAX_DECODED_BYTES: u64 = 24 * 1024 * 1024;
 const DEFAULT_TILE_SIZE: u32 = 512;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -249,7 +253,9 @@ mod tests {
     fn policy_selects_images_that_exceed_texture_or_memory_limits() {
         let policy = LargeImagePolicy::default();
 
-        assert!(!policy.requires_tiling(4096, 4096));
+        assert!(!policy.requires_tiling(2048, 2048));
+        assert!(policy.requires_tiling(3000, 3000));
+        assert!(policy.requires_tiling(4096, 4096));
         assert!(policy.requires_tiling(8192, 8192));
         assert!(policy.requires_tiling(8193, 100));
         assert!(policy.requires_tiling(34752, 11584));

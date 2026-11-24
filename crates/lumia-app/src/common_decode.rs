@@ -3,9 +3,10 @@ use std::{path::PathBuf, time::Duration};
 use gpui_kit::Context;
 use lumia_core::{AnimatedImageFormat, DecodeCancellation, DecodePolicy, DecodedAnimationFrame};
 
-use crate::{app::LumiaApp, load_state::PreparedImage, util::format_load_error};
-
-const MAX_ANIMATION_FRAME_BYTES: u64 = 48 * 1024 * 1024;
+use crate::{
+    app::LumiaApp, image_decode_policy::MAX_ANIMATION_FRAME_BYTES, load_state::PreparedImage,
+    util::format_load_error,
+};
 
 enum AnimationEvent {
     Frame(DecodedAnimationFrame),

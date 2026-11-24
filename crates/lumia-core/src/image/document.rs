@@ -6,8 +6,8 @@ use super::metadata::read_exif_metadata;
 
 use super::{
     is_supported_image_extension, probe_animation_format, requires_plugin_preview_extension,
-    ColorDescription, ImageDocument, ImageFileMetadata, ImageLoadError, ImageMetadata, ImageProbe,
-    ImageSource, PixelFormat, TransferFunction,
+    ColorDescription, ExifMetadata, ImageDocument, ImageFileMetadata, ImageLoadError,
+    ImageMetadata, ImageProbe, ImageSource, PixelFormat, TransferFunction,
 };
 
 impl ImageDocument {
@@ -25,6 +25,18 @@ impl ImageDocument {
     }
 
     pub fn probe_from_path(path: impl AsRef<Path>) -> Result<ImageProbe, ImageLoadError> {
+        let path = path.as_ref();
+        let mut probe = Self::probe_layout_from_path(path)?;
+        if let Some(metadata) = probe.document.metadata.as_mut() {
+            metadata.exif = Self::read_exif_metadata(path);
+        }
+        Ok(probe)
+    }
+
+    /// Probe only the information needed to choose a decode path. EXIF is
+    /// intentionally left empty because reading it can scan a substantial
+    /// amount of the source file and should not delay the first decoded frame.
+    pub fn probe_layout_from_path(path: impl AsRef<Path>) -> Result<ImageProbe, ImageLoadError> {
         let path = path.as_ref();
         let file_metadata = std::fs::metadata(path).map_err(|source| {
             if source.kind() == std::io::ErrorKind::NotFound {
@@ -74,7 +86,7 @@ impl ImageDocument {
                         has_alpha: info.has_alpha,
                     },
                     format_name: Some("heif".into()),
-                    exif: read_exif_metadata(path),
+                    exif: ExifMetadata::default(),
                 }),
                 Some(file_bytes),
             )
@@ -110,7 +122,7 @@ impl ImageDocument {
                         has_alpha: false,
                     },
                     format_name,
-                    exif: read_exif_metadata(path),
+                    exif: ExifMetadata::default(),
                 }),
                 None,
             )
@@ -131,5 +143,9 @@ impl ImageDocument {
             },
             animation,
         })
+    }
+
+    pub fn read_exif_metadata(path: impl AsRef<Path>) -> ExifMetadata {
+        read_exif_metadata(path.as_ref())
     }
 }

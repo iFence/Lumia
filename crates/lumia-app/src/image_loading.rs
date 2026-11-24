@@ -5,12 +5,13 @@ use gpui_kit::{Context, Window};
 use lumia_core::{FolderNavigation, ImageDocument};
 
 use crate::app::LumiaApp;
-use crate::large_image::{large_image_cache_dir, should_decode_large_image};
+use crate::image_decode_policy::should_use_large_image_decode;
+use crate::large_image::large_image_cache_dir;
 use crate::load_state::PreparedImage;
 use crate::professional_decode::is_professional_path;
 use crate::util::{format_large_image_error, format_load_error};
 
-const MAX_ANIMATION_FRAME_BYTES: u64 = 48 * 1024 * 1024;
+const LARGE_IMAGE_PREVIEW_EDGE: u32 = 2048;
 
 impl LumiaApp {
     pub(crate) fn load_image(
@@ -48,6 +49,7 @@ impl LumiaApp {
         cx.notify();
 
         let probe_path = path.clone();
+        let exif_path = path.clone();
         let catalog_path = path.clone();
         let needs_catalog_scan = !self.navigation.contains(&path);
         if let Some(cached) = cached_preview {
@@ -64,6 +66,7 @@ impl LumiaApp {
             self.large_image.mark_preview_ready(generation);
             self.loads.finish_decode(generation);
             self.ui.error_message = None;
+            self.start_exif_metadata_load(path.clone(), generation, cx);
             self.release_retired_images(window.as_deref_mut(), cx);
             if needs_catalog_scan {
                 self.start_navigation_scan(path, generation, cx);
@@ -77,7 +80,10 @@ impl LumiaApp {
         cx.spawn(async move |this, cx| {
             let probe_task = cx
                 .background_executor()
-                .spawn(async move { ImageDocument::probe_from_path(&probe_path) });
+                .spawn(async move { ImageDocument::probe_layout_from_path(&probe_path) });
+            let exif_task = cx
+                .background_executor()
+                .spawn(async move { ImageDocument::read_exif_metadata(&exif_path) });
             let catalog_task = needs_catalog_scan.then(|| {
                 cx.background_executor()
                     .spawn(async move { FolderNavigation::scan(&catalog_path) })
@@ -107,12 +113,12 @@ impl LumiaApp {
                     let animation = probe.animation;
                     let needs_large_image_decode =
                         probe.document.metadata.as_ref().is_some_and(|metadata| {
-                            let decoded_bytes = u64::from(metadata.width)
-                                .saturating_mul(u64::from(metadata.height))
-                                .saturating_mul(4);
-                            should_decode_large_image(&path, metadata.width, metadata.height)
-                                || (animation.is_some()
-                                    && decoded_bytes > MAX_ANIMATION_FRAME_BYTES)
+                            should_use_large_image_decode(
+                                &path,
+                                metadata.width,
+                                metadata.height,
+                                animation,
+                            )
                         });
                     let allow_full_heif_decode =
                         probe.document.metadata.as_ref().is_none_or(|metadata| {
@@ -186,11 +192,27 @@ impl LumiaApp {
                 })
                 .unwrap_or(false);
 
-            if let Some(catalog_task) = catalog_task {
-                let catalog = catalog_task.await;
-                if !should_continue {
+            if should_continue {
+                let metadata_path = path.clone();
+                let exif_update = async {
+                    let exif = exif_task.await;
+                    let _ = this.update(cx, |this, cx| {
+                        this.install_exif_metadata(generation, &metadata_path, exif, cx);
+                    });
+                };
+                let catalog = match catalog_task {
+                    Some(catalog_task) => {
+                        let (_, catalog) = futures::join!(exif_update, catalog_task);
+                        Some(catalog)
+                    }
+                    None => {
+                        exif_update.await;
+                        None
+                    }
+                };
+                let Some(catalog) = catalog else {
                     return;
-                }
+                };
                 let _ = this.update(cx, |this, cx| {
                     if this.loads.is_current(generation)
                         && this.image_path() == Some(path.as_path())
@@ -222,6 +244,7 @@ impl LumiaApp {
         })
         .detach();
     }
+
     pub(crate) fn release_retired_images(
         &mut self,
         mut current_window: Option<&mut Window>,
@@ -251,8 +274,8 @@ impl LumiaApp {
                 .spawn(async move {
                     lumia_core::decode_large_image_preview(
                         &preview_path,
-                        2048,
-                        2048,
+                        LARGE_IMAGE_PREVIEW_EDGE,
+                        LARGE_IMAGE_PREVIEW_EDGE,
                         &preview_cache,
                         &preview_cancellation,
                     )
